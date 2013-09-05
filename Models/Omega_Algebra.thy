@@ -104,7 +104,7 @@ of omega algebra. We therefore baptise it~$\top$. *}
 lemma max_element: "x \<le> 1\<^sup>\<omega>"
   by (metis eq_refl mult_onel omega_coinduct_var2)
 
-definition top ("\<top>")
+definition omega_top ("\<top>")
   where "\<top> = 1\<^sup>\<omega>"
 
 lemma star_omega_3 [simp]: "(x\<^sup>\<star>)\<^sup>\<omega> = \<top>"
@@ -112,9 +112,9 @@ proof -
   have "1 \<le> x\<^sup>\<star>"
     by (fact star_ref)
   hence "\<top> \<le> (x\<^sup>\<star>)\<^sup>\<omega>"
-    by (metis omega_iso top_def)
+    by (metis omega_iso omega_top_def)
   thus ?thesis
-    by (metis eq_iff max_element top_def)
+    by (metis eq_iff max_element omega_top_def)
 qed
 
 text {* The following lemma is strange since it is counterintuitive
@@ -133,10 +133,10 @@ lemma omega_sup_id: "1 \<le> y \<longrightarrow> x\<^sup>\<omega> \<cdot> y = x\
   by (metis eq_iff mult_isol mult_oner omega_1)
 
 lemma omega_top [simp]: "x\<^sup>\<omega> \<cdot> \<top> = x\<^sup>\<omega>"
-  by (metis max_element omega_sup_id top_def)
+  by (metis max_element omega_sup_id omega_top_def)
 
 lemma supid_omega: "1 \<le> x \<longrightarrow> x\<^sup>\<omega> = \<top>"
-  by (metis eq_iff max_element omega_iso top_def)
+  by (metis eq_iff max_element omega_iso omega_top_def)
 
 text {* Next we prove a simulation law for the omega operation *}
 
