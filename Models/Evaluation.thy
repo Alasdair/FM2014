@@ -243,6 +243,29 @@ lemma steps_empty [simp]: "steps xs {} = 0"
 lemma steps_mono: "P \<subseteq> Q \<Longrightarrow> steps xs P \<le> steps xs Q"
   by (auto intro!: order_trans[OF min_max.inf_le2] Inf_superset_mono simp add: steps_def eval_finite_word_def)
 
+lemma finite_steps:
+  assumes "steps xs H = enat n"
+  shows "(llength xs = enat n) \<or> (eval_finite_word (list_of (ltake (enat n) xs)) H = {})"
+proof (cases "llength xs \<le> Inf {enat n |n. eval_finite_word (list_of (ltake (enat n) xs)) H = {}}")
+  case True note c = this
+  hence "steps xs H = llength xs"
+    by (simp add: steps_def min_absorb1[OF c])
+  thus ?thesis
+    by (metis assms)
+next
+  case False
+  hence c: "Inf {enat n |n. eval_finite_word (list_of (ltake (enat n) xs)) H = {}} \<le> llength xs"
+    by (metis (lifting, no_types) le_cases)
+  hence "Inf {enat n |n. eval_finite_word (list_of (ltake (enat n) xs)) H = {}} = enat n"
+    by (simp add: steps_def min_absorb2[OF c] assms(1)[symmetric])
+  note this = Inf_enat_prop[OF this]
+  thus ?thesis
+    by auto
+qed 
+
+lemma assumes "steps xs p = n" and "steps ys p = m" shows "steps (xs \<frown> ys) p \<le> n + m"
+  sorry
+
 datatype 'a top = Top | NotTop 'a
 
 abbreviation bind :: "'a top \<Rightarrow> ('a \<Rightarrow> 'b top) \<Rightarrow> 'b top" where
@@ -353,6 +376,8 @@ begin
   qed
 end
 
+lemma [simp]: "bind top x = top" sorry
+
 definition eval_word :: "'a rel llist \<Rightarrow> 'a set \<Rightarrow> 'a set top" where
   "eval_word xs H \<equiv> case steps xs H of \<infinity> \<Rightarrow> top | enat n \<Rightarrow> NotTop (eval_finite_word (list_of (ltake (enat n) xs)) H)"
 
@@ -365,10 +390,7 @@ definition llist_nabla :: "'a rel llist \<Rightarrow> 'a set" where
 definition nabla :: "'a rel lan \<Rightarrow> 'a set top" ("\<nabla>_" [1000] 1000)  where
   "\<nabla>X = NotTop (\<Union>{llist_nabla xs|xs. xs \<in> X})"
 
-lemma steps_mono: "P \<subseteq> Q \<Longrightarrow> steps xs P \<le> steps xs Q"
-  by (auto intro!: order_trans[OF min_max.inf_le2] Inf_superset_mono simp add: steps_def eval_finite_word_def)
-
-lemma eval_word_mono:
+lemma eval_word_iso:
   assumes "P \<subseteq> Q"
   shows "eval_word xs P \<le> eval_word xs Q"
 proof (cases "steps xs Q")
@@ -379,22 +401,25 @@ proof (cases "steps xs Q")
     by (metis enat_ile)
   thus ?thesis
     apply (simp add: eval_word_def)
-    by (metis (full_types) NotTop_mono P_steps `steps xs P \<le> enat n` assms bot_least eval_finite_word_mono finite_steps ltake_all order_refl)
+    by (metis (full_types) NotTop_mono P_steps `steps xs P \<le> enat n` assms bot_least efw_iso finite_steps ltake_all order_refl)
 next
   case infinity
   thus ?thesis
     by (simp add: eval_word_def)
 qed
 
+thm inf_sup_ord(2)
+find_theorems "min ?x ?y \<le> ?y"
+
 lemma steps_singleton: "\<sigma> \<in> P \<Longrightarrow> steps xs {\<sigma>} = n \<Longrightarrow> n \<le> steps xs P"
   apply (auto simp add: steps_def)
-  apply (rule order_trans[OF inf_sup_ord(2)])
+  apply (rule order_trans[OF min_max.inf_le2])
   apply (rule Inf_superset_mono)
   apply safe
   apply (rule_tac x = n in exI)
   apply (intro conjI)
   apply simp
-  by (metis empty_subsetI eval_finite_word_mono insert_absorb insert_mono subset_empty)
+  by (metis empty_subsetI efw_iso insert_absorb insert_mono subset_empty)
 
 lemma non_terminating_word: "\<nabla>X \<noteq> bot \<Longrightarrow> \<exists>xs\<in>X. \<exists>\<sigma>. steps xs {\<sigma>} = \<infinity>" 
   by (auto simp add: nabla_def llist_nabla_def bot_top_def)
@@ -436,6 +461,8 @@ lemma [simp]: "Top \<le> NotTop x \<longleftrightarrow> False"
 lemma [simp]: "NotTop x \<le> NotTop y \<longleftrightarrow> x \<subseteq> y"
   by (simp add: less_eq_top_def)
 
+notation sup (infixl "\<squnion>" 60)
+
 lemma mod_isol: "p \<le> q \<Longrightarrow> x \<Colon> p \<le> x \<Colon> q"
   apply (cases q)
   apply (auto simp add: module_def)
@@ -448,153 +475,76 @@ lemma mod_isol: "p \<le> q \<Longrightarrow> x \<Colon> p \<le> x \<Colon> q"
   apply (rule_tac x = "eval_word w a" in exI)
   apply (intro conjI)
   apply auto
-  by (metis eval_word_mono)
+  by (metis eval_word_iso)
 
-lemma "sup (x \<Colon> p) (x \<Colon> q) \<le> x \<Colon> sup p q"
+lemma "(x \<Colon> p) \<squnion> (x \<Colon> q) \<le> x \<Colon> (p \<squnion> q)"
   by (rule mono_sup) (auto intro: mod_isol simp add: mono_def)
 
 lemma [simp]: "bind top (eval_word w) = top"
   by (simp add: Top_top[symmetric])
 
-lemma "x \<noteq> {} \<Longrightarrow> x \<Colon> top = top"
+declare Top_top[simp]
+
+lemma [simp]: "x \<noteq> {} \<Longrightarrow> x \<Colon> top = top"
   by (auto intro!: Sup_top_eq_top simp add: module_def)
 
 lemma [simp]: "{} \<Colon> p = bot"
   by (simp add: module_def)
 
-lemma [simp]: "sup (NotTop x) (NotTop y) = NotTop (x \<union> y)"
+lemma [simp]: "NotTop x \<squnion> NotTop y = NotTop (x \<union> y)"
   by (simp add: sup_top_def)
 
-find_theorems "_ \<le> sup _ _"
+lemma ltake_llength [simp]: "ltake (llength w) w = w"
+  by (metis ltake_all order_refl)
 
-instance enat :: distrib_lattice
-  apply default
-  apply (simp add: sup_enat_def inf_enat_def)
-  by (metis min_max.sup_inf_distrib1)
+lemma (in linorder) linearD: "\<not> m \<le> n \<Longrightarrow> n \<le> m"
+  by (metis linear)
 
-instance enat :: complete_distrib_lattice
-  sorry
+(* FIXME: Isarify *)
 
-lemma eval_finite_word_union: "eval_finite_word w (p \<union> q) = eval_finite_word w p \<union> eval_finite_word w q"
-  by (auto simp add: eval_finite_word_def)
-
-lemma assumes "steps w p = n" and"steps w q = m" shows "sup n m \<le> steps w (p \<union> q)"
-proof -
-  let ?sp = "{enat n |n. eval_finite_word (list_of (ltake (enat n) w)) p = {}}"
-  let ?sq = "{enat n |n. eval_finite_word (list_of (ltake (enat n) w)) q = {}}"
-  let ?spq = "{enat n |n. eval_finite_word (list_of (ltake (enat n) w)) (p \<union> q) = {}}"
-
-  have lem: "?spq = ?sp \<inter> ?sq"
-    by (auto simp only: eval_finite_word_union)
-
-  have "sup n m = sup (inf (llength w) (Inf ?sp)) (inf (llength w) (Inf ?sq))"
-    by (metis assms(1) assms(2) steps_def)
-  also have "... = inf (llength w) (sup (Inf ?sp) (Inf ?sq))"
-    by (simp only: inf_sup_distrib1[symmetric])
-  also have "... \<le> inf (llength w) (Inf (?sp \<inter> ?sq))"
-    by (metis (lifting) inf_mono order_refl less_eq_Inf_inter)
-  also have "... = inf (llength w) (Inf ?spq)"
-    by (metis lem)
-  finally show "sup n m \<le> steps w (p \<union> q)"
-    by (metis steps_def)
-qed
-
-definition true_above :: "(nat \<Rightarrow> bool) \<Rightarrow> bool" where
-  "true_above P = (\<forall>n. P n \<longrightarrow> P (Suc n))"
-
-lemma ta_pairs: "true_above P \<Longrightarrow> true_above Q \<Longrightarrow> (\<forall>n. P n \<longrightarrow> Q n) \<or> (\<forall>n. Q n \<longrightarrow> P n)"
-  apply (auto simp add: true_above_def)
-  apply (rename_tac m)
-  apply (subgoal_tac "n \<le> m")
-  apply (metis dec_induct)
-  by (metis (full_types) dec_induct le_cases)
-
-lemma conj_simpN1: "(\<forall>n. P n \<longrightarrow> Q n) \<Longrightarrow> P n \<and> Q n \<longleftrightarrow> P n" by auto
-lemma conj_simpN2: "(\<forall>n. Q n \<longrightarrow> P n) \<Longrightarrow> P n \<and> Q n \<longleftrightarrow> Q n" by auto
-
-lemma true_above_Inf:
-  assumes "true_above P" and "true_above Q"
-  shows "Inf {enat n|n. P n \<and> Q n} = Inf {enat n|n. P n} \<or> Inf {enat n|n. P n \<and> Q n} = Inf {enat n|n. Q n}"
-  apply (rule disjE[OF ta_pairs[OF assms(1) assms(2)]])
-  apply (subst conj_simpN1[where P = P and Q = Q])
-  apply simp
-  apply simp
-  apply (subst conj_simpN2[where P = P and Q = Q]) back
-  by auto
-
-lemma
-  assumes "true_above P" and "true_above Q"
-  and "Inf {enat n|n. P n} = enat n" and "Inf {enat n|n. Q n} = enat m"
-  shows "Inf {enat n|n. P n \<and> Q n} \<le> enat (max n m)"
-  using true_above_Inf[of P Q]
-  apply (rule disjE)
-  apply (rule assms(1))
-  apply (rule assms(2))
-  apply (simp add: assms(3))
-  by (simp add: assms(4))
-
-lemma [simp]: "(R O S) `` X = S `` (R `` X)"
-  by (auto simp add: image_def)
-
-lemma efw_cons [simp]: "eval_finite_word (x # xs) X = eval_finite_word xs (x `` X)"
-  by (auto simp add: eval_finite_word_def)
-
-lemma efw_Nil [simp]: "eval_finite_word [] X = X"
-  by (simp add: eval_finite_word_def)
-
-lemma efw_empty [simp]: "eval_finite_word X {} = {}"
-  by (simp add: eval_finite_word_def)
-
-lemma efw_append [simp]: "eval_finite_word (xs @ ys) X = eval_finite_word ys (eval_finite_word xs X)"
-  by (induct xs arbitrary: X) simp_all
-
-lemma efw_append_empty: "eval_finite_word xs X = {} \<Longrightarrow> eval_finite_word (xs @ ys) X = {}"
-  by simp
-
-find_theorems list_of lappend
-
-lemma list_of_ltake_Suc_conv_snoc_lnth: "enat n < llength w \<Longrightarrow> list_of (ltake (enat (Suc n)) w) = list_of (ltake (enat n) w) @ [lnth w n]"
-  apply (subst ltake_Suc_conv_snoc_lnth)
-  apply simp
+lemma efw_steps: "steps w p = enat n \<Longrightarrow> eval_finite_word (list_of (ltake (enat (max n m)) w)) p = eval_finite_word (list_of (ltake (enat n) w)) p"
+  apply (cases "m \<le> n")
+  apply (drule max_absorb1)
+  apply (rotate_tac 1)
+  apply (erule ssubst)
+  apply (rule refl)
+  apply (subst max_absorb2)
+  apply (erule linearD)
+  apply (drule linearD)
+  apply (subst lappend_ltake_ldrop[where n = "enat n" and xs = "ltake (enat m) w", symmetric])
   apply (subst list_of_lappend)
-  apply (metis enat_ord_code(4) lfinite_ltake)
-  apply (metis lfinite_LCons lfinite_LNil)
-  by simp
+  apply (subst lfinite_ltake)
+  apply (rule disjI2)
+  apply (subst enat_ord_code(4))
+  apply (rule TrueI)
+  apply (subst ldrop.simps(1))
+  apply (subst lfinite_ldropn)
+  apply (subst lfinite_ltake)
+  apply (rule disjI2)
+  apply (subst enat_ord_code(4))
+  apply (rule TrueI)
+  apply (drule finite_steps)
+  apply (erule disjE)
+  apply (subst ltake_all)
+  apply (metis llength_lsublist_ile lsublist_upt_eq_ltake)
+  apply (subst ltake_all)
+  apply (metis enat_ord_simps(1))
+  apply (subst ltake_all)
+  apply (metis enat_ord_simps(1))
+  apply (subst ldrop_all)
+  apply (metis order_refl)
+  apply (subst ltake_all)
+  apply (metis order_refl)
+  apply simp
+  apply (subst efw_append_empty)
+  apply (subst ltake_ltake)
+  apply (subst min_absorb1)
+  apply (subst enat_ord_simps(1))
+  apply assumption
+  apply simp_all
+  done
 
-lemma assumes "steps w p = enat n" and"steps w q = enat m" shows "steps w (p \<union> q) = enat (max n m)"
-  apply (rule Inf_enat_prop)
-  apply (simp add: steps_def eval_finite_word_union)
-  using assms
-  apply (simp add: steps_def)
-  sledgehammer
-
-proof -
-  have "llength w = enat n \<or> eval_finite_word (list_of (ltake (enat n) w)) p = {}"
-    by (rule finite_steps[OF assms(1)])
-  moreover have "llength w = enat m \<or> eval_finite_word (list_of (ltake (enat m) w)) q = {}"
-    by (rule finite_steps[OF assms(2)])
-  {
-    assume "eval_finite_word (list_of (ltake (enat n) w)) p = {}" and "eval_finite_word (list_of (ltake (enat m) w)) q = {}"
-    hence ?thesis
-    apply (simp add: steps_def eval_finite_word_union)
-    apply (subst inf_absorb2)
-    sledgehammer
-    apply (subst Inf_enat_def)
-
-  let ?sp = "{enat n |n. eval_finite_word (list_of (ltake (enat n) w)) p = {}}"
-  let ?sq = "{enat n |n. eval_finite_word (list_of (ltake (enat n) w)) q = {}}"
-  let ?spq = "{enat n |n. eval_finite_word (list_of (ltake (enat n) w)) (p \<union> q) = {}}"
-
-  have lem: "?spq = ?sp \<inter> ?sq"
-    by (auto simp only: eval_finite_word_union)
-
-  have "steps w (p \<union> q) = inf (llength w) (Inf (?sp \<inter> ?sq))"
-    by (simp add: steps_def lem)
-
-lemma eval_finite_take: "steps w p = enat n \<Longrightarrow> eval_finite_word (list_of (ltake (enat n) w)) p = eval_finite_word (list_of w) p"
-oops
-
-lemma eval_word_union: "eval_word w (p \<union> q) = sup (eval_word w p) (eval_word w q)"
+lemma eval_word_union [simp]: "eval_word w (p \<union> q) = eval_word w p \<squnion> eval_word w q"
 proof -
   {
     assume [simp]: "steps w p = \<infinity>"
@@ -622,21 +572,77 @@ proof -
     fix n m
     assume [simp]: "steps w p = enat n" and [simp]: "steps w q = enat m"
     hence [simp]: "steps w (p \<union> q) = enat (max n m)"
-      sorry
+      by (metis max_enat_simps(1) steps_union)
     have ?thesis
       apply (simp add: eval_word_def)
-      apply (subst eval_finite_take, simp)+
-      by (fact eval_finite_word_union)
+      apply (subst efw_steps, simp)
+      apply (subst min_max.sup.commute)
+      apply (subst efw_steps, simp)
+      by simp
+  }
+  ultimately show ?thesis
+    by (metis not_enat_eq)
+qed
+  
+lemma [simp]: "top \<le> NotTop x \<longleftrightarrow> False"
+  by (metis top.distinct(1) top_top_def top_unique)
+
+lemma eval_word_sup [simp]: "bind (sup p q) (eval_word w) = sup (bind p (eval_word w)) (bind q (eval_word w))"
+  apply (cases p)
+  apply (simp add: Top_top)
+  apply (cases q)
+  by (simp_all add: Top_top eval_word_union)
+
+find_theorems "_ \<le> Sup _"
+find_theorems "Sup _ \<in> _"
+thm bind_def
+
+
+
+lemma "(\<And>x. x \<in> X \<Longrightarrow> f x \<le> g x) \<Longrightarrow> Sup {f x |x. x \<in> X} \<le> Sup {g x |x. x \<in> X}"
+  sorry
+
+lemma "top \<notin> X" sorry
+
+lemma steps_super_inf: "steps w p = \<infinity> \<Longrightarrow> p \<subseteq> q \<Longrightarrow> steps w q = \<infinity>"
+  by (metis enat_ord_code(3) steps_mono top_le)
+
+lemma [simp]: "NotTop x = top \<longleftrightarrow> False"
+  by (metis top.distinct(1) top_top_def)
+
+lemma assumes "eval_word w x = top" and "x \<in> X" shows "steps w (\<Union>X) = \<infinity>"
+proof -
+  {
+    assume "steps w x = \<infinity>"
+    from this and assms have ?thesis
+      by (auto elim: steps_super_inf)
+  }
+  moreover
+  {
+    fix n
+    assume "steps w x = enat n"
+    from this and assms have ?thesis
+      by (simp add: eval_word_def)
   }
   ultimately show ?thesis
     by (metis not_enat_eq)
 qed
 
-lemma eval_word_sup: "bind (sup p q) (eval_word w) = sup (bind p (eval_word w)) (bind q (eval_word w))"
-  apply (cases p)
-  apply (simp add: Top_top)
-  apply (cases q)
-  by (simp_all add: Top_top eval_word_union)
+lemma "eval_word w (\<Union>X) = Sup (eval_word w ` X)"
+  apply (simp add: Sup_top_def)
+  apply auto
+  apply (subgoal_tac "steps w (\<Union>X) = \<infinity>")
+  apply (simp add: eval_word_def)
+  apply (simp add: eval_word_def)
+
+lemma "join_preserving (\<lambda>x. bind x (eval_word w))"
+  apply (simp add: join_preserving_def image_def Sup_top_def)
+  apply auto
+
+lemma "(x \<Colon> NotTop p) \<squnion> (x \<Colon> NotTop q) \<le> x \<Colon> (NotTop p \<squnion> NotTop q)"
+proof (auto simp add: module_def)
+  {
+    assume "eval_word w p \<le> eval_word w q"
 
 lemma "x \<cdot> y \<Colon> h = y \<Colon> (x \<Colon> h)"
 proof -
