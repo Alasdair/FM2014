@@ -1001,6 +1001,9 @@ lemma shuffle_dist: "X \<parallel> (Y \<union> Z) = X \<parallel> Y \<union> X \
 lemma lfilter_right_left: "lfilter is_right x = LNil \<Longrightarrow> lfilter is_left x = x"
   by (auto simp add: lfilter_empty_conv)  (metis (full_types) lfilter_K_True lfilter_cong)
 
+lemma lfilter_left_right: "lfilter is_left x = LNil \<Longrightarrow> lfilter is_right x = x"
+  by (auto simp add: lfilter_empty_conv)  (metis (full_types) lfilter_K_True lfilter_cong)
+
 lemma lmap2_id_var: "(\<And>x. x \<in> lset xs \<Longrightarrow> f (g x) = x) \<Longrightarrow> lmap f (lmap g xs) = xs"
   apply (subst lmap_compose[symmetric])
   apply (subst id_apply[symmetric, of xs]) back
@@ -1029,6 +1032,22 @@ lemma tshuffle_LNil [simp]: "xs \<sha> LNil = {lmap Inl xs}"
   apply simp
   apply (subst lfilter_empty_conv)
   by auto
+
+lemma tshuffle_LNil_sym [simp]: "LNil \<sha> ys = {lmap Inr ys}"
+  apply (simp add: tshuffle_words_def)
+  apply (auto simp add: lefts_def rights_def)
+  apply (subst lfilter_left_right)
+  apply assumption
+  apply (rule sym)
+  apply (rule lmap2_id_var)
+  apply (simp only: lfilter_empty_conv)
+  apply (metis (full_types) is_right.simps(2) not_is_left sumE unr.simps(1))
+  apply (subst lfilter_lmap)
+  apply (subgoal_tac "lfilter (is_left \<circ> Inr) ys = LNil")
+  apply simp
+  apply (subst lfilter_empty_conv)
+  apply auto
+  by (metis lmap2_id unr.simps(1))
 
 lemma shuffle_one: "X \<parallel> {LNil} = X"
   by (auto simp add: shuffle_def)
@@ -1137,5 +1156,181 @@ proof
   assume "Y \<subseteq> Z \<union> X\<cdot>Y" thus "Y \<subseteq> X\<^sup>\<omega> \<union> X\<^sup>\<star>\<cdot>Z"
     by - (simp only: omega_star_fuse, rule gfp_induct, auto)
 qed
+
+lemma sumlist_cases [case_names LConsl LConsr LNil]:
+  assumes c1: "(\<And>z zs. xs = LCons (Inl z) zs \<Longrightarrow> P)"
+  and c2: "(\<And>z zs. xs = LCons (Inr z) zs \<Longrightarrow> P)"
+  and c3: "xs = LNil \<Longrightarrow> P"
+  shows "P"
+proof (cases xs)
+  case LNil from this and c3 show P by blast
+next
+  case (LCons x xs) from this and c1 c2 show P by (cases x) auto
+qed
+
+lemma llength_lr: "llength xs = llength (lfilter is_left xs) + llength (lfilter is_right xs)"
+proof -
+  have "(llength xs, llength (lfilter is_left xs) + llength (lfilter is_right xs)) \<in>
+        {(llength xs, llength (lfilter is_left xs) + llength (lfilter is_right xs)) |xs::('a + 'b) llist. True}"
+    by auto
+  thus ?thesis
+  proof(coinduct rule: enat_equalityI)
+    case (Eqenat n m)
+    from this[simplified] obtain xs :: "('a + 'b) llist"
+    where [simp]: "n = llength xs"
+    and [simp]: "m = llength (lfilter is_left xs) + llength (lfilter is_right xs)"
+      by blast
+    show ?case
+      by (rule sumlist_cases[of xs]) (auto simp add: eSuc_plus iadd_Suc_right)
+  qed
+qed
+
+lemma lfinite_lr: "lfinite (\<ll> zs) \<Longrightarrow> lfinite (\<rr> zs) \<Longrightarrow> lfinite zs"
+  apply (drule lfinite_llength_enat)+
+  apply (erule exE)+
+  apply (rename_tac n m)
+  apply (rule_tac n = "n + m" in llength_eq_enat_lfiniteD)
+  apply (subst llength_lr)
+  by (simp add: rights_def lefts_def)
+
+lemma lfinite_shuffle: "lfinite xs \<Longrightarrow> lfinite ys \<Longrightarrow> zs \<in> xs \<sha> ys \<Longrightarrow> lfinite zs"
+  by (auto intro: lfinite_lr simp add: tshuffle_words_def)
+
+lemma LCons_tshuffle: "LCons x xs \<sha> LCons y ys = LCons (Inl x) ` (xs \<sha> LCons y ys) \<union> LCons (Inr y) ` (LCons x xs \<sha> ys)"
+proof (auto simp add: tshuffle_words_def image_def)
+  fix zs 
+  assume zs_not_r: "\<forall>xa. \<rr> xa = ys \<longrightarrow>  \<ll> xa = LCons x xs \<longrightarrow> zs \<noteq> LCons (Inr y) xa"
+  and zsl: "\<ll> zs = LCons x xs" and zsr: "\<rr> zs = LCons y ys"
+  let ?goal = "\<exists>ws. \<ll> ws = xs \<and> \<rr> ws = LCons y ys \<and> zs = LCons (Inl x) ws"
+  show ?goal
+  proof (cases zs rule: sumlist_cases)
+    case LNil
+    from this and zsl
+    have False
+      by (metis LNil_not_LCons rights_LNil zsr)
+    thus ?goal by blast
+  next
+    case (LConsl z' zs')
+    from this and zsl zsr
+    show ?goal
+      by simp
+  next
+    case (LConsr z' zs')
+    from this and zsl zsr zs_not_r
+    have False
+      by auto
+    thus ?goal by blast
+  qed
+qed
+
+find_theorems "op `" "op \<union>"
+
+lemma [simp]: "lmap \<langle>id,id\<rangle> ` LCons (Inl x) ` X = LCons x ` lmap \<langle>id,id\<rangle> ` X"
+  by (auto simp add: image_def)
+
+lemma [simp]: "lmap \<langle>id,id\<rangle> ` LCons (Inr x) ` X = LCons x ` lmap \<langle>id,id\<rangle> ` X"
+  by (auto simp add: image_def)
+
+lemma [simp]: "lmap \<langle>id,id\<rangle> ` (LCons (Inl x) ` (xs \<sha> LCons y ys) \<union> LCons (Inr y) ` (LCons x xs \<sha> ys))
+              = (LCons x ` lmap \<langle>id,id\<rangle> ` (xs \<sha> LCons y ys) \<union> LCons y ` lmap \<langle>id,id\<rangle> ` (LCons x xs \<sha> ys))"
+  by (simp add: image_Un)
+
+lemma lfinite_lappend_shuffle: "lfinite xs \<Longrightarrow> xs \<frown> ys \<in> lmap \<langle>id,id\<rangle> ` (xs \<sha> ys)"
+proof (induct xs arbitrary: ys rule: lfinite_induct)
+  case Nil show ?case by simp
+next
+  case (Cons x xs) note ih_xs = this
+  show ?case
+  proof (cases ys, simp)
+    fix z zs assume [simp]: "ys = LCons z zs"
+    show "?case" using ih_xs
+      by (simp add: LCons_tshuffle)
+  qed
+qed
+
+lemma fin_l_prod: "X \<subseteq> FIN \<Longrightarrow> X \<cdot> Y = {xs \<frown> ys|xs ys. xs \<in> X \<and> ys \<in> Y}"
+  by (auto simp add: FIN_def l_prod_def)
+
+lemma fin_l_prod_le_shuffle: "X \<subseteq> FIN \<Longrightarrow> X \<cdot> Y \<subseteq> X \<parallel> Y"
+  by (auto simp add: fin_l_prod shuffle_def FIN_def) (metis lfinite_lappend_shuffle mem_Collect_eq set_mp)
+
+lemma fin_shuffle: "X \<subseteq> FIN \<Longrightarrow> Y \<subseteq> FIN \<Longrightarrow> X \<parallel> Y \<subseteq> FIN"
+  by (auto simp add: shuffle_def FIN_def) (metis in_mono lfinite_shuffle mem_Collect_eq)
+
+lemma word_exchange:
+  assumes "lfinite a" and "lfinite b"
+  shows "(lmap \<langle>id,id\<rangle> ` (a \<sha> b)) \<cdot> (lmap \<langle>id,id\<rangle> ` (c \<sha> d)) \<subseteq> lmap \<langle>id, id\<rangle> ` ((b \<frown> c) \<sha> (a \<frown> d))"
+proof -
+  have a: "lmap \<langle>id,id\<rangle> ` (a \<sha> b) \<subseteq> FIN"
+    by (auto intro!: lfinite_shuffle assms simp add: FIN_def)
+  have b: "\<And>z. {y. \<exists>x. \<ll> x = \<ll> z \<and> \<rr> x = \<rr> z \<and> y = lmap \<langle>id,id\<rangle> x} \<subseteq> FIN \<Longrightarrow> lfinite z"
+    by (auto simp add: FIN_def)
+  from a show ?thesis
+    apply (auto dest!: b simp add: fin_l_prod tshuffle_words_def image_def)
+    apply (rule_tac x = "lmap swap xa \<frown> xb" in exI)
+    by (simp_all add: lefts_append rights_append lmap_lappend_distrib)
+qed
+
+lemma set_comp_mono4:
+  assumes fg: "\<And>a b c d. a \<in> A \<Longrightarrow> b \<in> B \<Longrightarrow> c \<in> C \<Longrightarrow> d \<in> D \<Longrightarrow> f a b c d \<subseteq> g a b c d"
+  shows "\<Union>{f a b c d|a b c d. a \<in> A \<and> b \<in> B \<and> c \<in> C \<and> d \<in> D} \<subseteq> \<Union>{g a b c d|a b c d. a \<in> A \<and> b \<in> B \<and> c \<in> C \<and> d \<in> D}"
+  using assms by blast
+
+lemma exchange:
+  assumes "A \<subseteq> FIN" and "B \<subseteq> FIN"
+  shows "(A \<parallel> B) \<cdot> (C \<parallel> D) \<subseteq> (B \<cdot> C) \<parallel> (A \<cdot> D)"
+proof -
+  have "(A \<parallel> B) \<cdot> (C \<parallel> D) = {x \<frown> y|x y. x \<in> lmap \<langle>id, id\<rangle> ` (A \<Sha> B) \<and> y \<in> lmap \<langle>id, id\<rangle> ` (C \<Sha> D)}"
+    by (simp add: fin_l_prod[OF fin_shuffle[OF assms(1) assms(2)]]) (simp add: shuffle_to_tshuffle)
+  also have "... = {lmap \<langle>id,id\<rangle> x \<frown> lmap \<langle>id,id\<rangle> y|x y. x \<in> (A \<Sha> B) \<and> y \<in> (C \<Sha> D)}"
+    by blast
+  also have "... = \<Union>{{lmap \<langle>id,id\<rangle> x \<frown> lmap \<langle>id,id\<rangle> y|x y. x \<in> (a \<sha> b) \<and> y \<in> (c \<sha> d)}|a b c d. a \<in> A \<and> b \<in> B \<and> c \<in> C \<and> d \<in> D}"
+    by (simp add: tshuffle_def) blast
+  also have "... \<subseteq> \<Union>{(lmap \<langle>id,id\<rangle> ` (a \<sha> b)) \<cdot> (lmap \<langle>id,id\<rangle> ` (c \<sha> d))|a b c d. a \<in> A \<and> b \<in> B \<and> c \<in> C \<and> d \<in> D}"
+    apply (rule set_comp_mono4)
+    apply (subst fin_l_prod)
+    apply (auto simp add: FIN_def)
+    by (metis FIN_def assms(1) assms(2) lfinite_shuffle mem_Collect_eq set_mp)
+  also have "... \<subseteq> \<Union>{lmap \<langle>id, id\<rangle> ` ((b \<frown> c) \<sha> (a \<frown> d))|a b c d. a \<in> A \<and> b \<in> B \<and> c \<in> C \<and> d \<in> D}"
+     apply (rule set_comp_mono4)
+     apply (rule word_exchange)
+     apply (metis FIN_def assms(1) mem_Collect_eq set_mp)
+     by (metis (full_types) FIN_def assms(2) mem_Collect_eq set_mp)
+  also have "... = \<Union>{lmap \<langle>id, id\<rangle> ` (bc \<sha> ad)|bc ad. bc \<in> (B \<cdot> C) \<and> ad \<in> (A \<cdot> D)}"
+    by (simp add: fin_l_prod[OF assms(2)] fin_l_prod[OF assms(1)]) blast
+  also have "... = (B \<cdot> C) \<parallel> (A \<cdot> D)"
+    by (simp add: shuffle_def)
+  finally show ?thesis .
+qed
+
+(*
+datatype 'a LTL = Var 'a
+                | Not "'a LTL"
+                | Or "'a LTL" "'a LTL"
+                | Next "'a LTL" ("\<XX>")
+                | Until "'a LTL" "'a LTL" (infix "\<UU>" 65)
+
+locale LTL =
+  fixes satisfies (infix "\<Turnstile>" 55)
+  assumes atom: "p \<in> lhd w \<longleftrightarrow> w \<Turnstile> Var p"
+  and not: "\<not> (w \<Turnstile> \<psi>) \<longleftrightarrow> w \<Turnstile> Not \<psi>"
+  and conj: "w \<Turnstile> \<phi> \<or> w \<Turnstile> \<psi> \<longleftrightarrow> w \<Turnstile> Or \<phi> \<psi>"
+  and nxt: "w \<Turnstile> \<XX> \<psi> \<longleftrightarrow> ltl w \<Turnstile> \<psi>"
+  and until: "\<exists>i\<ge>0. ldropn i w \<Turnstile> \<psi> \<and> (\<forall>k. k < i \<longrightarrow> dropn k \<Turnstile> \<phi>) \<Longrightarrow> w \<Turnstile> \<phi> \<UU> \<psi>"
+
+definition "LTL_True = Or (Var undefined) (Not (Var undefined))" 
+
+definition Finally :: "'a LTL \<Rightarrow> 'a LTL" ("\<diamondsuit>_") where
+  "Finally \<psi> = LTL_True \<UU> \<psi>"
+
+definition ST :: "'a set \<Rightarrow> 'a rel llist \<Rightarrow> 'a set llist" where
+  "ST p xs = llist_corec (p, xs) (\<lambda>(p, xs). case xs of LNil \<Rightarrow> None | LCons y ys \<Rightarrow> Some (y `` p, y `` p, ys))"
+
+lemma
+  fixes satisfies :: "'a set llist \<Rightarrow> 'a LTL \<Rightarrow> bool"(infixl "\<Turnstile>" 55)
+  assumes "LTL satisfies"
+  and "ST p xs \<frown> repeat {} \<Turnstile> \<diamondsuit>\<psi>" and "ST p ys \<frown> repeat {} \<Turnstile> \<diamondsuit>\<phi>" and "zs \<in> lmap \<langle>id,id\<rangle> ` (xs \<sha> ys)"
+  shows "ST p zs \<frown> repeat {} \<Turnstile> \<diamondsuit>\<psi>"
+*)
 
 end

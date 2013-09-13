@@ -74,9 +74,6 @@ lemma empty_eval_non_empty: "p \<noteq> {} \<Longrightarrow> eval_finite_word xs
 lemma ltake_append_Suc [simp]: "ltake (enat n) (ltake (enat (Suc n)) xs) = ltake (enat n) xs"
   by (metis eSuc_enat ile_eSuc lappend_ltake_enat_ldropn le_cases ltake_all ltake_eq_ltake_antimono ltake_lappend1)
 
-find_theorems "list_of" "op \<frown>"
-  
-
 lemma [simp]: "min n (Suc n) = n"
   by (simp add: min_def)
 
@@ -263,8 +260,15 @@ next
     by auto
 qed 
 
-lemma assumes "steps xs p = n" and "steps ys p = m" shows "steps (xs \<frown> ys) p \<le> n + m"
-  sorry
+lemma steps_singleton: "\<sigma> \<in> P \<Longrightarrow> steps xs {\<sigma>} = n \<Longrightarrow> n \<le> steps xs P"
+  apply (auto simp add: steps_def)
+  apply (rule order_trans[OF min_max.inf_le2])
+  apply (rule Inf_superset_mono)
+  apply safe
+  apply (rule_tac x = n in exI)
+  apply (intro conjI)
+  apply simp
+  by (metis empty_subsetI efw_iso insert_absorb insert_mono subset_empty)
 
 datatype 'a top = Top | NotTop 'a
 
@@ -408,19 +412,6 @@ next
     by (simp add: eval_word_def)
 qed
 
-thm inf_sup_ord(2)
-find_theorems "min ?x ?y \<le> ?y"
-
-lemma steps_singleton: "\<sigma> \<in> P \<Longrightarrow> steps xs {\<sigma>} = n \<Longrightarrow> n \<le> steps xs P"
-  apply (auto simp add: steps_def)
-  apply (rule order_trans[OF min_max.inf_le2])
-  apply (rule Inf_superset_mono)
-  apply safe
-  apply (rule_tac x = n in exI)
-  apply (intro conjI)
-  apply simp
-  by (metis empty_subsetI efw_iso insert_absorb insert_mono subset_empty)
-
 lemma non_terminating_word: "\<nabla>X \<noteq> bot \<Longrightarrow> \<exists>xs\<in>X. \<exists>\<sigma>. steps xs {\<sigma>} = \<infinity>" 
   by (auto simp add: nabla_def llist_nabla_def bot_top_def)
 
@@ -450,7 +441,8 @@ proof -
       by (metis wx)
   qed
   thus ?thesis
-    by (simp add: nabla_def module_def)
+    apply (cases "\<nabla>x = NotTop {}")
+    by (simp_all add: nabla_def module_def)
 qed
 
 lemmas Top_top = top_top_def[symmetric]
@@ -477,8 +469,16 @@ lemma mod_isol: "p \<le> q \<Longrightarrow> x \<Colon> p \<le> x \<Colon> q"
   apply auto
   by (metis eval_word_iso)
 
-lemma "(x \<Colon> p) \<squnion> (x \<Colon> q) \<le> x \<Colon> (p \<squnion> q)"
+lemma mod_isor: "x \<le> y \<Longrightarrow> x \<Colon> p \<le> y \<Colon> p"
+  apply (simp add: module_def)
+  apply (rule Sup_mono)
+  by auto
+
+lemma mod_distl: "(x \<Colon> p) \<squnion> (x \<Colon> q) \<le> x \<Colon> (p \<squnion> q)"
   by (rule mono_sup) (auto intro: mod_isol simp add: mono_def)
+
+lemma mod_distr: "(x \<union> y) \<Colon> p = (x \<Colon> p) \<squnion> (y \<Colon> p)"
+  by (auto intro: arg_cong[where f = Sup] simp add: module_def Sup_union_distrib[symmetric])
 
 lemma [simp]: "bind top (eval_word w) = top"
   by (simp add: Top_top[symmetric])
@@ -589,20 +589,9 @@ lemma [simp]: "top \<le> NotTop x \<longleftrightarrow> False"
 
 lemma eval_word_sup [simp]: "bind (sup p q) (eval_word w) = sup (bind p (eval_word w)) (bind q (eval_word w))"
   apply (cases p)
-  apply (simp add: Top_top)
+  apply simp
   apply (cases q)
-  by (simp_all add: Top_top eval_word_union)
-
-find_theorems "_ \<le> Sup _"
-find_theorems "Sup _ \<in> _"
-thm bind_def
-
-
-
-lemma "(\<And>x. x \<in> X \<Longrightarrow> f x \<le> g x) \<Longrightarrow> Sup {f x |x. x \<in> X} \<le> Sup {g x |x. x \<in> X}"
-  sorry
-
-lemma "top \<notin> X" sorry
+  by simp_all
 
 lemma steps_super_inf: "steps w p = \<infinity> \<Longrightarrow> p \<subseteq> q \<Longrightarrow> steps w q = \<infinity>"
   by (metis enat_ord_code(3) steps_mono top_le)
@@ -610,45 +599,160 @@ lemma steps_super_inf: "steps w p = \<infinity> \<Longrightarrow> p \<subseteq> 
 lemma [simp]: "NotTop x = top \<longleftrightarrow> False"
   by (metis top.distinct(1) top_top_def)
 
-lemma assumes "eval_word w x = top" and "x \<in> X" shows "steps w (\<Union>X) = \<infinity>"
+lemma eval_word_super_top: "eval_word w p = top \<Longrightarrow> p \<subseteq> q \<Longrightarrow> steps w q = \<infinity>"
+  by (metis eval_word_top steps_super_inf)
+
+lemma efw_continuous: "eval_finite_word w (\<Union>X) = \<Union>(eval_finite_word w ` X)"
+  by (auto simp add: eval_finite_word_def Image_def)
+
+lemma NT_eq_simp [simp]: "NotTop x = (case m of enat n \<Rightarrow> NotTop (f n) | \<infinity> \<Rightarrow> top) \<longleftrightarrow> (\<exists>n. m = enat n \<and> x = f n)"
+  apply default
+  apply (cases m)
+  apply simp
+  apply simp
+  apply (erule exE)
+  apply (erule conjE)
+  by simp
+
+lemma finite_steps_super: "steps w p = enat n \<Longrightarrow> q \<subseteq> p \<Longrightarrow> steps w q \<le> enat n"
+  by (metis (full_types) steps_mono)
+
+lemma finite_steps_super_var: "steps w p = enat n \<Longrightarrow> q \<subseteq> p \<Longrightarrow> \<exists>m. steps w q = enat m \<and> m \<le> n"
+  by (metis enat.exhaust enat_ord_simps(1) enat_ord_simps(5) steps_mono)
+
+lemma [simp]: "top \<noteq> (case m of enat n \<Rightarrow> NotTop (g n) | \<infinity> \<Rightarrow> top) \<longleftrightarrow> m \<noteq> \<infinity>"
+  apply (cases m)
+  apply simp
+  apply (metis top.distinct(1) top_top_def)
+  by simp
+
+lemma [simp]: "top = (case m of enat n \<Rightarrow> NotTop (g n) | \<infinity> \<Rightarrow> top) \<longleftrightarrow> m = \<infinity>"
+  apply (cases m)
+  apply simp
+  apply (metis top.distinct(1) top_top_def)
+  by simp
+
+lemma (in complete_lattice) Sup_or [simp]: "Sup {f x|x. P x \<or> Q x} = (Sup {f x|x. P x} \<squnion> Sup {f x|x. Q x})"
+  apply (subst Sup_union_distrib[symmetric])
+  apply (rule arg_cong) back
+  apply auto
+  done
+
+lemma fin_inf_split: "x = x \<cdot> {} \<union> (x \<inter> FIN)"
+  by (auto simp add: l_prod_def FIN_def)
+
+lemma (in complete_lattice) Sup_single_var: "X \<noteq> {} \<Longrightarrow> (\<forall>x'\<in>X. x' = x) \<Longrightarrow> Sup X = x"
+  apply (subgoal_tac "X = {x}")
+  apply (metis Sup_eq_equiv equals0I)
+  by auto
+
+lemma "(\<exists>xs\<in>X. \<forall>n. steps xs h \<noteq> enat n) \<longleftrightarrow> (\<exists>xs\<in>X. steps xs h = \<infinity>)"
+  by auto
+
+lemma INF_part_mod1: assumes "X \<cdot> {} \<noteq> {}" shows "(X \<cdot> {} \<Colon> (NotTop h) = top) \<or> (X \<cdot> {} \<Colon> (NotTop h) = NotTop {})" 
 proof -
   {
-    assume "steps w x = \<infinity>"
-    from this and assms have ?thesis
-      by (auto elim: steps_super_inf)
+    assume "\<forall>xs\<in>(X \<cdot> {}). \<exists>n. steps xs h = enat n" and "X \<cdot> {} \<noteq> {}"
+    hence "X \<cdot> {} \<Colon> (NotTop h) = NotTop {}"
+      apply (simp add: l_prod_def module_def eval_word_def)
+      apply (rule Sup_single_var)
+      apply simp
+      apply (erule exE)+
+      apply (erule conjE)
+      by (smt enat.distinct(1) enat.simps(4) finite_steps mem_Collect_eq not_lfinite_llength)
   }
   moreover
   {
-    fix n
-    assume "steps w x = enat n"
-    from this and assms have ?thesis
-      by (simp add: eval_word_def)
+    assume "\<not> (\<forall>xs\<in>(X \<cdot> {}). \<exists>n. steps xs h = enat n)" and "X \<cdot> {} \<noteq> {}"
+    hence "X \<cdot> {} \<Colon> (NotTop h) = top"
+      apply (simp add: l_prod_def module_def eval_word_def)
+      apply (rule Sup_top_eq_top)
+      by auto
   }
   ultimately show ?thesis
-    by (metis not_enat_eq)
+    by (metis assms)
 qed
 
-lemma "eval_word w (\<Union>X) = Sup (eval_word w ` X)"
-  apply (simp add: Sup_top_def)
-  apply auto
-  apply (subgoal_tac "steps w (\<Union>X) = \<infinity>")
-  apply (simp add: eval_word_def)
-  apply (simp add: eval_word_def)
+lemma mod_top [simp]: "X \<noteq> {} \<Longrightarrow> X \<Colon> top = top"
+  by (auto intro: Sup_top_eq_top simp: module_def)
 
-lemma "join_preserving (\<lambda>x. bind x (eval_word w))"
-  apply (simp add: join_preserving_def image_def Sup_top_def)
-  apply auto
+lemma [simp]: "X \<Colon> bot = bot"
+  apply (auto simp add: module_def bot_top_def eval_word_def enat_0[symmetric])
+  apply (cases "X = {}")
+  apply (simp add: bot_top_def)
+  apply (rule Sup_single_var)
+  apply (subgoal_tac "\<exists>w. w \<in> X")
+  apply simp
+  apply (metis all_not_in_conv assms)
+  by auto
 
-lemma "(x \<Colon> NotTop p) \<squnion> (x \<Colon> NotTop q) \<le> x \<Colon> (NotTop p \<squnion> NotTop q)"
-proof (auto simp add: module_def)
-  {
-    assume "eval_word w p \<le> eval_word w q"
+lemma infinite_eval_cases: "X \<cdot> {} \<Colon> h = top \<or> X \<cdot> {} \<Colon> h = bot"
+  apply (cases "X \<cdot> {} = {}")
+  apply simp
+  apply (cases h)
+  apply simp
+  apply (simp add: bot_top_def)
+  apply (rule INF_part_mod1)
+  by auto
+
+lemma "y \<noteq> {} \<Longrightarrow> (x \<cdot> {} \<Colon> h) = y \<Colon> (x \<cdot> {} \<Colon> h)"
+  by (rule disjE[OF infinite_eval_cases[of x h]]) simp_all
+
+find_theorems lfinite llength
+
+lemma eval_word_finite: "lfinite w \<Longrightarrow> eval_word w h = NotTop (eval_finite_word (list_of w) h)"
+  apply (simp add: eval_word_def)
+  apply (rule sym)
+  apply simp
+  apply (simp add: steps_def)
+  apply (cases "llength w \<le> Inf {enat n |n. eval_finite_word (list_of (ltake (enat n) w)) h = {}}")
+  apply (subst min_max.inf_absorb1)
+  apply assumption
+  apply (metis lfinite_llength_enat ltake_llength)
+  apply (drule linearD)
+  apply (subst min_max.inf_absorb2)
+  apply simp
+  apply (simp add: lfinite_conv_llength_enat)
+  apply (erule exE)
+  sorry
+
+lemma helper: "(\<And>x. P x \<Longrightarrow> f x = g x) \<Longrightarrow> (\<And>x. Q x \<Longrightarrow> P x) \<Longrightarrow> {f x |x. Q x} = {g x |x. Q x}"
+  by auto metis
+
+lemma NotTop_continuous: "NotTop (\<Union>X) = Sup (NotTop ` X)"
+  by (auto simp add: Sup_top_def) (metis top.distinct(1) top_top_def)
+
+lemma [simp]: "f ` {g x |x. P x} = {f (g x) |x. P x}"
+  by (auto simp add: image_def)
+
+thm arg_cong
+
+lemma "x \<inter> FIN \<Colon> (NotTop h) = NotTop (\<Union>{eval_finite_word (list_of w) h |w. w \<in> x \<and> w \<in> FIN})"
+  by (auto intro: arg_cong[where f = Sup] eval_word_finite eval_word_finite[symmetric] simp: module_def FIN_def NotTop_continuous)
 
 lemma "x \<cdot> y \<Colon> h = y \<Colon> (x \<Colon> h)"
+  apply (cases "y = {}")
+  apply (erule ssubst)
+  
+  apply simp
+proof -
+  have "x \<cdot> y \<Colon> h = (x \<cdot> {} \<Colon> h) \<squnion> ((x \<inter> FIN) \<cdot> y \<Colon> h)"
+    apply (subst fin_inf_split[of x])
+    apply (subst l_prod_distr)
+    apply (subst l_prod_assoc)
+    apply simp
+    apply (subst mod_distl)
+    by (rule refl)
+  also have "... = (y \<Colon> (x \<cdot> {} \<Colon> h)) \<squnion> ((x \<inter> FIN) \<cdot> y \<Colon> h)"
+
 proof -
   have "x \<cdot> y \<Colon> h = Sup {bind h (eval_word w) |w. w \<in> x \<cdot> y}"
     by (simp add: module_def)
-  also have "... = Sup {bind h (eval_word (xw \<frown> yw))|xw yw. xw \<in> x \<and> yw \<in> y}"
+  also have "... = Sup {bind h (eval_word w) |w. w \<in> x \<and> \<not> lfinite w} \<squnion> Sup {bind h (eval_word w) |w. \<exists>xs ys. w = xs \<frown> ys \<and> xs \<in> x \<and> lfinite xs \<and> ys \<in> y}"
+    by (simp add: l_prod_def)
+  also have "... = Sup {bind h (eval_word w) |w. w \<in> x \<and> \<not> lfinite w} \<squnion> Sup {bind h (eval_word (xs \<frown> ys)) |xs ys. xs \<in> x \<and> lfinite xs \<and> ys \<in> y}"
+    by (rule arg_cong, blast)
+  also have "... = 
     apply (auto simp add: l_prod_def)
     apply (rule antisym)
     apply (rule Sup_mono)

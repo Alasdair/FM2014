@@ -102,6 +102,10 @@ lemma lefts_append: "lfinite xs \<Longrightarrow> \<ll> (lappend xs ys) = lappen
   apply (auto simp add: lefts_def)
   by (metis lmap_lappend_distrib)
 
+lemma rights_append: "lfinite xs \<Longrightarrow> \<rr> (lappend xs ys) = lappend (\<rr> xs) (\<rr> ys)"
+  apply (auto simp add: rights_def)
+  by (metis lmap_lappend_distrib)
+
 lemma lnth_in_lset: "\<not> lfinite xs \<Longrightarrow> lnth xs n \<in> lset xs"
   apply (simp add: lset_def image_def)
   apply (rule_tac x = n in exI)
