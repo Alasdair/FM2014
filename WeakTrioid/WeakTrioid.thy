@@ -24,7 +24,7 @@ lemma ex_lub_dioid: "is_lub (x + y) {x, y}"
 subclass join_semilattice
   by (unfold_locales, metis ex_lub_dioid)
 
-lemma join_plus_equiv: "x \<squnion> y = x + y"
+lemma join_plus_equiv [simp]: "x \<squnion> y = x + y"
   by (metis ex_lub_dioid join_def lub_is_lub)
 
 lemma order_prop: "(x \<le> y) \<longleftrightarrow> (\<exists>z. (x + z = y))"

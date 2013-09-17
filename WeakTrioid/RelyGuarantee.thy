@@ -6,9 +6,56 @@ class rg_algebra = weak_trioid + meet_semilattice +
   fixes I :: "'a set"
   assumes inv_def: "r \<in> I \<longleftrightarrow>  1 \<le> r \<and> r \<parallel> r = r \<and> r\<parallel>(x\<cdot>y) \<le> (r\<parallel>x)\<cdot>(r\<parallel>y) \<and> (r\<parallel>x)\<^sup>+ = r\<parallel>x\<^sup>+"
   and inv_add_closed: "\<lbrakk>r \<in> I; s \<in> I\<rbrakk> \<Longrightarrow> (r+s) \<in> I"
-  and inv_mult_closed: "\<lbrakk>r \<in> I; s \<in> I\<rbrakk> \<Longrightarrow> (r\<cdot>s) \<in> I"
+  and inv_mult_par: "\<lbrakk>r \<in> I; s \<in> I\<rbrakk> \<Longrightarrow> r\<cdot>s \<le> r\<parallel>s"
   and inv_par_closed: "\<lbrakk>r \<in> I; s \<in> I\<rbrakk> \<Longrightarrow> (r\<parallel>s) \<in> I"
   and inv_meet_closed: "\<lbrakk>r \<in> I; s \<in> I\<rbrakk> \<Longrightarrow> (r \<sqinter> s) \<in> I"
+
+locale rg_module =
+  fixes mod :: "'a::rg_algebra \<Rightarrow> 'b::boolean_algebra \<Rightarrow> 'b" (infixr "\<Colon>" 60)
+  assumes mod_mult: "x \<cdot> y \<Colon> p \<le> y \<Colon> x \<Colon> p"
+  and mod_isor: "p \<le> q \<Longrightarrow> x \<Colon> p \<le> x \<Colon> q"
+  and mod_isol: "x \<le> y \<Longrightarrow> x \<Colon> p \<le> y \<Colon> p"
+
+begin
+
+definition quintuple :: "'a \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> bool" ("_, _ \<turnstile> \<lbrace>_\<rbrace> _ \<lbrace>_\<rbrace>") where
+  "r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>q\<rbrace> \<longleftrightarrow> r \<parallel> c \<Colon> p \<le> q \<and> c \<le> g \<and> r \<in> I \<and> g \<in> I"
+
+lemma inv_dist: "r \<in> I \<Longrightarrow> r\<parallel>(x\<cdot>y) \<le> (r\<parallel>x)\<cdot>(r\<parallel>y)"
+  by (metis rg_algebra_class.inv_def)
+
+lemma sequential:
+  assumes "r, g1 \<turnstile> \<lbrace>p\<rbrace> c1 \<lbrace>q\<rbrace>" and "r, g2 \<turnstile> \<lbrace>q\<rbrace> c2 \<lbrace>s\<rbrace>"
+  shows "r, (g1 \<parallel> g2) \<turnstile> \<lbrace>p\<rbrace> c1 \<cdot> c2 \<lbrace>s\<rbrace>"
+proof -
+  have r_inv: "r \<in> I"
+    by (metis assms(1) quintuple_def)
+
+  {
+    have "r \<parallel> (c1 \<cdot> c2) \<Colon> p \<le> (r \<parallel> c1) \<cdot> (r \<parallel> c2) \<Colon> p"
+      by (metis inv_dist mod_isol r_inv)
+    also have "... \<le> r \<parallel> c2 \<Colon> r \<parallel> c1 \<Colon> p"
+      by (metis mod_mult)
+    also have "... \<le> r \<parallel> c2 \<Colon> q"
+      by (metis assms(1) mod_isor quintuple_def)
+    also have "... \<le> s"
+      by (metis assms(2) quintuple_def)
+    finally have "r \<parallel> (c1 \<cdot> c2) \<Colon> p \<le> s" .
+  }
+  moreover
+  {
+    have "c1 \<cdot> c2 \<le> g1 \<cdot> g2"
+      by (metis assms(1) assms(2) mult_isol_var quintuple_def)
+    also have "... \<le> g1 \<parallel> g2"
+      by (metis assms(1) assms(2) inv_mult_par quintuple_def)
+    finally have "c1 \<cdot> c2 \<le> g1 \<parallel> g2" .
+  }
+  ultimately show ?thesis
+    by (metis assms(1) assms(2) inv_par_closed quintuple_def)
+qed
+
+end
+
 begin
 
 definition guarantee_relation :: "'a \<Rightarrow> 'a \<Rightarrow> bool" ("_ guar _" [99, 99] 100) where
