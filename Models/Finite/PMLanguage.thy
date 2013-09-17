@@ -2,10 +2,6 @@ theory PMLanguage
   imports Language
 begin
 
-find_consts "('a \<times> 'b) set \<Rightarrow> 'a set"
-
-value "\<lambda>X. fst ` X"
-
 inductive_set dep_traces :: "'a rel \<Rightarrow> 'a lan" for D where
   dt_Nil [simp]: "[] \<in> dep_traces D"
 | dt_no_dep: "b \<notin> Field D \<Longrightarrow> as @ cs \<in> dep_traces D \<Longrightarrow> as @ [b] @ cs \<in> dep_traces D"
@@ -37,7 +33,7 @@ lemma [simp]: "shf P f g [] ys = (if P (map g ys) then {map Inr ys} else {})"
   apply (metis no_lefts)
   sorry
 
-lemma [simp]: "shf P f g xs [] = (if P (map g xs) then {map Inl ys} else {})"
+lemma shf_emptyl [simp]: "shf P f g xs [] = (if P (map f xs) then {map Inl xs} else {})"
   sorry
 
 lemma tshuffle_words_map:
@@ -46,6 +42,7 @@ lemma tshuffle_words_map:
   and h :: "'b \<Rightarrow> 'e"
   and k :: "'d \<Rightarrow> 'e"
   shows "shf P h k (map f xs) (map g ys) = map \<langle>Inl \<circ> f, Inr \<circ> g\<rangle> ` shf P (h \<circ> f) (k \<circ> g) xs ys"
+  nitpick
 proof
   show "shf P h k (map f xs) (map g ys) \<subseteq> map \<langle>Inl \<circ> f,Inr \<circ> g\<rangle> ` shf P (h \<circ> f) (k \<circ> g) xs ys"
   proof (induct xs arbitrary: ys)
@@ -53,12 +50,17 @@ proof
     case Nil show ?case by (simp add: o_def)
   next
     fix ys :: "'c list"
-    case (Cons x xs)
+    case (Cons x xs) note ih_xs = this
 
     have "shf P h k (map f (x # xs)) (map g ys) = shf P h k (f x # map f xs) (map g ys)"
       by simp
     also have "... \<subseteq> map \<langle>Inl \<circ> f,Inr \<circ> g\<rangle> ` shf P (h \<circ> f) (k \<circ> g) (x # xs) ys"
-    proof (induct ys, simp)
+    proof (induct ys)
+      case Nil show ?case by (simp add: o_def)
+    next
+      case (Cons y ys)
+      have "shf P h k (f x # map f xs) (map g (y # ys)) = shf P h k (f x # map f xs) (g y # map g ys)"
+        by simp
 
 lemma tshuffle_words_map:
   shows "map f xs \<sha>\<^sub>D map g ys = map \<langle>Inl \<circ> f, Inr \<circ> g\<rangle> ` (xs \<sha>\<^sub>D ys)"

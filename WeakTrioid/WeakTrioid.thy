@@ -7,19 +7,19 @@ text {*
     mult_annir: "x\<cdot>0 = 0"
 *}
 
-class add_monoid = plus + zero + order +
-  assumes add_assoc: "(x + y) + z = x + (y + z)"
-  and add_comm: "x + y = y + x"
-  and add_idem: "x + x = x"
-  and add_zerol: "0 + x = x"
-  and leq_def: "x \<le> y \<longleftrightarrow> x + y = y"
+class idem_monoid = comm_monoid_add + order +
+  assumes leq_def: "x \<le> y \<longleftrightarrow> x + y = y"
   and strict_leq_def: "x < y \<longleftrightarrow> x \<le> y \<and> \<not>(y \<le> x)"
+
+context idem_monoid
 begin
-  
+
+lemma add_idem: "x + x = x" using iffD1[OF leq_def order_refl] .
+
 (* Join semilattice *)
 lemma ex_lub_dioid: "is_lub (x + y) {x, y}"
   apply (simp add: is_lub_def is_ub_def leq_def)
-  by (metis add_assoc add_comm add_idem)
+  by (metis add_assoc add_commute add_idem)
 
 subclass join_semilattice
   by (unfold_locales, metis ex_lub_dioid)
@@ -27,18 +27,14 @@ subclass join_semilattice
 lemma join_plus_equiv: "x \<squnion> y = x + y"
   by (metis ex_lub_dioid join_def lub_is_lub)
 
-lemma order_prop: "(x \<le> y) \<longleftrightarrow> (\<exists>z.(x + z = y))"
+lemma order_prop: "(x \<le> y) \<longleftrightarrow> (\<exists>z. (x + z = y))"
   by (metis add_assoc add_idem leq_def)
-
-(* Add operator *)
-lemma add_zeror: "x+0 = x"
-  by (metis add_comm add_zerol)
 
 lemma add_ub1 [simp]: "x \<le> x + y"
   by (metis add_assoc add_idem leq_def)
 
 lemma add_ub2 [simp]: "y \<le> x + y"
-  by (metis add_assoc add_comm add_idem leq_def)
+  by (metis add_assoc add_commute add_idem leq_def)
 
 lemma add_lub_var: "x \<le> z \<longrightarrow> y \<le> z \<longrightarrow> x + y \<le> z"
   by (metis add_assoc leq_def)
@@ -50,13 +46,10 @@ lemma add_iso: "x \<le> y \<longrightarrow> x + z \<le> y + z"
   by (metis add_lub leq_def order_refl)
 
 lemma add_iso_var: "x \<le> y \<longrightarrow> u \<le> v \<longrightarrow> x + u \<le> y + v"
-  by (metis add_comm add_iso add_lub)
+  by (metis add_commute add_iso add_lub)
 
 lemma zero_least [simp]: "0 \<le> x"
-  by (metis add_zerol leq_def)
-
-lemma add_zero_r [simp]: "x + 0 = x"
-  by (metis add_comm add_zerol)
+  by (metis add_0_left join_plus_equiv leq_def_join)
 
 lemma zero_unique [simp]: "x \<le> 0 \<longleftrightarrow> x = 0"
   by (metis zero_least eq_iff)
@@ -66,7 +59,7 @@ lemma no_trivial_inverse: "x \<noteq> 0 \<longrightarrow> \<not>(\<exists>y. x +
 
 end
 
-class weak_dioid = add_monoid + one +
+class weak_dioid = idem_monoid + one +
   fixes mult :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" (infixl "\<cdot>" 70)
   assumes mult_assoc: "(x\<cdot>y)\<cdot>z = x\<cdot>(y\<cdot>z)"
   and mult_onel: "1\<cdot>x = x"
@@ -98,7 +91,7 @@ lemma subdistr: "z\<cdot>x \<le> z\<cdot>(x + y)"
 
 end
 
-class par_dioid = add_monoid + one +
+class par_dioid = idem_monoid + one +
   fixes par :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" (infixl "\<parallel>" 70)
   assumes par_assoc: "(x\<parallel>y)\<parallel>z = x\<parallel>(y\<parallel>z)"
   and par_comm: "x\<parallel>y = y\<parallel>x"
@@ -164,17 +157,17 @@ lemma star_1r: "x\<^sup>*\<cdot>x \<le> x\<^sup>*"
   by (metis add_lub star_unfoldr)
 
 lemma star_trans_eq: "x\<^sup>*\<cdot>x\<^sup>* = x\<^sup>*"
-  apply (rule antisym,metis add_comm eq_iff leq_def star_1l star_inductl)
+  apply (rule antisym,metis add_commute eq_iff leq_def star_1l star_inductl)
   by (metis mult_onel star_plus_one subdistl)
 
 lemma star_trans: "x\<^sup>* \<cdot> x\<^sup>* \<le> x\<^sup>*"
   by (metis eq_refl star_trans_eq)
 
 lemma star_inductl_var: "x\<cdot>y \<le> y \<longrightarrow> x\<^sup>*\<cdot>y \<le> y"
-  by (metis add_comm eq_refl leq_def star_inductl)
+  by (metis add_commute eq_refl leq_def star_inductl)
 
 lemma star_inductr_var: "y\<cdot>x \<le> y \<longrightarrow> y\<cdot>x\<^sup>* \<le> y"
-  by (metis add_comm eq_iff leq_def star_inductr)
+  by (metis add_commute eq_iff leq_def star_inductr)
 
 lemma star_inductl_var_eq:  "x \<cdot> y = y \<longrightarrow> x\<^sup>* \<cdot> y \<le> y"
   by (metis eq_iff star_inductl_var)
@@ -192,7 +185,7 @@ lemma star_inductl_eq:  "z + x \<cdot> y = y \<longrightarrow> x\<^sup>* \<cdot>
   by (metis eq_iff star_inductl)
 
 lemma star_subid: "x \<le> 1 \<longrightarrow> x\<^sup>* = 1"
-  by (metis add_comm eq_iff leq_def mult_isol mult_onel star_inductl_one star_ref)
+  by (metis add_commute eq_iff leq_def mult_isol mult_onel star_inductl_one star_ref)
 
 lemma star_one [simp]: "1\<^sup>* = 1"
   by (metis eq_refl star_subid)
@@ -201,7 +194,7 @@ lemma star_subdist:  "x\<^sup>* \<le> (x + y)\<^sup>*"
   by (metis order_trans star_1l star_inductl_star subdistl)
 
 lemma star_subdist_var:  "x\<^sup>* + y\<^sup>* \<le> (x + y)\<^sup>*"
-  by (metis add_comm add_lub star_subdist)
+  by (metis add_commute add_lub star_subdist)
 
 lemma star_iso: "x \<le> y \<Longrightarrow> x\<^sup>* \<le> y\<^sup>*"
   by (metis leq_def star_subdist)
@@ -276,7 +269,7 @@ lemma star_rtc3: "1 + x \<cdot> x = x \<longleftrightarrow> x = x\<^sup>*"
   by (metis order_refl star_plus_one star_rtc2 star_trans_eq)
 
 lemma star_rtc_least: "1 + x + y \<cdot> y \<le> y \<longrightarrow> x\<^sup>* \<le> y"
-  by (metis add_comm add_lub leq_def mult_isol mult_onel star_iso star_rtc3)
+  by (metis add_commute add_lub leq_def mult_isol mult_onel star_iso star_rtc3)
 
 lemma star_rtc_least_eq: "1 + x + y \<cdot> y = y \<longrightarrow> x\<^sup>* \<le> y"
   by (metis eq_refl star_rtc_least)
@@ -288,7 +281,7 @@ lemma star_subdist_var_2: "x \<cdot> y \<le> (x + y)\<^sup>*"
   by (metis add_lub prod_star_closure star_ext)
 
 lemma star_subdist_var_3: "x\<^sup>* \<cdot> y\<^sup>* \<le> (x + y)\<^sup>*"
-  by (metis add_comm prod_star_closure star_subdist)
+  by (metis add_commute prod_star_closure star_subdist)
 
 lemma star_denest [simp]: "(x + y)\<^sup>* = (x\<^sup>* \<cdot> y\<^sup>*)\<^sup>*"
 proof (rule antisym)
@@ -320,7 +313,7 @@ proof (rule antisym)
   have "(y \<cdot> x\<^sup>*)\<^sup>* \<le> (y\<^sup>* \<cdot> x\<^sup>*)\<^sup>*"
     by (metis mult_isol star_ext star_iso)
   moreover have "... = (x + y)\<^sup>*"
-    by (metis add_comm star_denest)
+    by (metis add_commute star_denest)
   moreover have "x\<^sup>* \<le> (x + y)\<^sup>*"
     by (metis star_subdist)
   thus "x\<^sup>* \<cdot> (y \<cdot> x\<^sup>*)\<^sup>* \<le> (x + y)\<^sup>*"
@@ -334,16 +327,16 @@ lemma star_denest_var_3 [simp]: "x\<^sup>* \<cdot> (y\<^sup>* \<cdot> x\<^sup>*)
   by (metis star_denest star_denest_var star_invol)
 
 lemma star_denest_var_4 [simp]: "(y\<^sup>* \<cdot> x\<^sup>*)\<^sup>* = (x\<^sup>* \<cdot> y\<^sup>*)\<^sup>*"
-  by (metis add_comm star_denest)
+  by (metis add_commute star_denest)
 
 lemma star_denest_var_5: "x\<^sup>* \<cdot> (y \<cdot> x\<^sup>*)\<^sup>* = y\<^sup>* \<cdot> (x \<cdot> y\<^sup>*)\<^sup>*"
-  by (metis add_comm star_denest_var)
+  by (metis add_commute star_denest_var)
 
 lemma star_unfoldr_eq: "1 + x\<^sup>*\<cdot>x = x\<^sup>*"
   by (smt mult_distl mult_distr mult_assoc mult_onel mult_oner star_unfoldl_eq star_inductl eq_iff star_unfoldr)
 
 lemma star_slide: "(x\<cdot>y)\<^sup>*\<cdot>x = x\<cdot>(y\<cdot>x)\<^sup>*"
-  by (smt add_comm mult_assoc star_unfoldr_eq star_slide1 mult_isor add_iso mult_isol mult_distl mult_oner mult_distr mult_onel star_unfoldl_eq eq_iff star_slide1)
+  by (smt add_commute mult_assoc star_unfoldr_eq star_slide1 mult_isor add_iso mult_isol mult_distl mult_oner mult_distr mult_onel star_unfoldl_eq eq_iff star_slide1)
 
 lemma star_slide_var: "x\<^sup>*\<cdot>x = x\<cdot>x\<^sup>*"
   by (metis mult_onel mult_oner star_slide)
@@ -409,6 +402,7 @@ class weak_trioid = weak_dioid + par_dioid + wka
 class weak_cka = weak_trioid +
   assumes exchange: "(w\<parallel>x)\<cdot>(y\<parallel>z) \<le> (w\<cdot>y)\<parallel>(x\<cdot>z)"
 begin
+
 lemma mult_incl: "x\<cdot>y \<le> x\<parallel>y"
   by (metis par_unitl par_unitr exchange mult_onel mult_oner)
 

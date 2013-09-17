@@ -68,6 +68,11 @@ lemma Inf_enat_pred_conj: "Inf {enat n|n. P n} \<le> Inf {enat n|n. P n \<and> Q
 definition steps :: "'a rel llist \<Rightarrow> 'a set \<Rightarrow> enat" where
   "steps xs H \<equiv> min (llength xs) (Inf {enat n|n. eval_finite_word (list_of (ltake (enat n) xs)) H = {}})"
 
+abbreviation "eval_prefix n xs \<equiv> eval_finite_word (list_of (ltake (enat n) xs))"
+
+definition steps2 :: "'a rel llist \<Rightarrow> 'a set \<Rightarrow> enat" where
+  "steps2 xs H = Inf {enat n |n. eval_prefix n xs H = eval_prefix (Suc n) xs H}" 
+
 lemma empty_eval_non_empty: "p \<noteq> {} \<Longrightarrow> eval_finite_word xs p = {} \<Longrightarrow> \<exists>x xs'. xs = x # xs'"
   by (cases xs) simp_all
 
@@ -272,16 +277,16 @@ lemma steps_singleton: "\<sigma> \<in> P \<Longrightarrow> steps xs {\<sigma>} =
 
 datatype 'a top = Top | NotTop 'a
 
-abbreviation bind :: "'a top \<Rightarrow> ('a \<Rightarrow> 'b top) \<Rightarrow> 'b top" where
-  "bind x f \<equiv> case x of Top \<Rightarrow> Top | NotTop x \<Rightarrow> f x"
+abbreviation bind :: "('a \<Rightarrow> 'b top) \<Rightarrow> 'a top \<Rightarrow> 'b top" (infixr "\<hookleftarrow>" 56)  where
+  "bind f x \<equiv> case x of Top \<Rightarrow> Top | NotTop x \<Rightarrow> f x"
 
-lemma top_left_id: "bind (NotTop x) f = f x"
+lemma top_left_id: "f \<hookleftarrow> NotTop x = f x"
   by auto
 
-lemma top_right_id: "bind x NotTop = x"
+lemma top_right_id: "NotTop \<hookleftarrow> x = x"
   by (cases x) auto
 
-lemma top_assoc: "bind (bind x f) g = bind x (\<lambda>x. bind (f x) g)"
+lemma top_assoc: "g \<hookleftarrow> f \<hookleftarrow> x = (\<lambda>x. g \<hookleftarrow> (f x)) \<hookleftarrow> x"
   by (cases x) auto
 
 instantiation top :: (ord) ord
@@ -380,13 +385,13 @@ begin
   qed
 end
 
-lemma [simp]: "bind top x = top" sorry
+lemma [simp]: "f \<hookleftarrow> top = top" by (simp add: top_top_def)
 
 definition eval_word :: "'a rel llist \<Rightarrow> 'a set \<Rightarrow> 'a set top" where
   "eval_word xs H \<equiv> case steps xs H of \<infinity> \<Rightarrow> top | enat n \<Rightarrow> NotTop (eval_finite_word (list_of (ltake (enat n) xs)) H)"
 
 definition module :: "'a rel lan \<Rightarrow> 'a set top \<Rightarrow> 'a set top" (infix "\<Colon>" 60) where
-  "x \<Colon> h \<equiv> Sup {bind h (eval_word w)|w. w \<in> x}"
+  "x \<Colon> h \<equiv> Sup {eval_word w \<hookleftarrow> h|w. w \<in> x}"
 
 definition llist_nabla :: "'a rel llist \<Rightarrow> 'a set" where
   "llist_nabla xs \<equiv> {\<sigma>. steps xs {\<sigma>} = \<infinity>}"
@@ -412,8 +417,27 @@ next
     by (simp add: eval_word_def)
 qed
 
-lemma non_terminating_word: "\<nabla>X \<noteq> bot \<Longrightarrow> \<exists>xs\<in>X. \<exists>\<sigma>. steps xs {\<sigma>} = \<infinity>" 
+lemma non_terminating_word: "\<nabla>X \<noteq> bot \<longleftrightarrow> (\<exists>xs\<in>X. \<exists>\<sigma>. steps xs {\<sigma>} = \<infinity>)" 
   by (auto simp add: nabla_def llist_nabla_def bot_top_def)
+
+lemma all_terminating_word1: "\<nabla>X = bot \<longleftrightarrow> \<not> (\<exists>xs\<in>X. \<exists>\<sigma>. steps xs {\<sigma>} = \<infinity>)"
+  by (simp add: arg_cong[OF non_terminating_word, of Not, simplified])
+
+lemmas all_terminating_word = all_terminating_word1[simplified]
+
+lemma [simp]: "inf (NotTop x) (NotTop y) = NotTop (x \<inter> y)"
+  by (simp add: inf_top_def)
+
+lemma [simp]: "NotTop x = bot \<longleftrightarrow> x = {}"
+  by (simp add: bot_top_def)
+
+lemma non_terminating_word_var: "inf (\<nabla>X) (NotTop Y) \<noteq> bot \<longleftrightarrow> (\<exists>xs\<in>X. \<exists>\<sigma>\<in>Y. steps xs {\<sigma>} = \<infinity>)" 
+  by (auto simp add: nabla_def llist_nabla_def)
+
+lemma all_terminating_word_var1: "inf (\<nabla>X) (NotTop Y) = bot \<longleftrightarrow> \<not> (\<exists>xs\<in>X. \<exists>\<sigma>\<in>Y. steps xs {\<sigma>} = \<infinity>)" 
+  by (simp add: arg_cong[OF non_terminating_word_var, of Not, simplified])
+
+lemmas all_terminating_word_var = all_terminating_word_var1[simplified]
 
 lemma (in complete_lattice) Sup_top_eq_top: "top \<in> A \<Longrightarrow> Sup A = top"
   by (metis Sup_upper top_unique)
@@ -427,7 +451,7 @@ lemma eval_word_top: "eval_word xs H = top \<longleftrightarrow> steps xs H = \<
 lemma "\<nabla>x \<noteq> bot \<Longrightarrow> x \<Colon> \<nabla>x = top"
 proof -
   assume nabla_non_empty: "\<nabla>x \<noteq> bot"
-  have "Sup {bind \<nabla>x (eval_word w) |w. w \<in> x} = top"
+  have "Sup {eval_word w \<hookleftarrow> \<nabla>x |w. w \<in> x} = top"
   proof (auto intro!: Sup_top_eq_top, subst eq_commute)
     obtain w and \<sigma> where wx: "w \<in> x" and w_steps: "steps w {\<sigma>} = \<infinity>"
       by (metis nabla_non_empty non_terminating_word)
@@ -435,9 +459,9 @@ proof -
       apply (rule steps_singleton[OF _ w_steps])
       apply auto
       by (metis (lifting, full_types) mem_Collect_eq w_steps wx)
-    hence "bind \<nabla>x (eval_word w) = top"
+    hence "eval_word w \<hookleftarrow> \<nabla>x = top"
       by (auto simp add: nabla_def llist_nabla_def eval_word_top)
-    thus "\<exists>w. bind \<nabla>x (eval_word w) = top \<and> w \<in> x"
+    thus "\<exists>w. eval_word w \<hookleftarrow> \<nabla>x = top \<and> w \<in> x"
       by (metis wx)
   qed
   thus ?thesis
@@ -479,9 +503,6 @@ lemma mod_distl: "(x \<Colon> p) \<squnion> (x \<Colon> q) \<le> x \<Colon> (p \
 
 lemma mod_distr: "(x \<union> y) \<Colon> p = (x \<Colon> p) \<squnion> (y \<Colon> p)"
   by (auto intro: arg_cong[where f = Sup] simp add: module_def Sup_union_distrib[symmetric])
-
-lemma [simp]: "bind top (eval_word w) = top"
-  by (simp add: Top_top[symmetric])
 
 declare Top_top[simp]
 
@@ -587,7 +608,7 @@ qed
 lemma [simp]: "top \<le> NotTop x \<longleftrightarrow> False"
   by (metis top.distinct(1) top_top_def top_unique)
 
-lemma eval_word_sup [simp]: "bind (sup p q) (eval_word w) = sup (bind p (eval_word w)) (bind q (eval_word w))"
+lemma eval_word_sup [simp]: "eval_word w \<hookleftarrow> sup p q = sup (eval_word w \<hookleftarrow> p) (eval_word w \<hookleftarrow> q)"
   apply (cases p)
   apply simp
   apply (cases q)
@@ -698,8 +719,6 @@ lemma infinite_eval_cases: "X \<cdot> {} \<Colon> h = top \<or> X \<cdot> {} \<C
 lemma "y \<noteq> {} \<Longrightarrow> (x \<cdot> {} \<Colon> h) = y \<Colon> (x \<cdot> {} \<Colon> h)"
   by (rule disjE[OF infinite_eval_cases[of x h]]) simp_all
 
-find_theorems lfinite llength
-
 lemma eval_word_finite: "lfinite w \<Longrightarrow> eval_word w h = NotTop (eval_finite_word (list_of w) h)"
   apply (simp add: eval_word_def)
   apply (rule sym)
@@ -730,20 +749,121 @@ thm arg_cong
 lemma "x \<inter> FIN \<Colon> (NotTop h) = NotTop (\<Union>{eval_finite_word (list_of w) h |w. w \<in> x \<and> w \<in> FIN})"
   by (auto intro: arg_cong[where f = Sup] eval_word_finite eval_word_finite[symmetric] simp: module_def FIN_def NotTop_continuous)
 
-lemma "x \<cdot> y \<Colon> h = y \<Colon> (x \<Colon> h)"
-  apply (cases "y = {}")
-  apply (erule ssubst)
-  
-  apply simp
+lemma (in complete_lattice) Sup_eq_bot: "X = {} \<Longrightarrow> Sup X = bot"
+  by simp
+
+lemma [simp]: "inf (NotTop p) (NotTop q) = NotTop (p \<inter> q)"
+  by (simp add: inf_top_def)
+
+lemma [simp]: "\<Union>X \<inter> Y = {} \<longleftrightarrow> (\<forall>X'\<in>X. X' \<inter> Y = {})"
+  by auto
+
+lemma [simp]: "top = bot \<longleftrightarrow> False"
+  sorry
+
+lemma [intro!]: "\<exists>m'. m = enat m' \<and> f m' = Y \<Longrightarrow> (case m of enat n \<Rightarrow> NotTop (f n) | \<infinity> \<Rightarrow> top) = NotTop Y"
+  apply (cases m)
+  by auto
+
+lemma Sup_steps: "Sup (steps w ` X) \<le> steps w (\<Union>X)"
+  apply (auto simp add: steps_def image_def Sup_le_iff le_Inf_iff efw_continuous)
+  apply (erule_tac x = "eval_finite_word (list_of (ltake (enat n) w)) x" in allE)
+  apply (erule impE)
+  apply (rule_tac x = x in bexI)
+  apply simp_all
+  apply (subst min_le_iff_disj)
+  apply (rule disjI2)
+  apply (rule Inf_lower)
+  by simp
+
+lemma steps_Union_infinity: "\<exists>x\<in>X. steps w x = \<infinity> \<Longrightarrow> steps w (\<Union>X) = \<infinity>"
+  apply (subst enat_ord_simps(5)[symmetric])
+  apply (rule order_trans[OF _ Sup_steps])
+  apply (rule Sup_upper)
+  by (auto intro!: bexI simp add: image_def)
+
+lemma [iff]: "min (x::enat) y = \<infinity> \<longleftrightarrow> x = \<infinity> \<and> y = \<infinity>"
+  apply auto
+  apply (metis enat_ord_simps(5) min_enat_simps(4) min_max.inf_le2)
+  by (metis enat_ord_simps(5) min_max.inf_le2)
+
+lemma (in complete_lattice) Inf_eq_top: "X = {} \<Longrightarrow> Inf X = top"
+  by auto
+
+lemma Inf_eq_infinity: "X = {} \<Longrightarrow> Inf X = (\<infinity>::enat)"
+  by (auto simp: top_enat_def)
+
+lemma Inf_eq_infinity_bexI: "\<exists>x\<in>X. f x = {} \<Longrightarrow> \<exists>x\<in>X. Inf (f x) = (\<infinity>::enat)"
+  apply auto
+  apply (rule_tac x = x in bexI)
+  by (simp_all add: top_enat_def)
+
+lemma [iff]: "Inf X = (\<infinity>::enat) \<longleftrightarrow> (X = {} \<or> X = {\<infinity>})"
+  apply (auto simp add: top_enat_def Inf_enat_def)
+  apply (metis enat_ord_simps(6) neq_iff not_less_Least)
+  apply (metis LeastI)
+  by (metis (lifting, full_types) Least_equality order_refl)
+
+lemma steps_Union_enat: "steps w (\<Union>X) = enat n \<Longrightarrow> \<forall>x\<in>X. \<exists>m. steps w x = enat m"
+  by (metis not_infinity_eq steps_Union_infinity)
+
+lemma steps_Union_enat_le: "steps w (\<Union>X) = enat n \<Longrightarrow> \<forall>x\<in>X. \<exists>m\<le>n. steps w x = enat m"
+  by (metis Sup_upper finite_steps_super_var)
+
+lemma [intro!]: "(m = \<infinity> \<Longrightarrow> x \<le> y) \<Longrightarrow> (\<And>n. m = enat n \<Longrightarrow> x \<le> f n) \<Longrightarrow> x \<le> (case m of enat n \<Rightarrow> f n | \<infinity> \<Rightarrow> y)"
+  by (cases m) auto
+
+lemma "steps w (\<Union>X) = \<infinity> \<Longrightarrow> llength w = \<infinity>"
+  by (simp add: steps_def)
+
+find_theorems name:finite name:induct name:set
+
+find_theorems "_ \<subseteq> UNIV"
+
+lemma steps_infinite_insert: "steps w {\<sigma>} = \<infinity> \<Longrightarrow> steps w x = enat n \<Longrightarrow> steps w (insert \<sigma> x) = \<infinity>"
+  by (metis (mono_tags) bot_least insertI1 insert_subset steps_super_inf)
+
+lemma eval_word_cont: "steps w (\<Union>X) = enat n \<Longrightarrow> eval_word w (\<Union>X) \<le> Sup (eval_word w ` X)"
 proof -
-  have "x \<cdot> y \<Colon> h = (x \<cdot> {} \<Colon> h) \<squnion> ((x \<inter> FIN) \<cdot> y \<Colon> h)"
-    apply (subst fin_inf_split[of x])
-    apply (subst l_prod_distr)
-    apply (subst l_prod_assoc)
+  assume hyp: "steps w (\<Union>X) = enat n"
+  hence "eval_word w (\<Union>X) = NotTop (eval_finite_word (list_of (ltake (enat n) w)) (\<Union>X))"
+    by (simp add: eval_word_def image_def)
+  also have "... \<le> Sup {y. \<exists>x\<in>X. y = NotTop (eval_finite_word (list_of (ltake (enat n) w)) x)}"
+    apply (simp add: efw_continuous NotTop_continuous)
+    apply (subst SUP_def)
+    apply (simp only: NotTop_continuous)
+    apply (rule Sup_mono)
+    by auto
+  also have "... \<le> Sup (eval_word w ` X)"
+    apply (simp add: eval_word_def image_def)
+    apply (rule Sup_mono)
+    apply auto
+    apply (rule_tac x = "NotTop (eval_finite_word (list_of (ltake (enat n) w)) x)" in exI)
     apply simp
-    apply (subst mod_distl)
-    by (rule refl)
-  also have "... = (y \<Colon> (x \<cdot> {} \<Colon> h)) \<squnion> ((x \<inter> FIN) \<cdot> y \<Colon> h)"
+    apply (rule_tac x = x in bexI)
+    using steps_Union_enat_le[OF hyp]
+    apply (erule_tac x = x in ballE)
+    apply (erule exE)
+    apply (erule conjE)
+    apply (rule_tac x = m in exI)
+    apply simp_all
+    by (metis efw_steps max_absorb2)
+  finally show "eval_word w (\<Union>X) \<le> Sup (eval_word w ` X)" .
+qed
+
+lemma "Sup (eval_word w ` X) \<le> eval_word w (\<Union>X)"
+  by (smt Sup_le_iff Sup_upper eval_word_iso image_iff)
+
+lemma "eval_word w \<hookleftarrow> Sup X \<le> Sup {eval_word w \<hookleftarrow> x |x. x \<in> X}"
+  sledgehammer
+
+lemma "y \<Colon> (x \<Colon> h) \<le> x \<cdot> y \<Colon> h"
+proof -
+  have "y \<Colon> (x \<Colon> h) = Sup {eval_word \<hookleftarrow> x \<Colon> h |w. w \<in> y}"
+    by (simp add: module_def)
+  have "... = Sup {eval_word w \<hookleftarrow> Sup {eval_word w \<hookleftarrow> h |w. w \<in> x}) |w. w \<in> y}"
+    by (simp add: module_def)
+
 
 proof -
   have "x \<cdot> y \<Colon> h = Sup {bind h (eval_word w) |w. w \<in> x \<cdot> y}"

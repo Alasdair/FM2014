@@ -2,6 +2,8 @@ theory RelyGuarantee3
   imports Language
 begin
 
+
+
 datatype 'a act = Act "'a set" "'a rel"
 
 fun eval_word :: "'a act list \<Rightarrow> 'a set \<Rightarrow> 'a set" where
@@ -73,7 +75,7 @@ lemma (in complete_lattice) Sup_comp_conj: "Sup {f x y |x y. P x \<and> Q y} = S
   apply (rule Sup_comp_mono)
   by (metis (lifting, full_types) Sup_upper mem_Collect_eq)
 
-lemma mod_mult: "y \<Colon> (x \<Colon> h) \<subseteq> x\<cdot>y \<Colon> h"
+lemma mod_mult: "y \<Colon> (x \<Colon> h) \<subseteq> x \<cdot> y \<Colon> h"
 proof -
   have "y \<Colon> (x \<Colon> h) = \<Union>{eval_word yw (x \<Colon> h)|yw. yw \<in> y}"
     by (simp add: module_def)
@@ -87,11 +89,66 @@ proof -
     by blast
   also have "... = \<Union>{eval_word (xw @ yw) h|xw yw. xw \<in> x \<and> yw \<in> y}"
     by (simp add: eval_append_word)
-  also have "... = \<Union>{eval_word w h|w. w \<in> x\<cdot>y}"
+  also have "... = \<Union>{eval_word w h|w. w \<in> x \<cdot> y}"
     by (auto simp add: l_prod_def complex_product_def)
-  also have "... = x\<cdot>y \<Colon> h"
+  also have "... = x \<cdot> y \<Colon> h"
     by (simp add: module_def)
   finally show ?thesis .
 qed
+
+lemma mod_one [simp]: "{[]} \<Colon> h = h"
+  by (simp add: module_def)
+
+lemma mod_zero [simp]: "{} \<Colon> h = {}"
+  by (simp add: module_def)
+
+lemma mod_empty [simp]: "x \<Colon> {} = {}"
+  by (simp add: module_def)
+
+lemma mod_distl: "(x \<union> y) \<Colon> h = (x \<Colon> h) \<union> (y \<Colon> h)"
+proof -
+  have "(x \<union> y) \<Colon> h = \<Union>{eval_word w h|w. w \<in> x \<union> y}"
+    by (simp add: module_def)
+  also have "... = \<Union>{eval_word w h|w. w \<in> x \<or> w \<in> y}"
+    by blast
+  also have "... = \<Union>{eval_word w h|w. w \<in> x} \<union> \<Union>{eval_word w h|w. w \<in> y}"
+    by blast
+  also have "... = (x \<Colon> h) \<union> (y \<Colon> h)"
+    by (simp add: module_def)
+  finally show ?thesis .
+qed
+
+find_theorems "op ``" "op \<union>"
+
+lemma eval_word_union: "eval_word w (h \<union> g) \<subseteq> eval_word w h \<union> eval_word w g"
+proof (induct w arbitrary: h g)
+  case Nil show ?case by simp
+next
+  case (Cons w ws) thus ?case
+    by (cases w) (simp add: Image_Un)
+qed
+
+lemma mod_distr: "x \<Colon> (h \<union> g) \<subseteq> (x \<Colon> h) \<union> (x \<Colon> g)"
+proof -
+  have "x \<Colon> (h \<union> g) = \<Union>{eval_word w (h \<union> g)|w. w \<in> x}"
+    by (simp add: module_def)
+  also have "... \<subseteq> \<Union>{eval_word w h \<union> eval_word w g|w. w \<in> x}"
+    by (rule Sup_comp_mono) (rule eval_word_union)
+  also have "... = \<Union>{eval_word w h|w. w \<in> x} \<union> \<Union>{eval_word w g|w. w \<in> x}"
+    by blast
+  also have "... = (x \<Colon> h) \<union> (x \<Colon> g)"
+    by (simp add: module_def)
+  finally show ?thesis .
+qed
+
+lemma mod_isol: "x \<subseteq> y \<Longrightarrow> x \<Colon> p \<subseteq> y \<Colon> p"
+  by (auto simp add: module_def)
+
+definition triple :: "'a set \<Rightarrow> 'a act lan \<Rightarrow> 'a set \<Rightarrow> bool"
+  ("\<lbrace>_\<rbrace> _ \<lbrace>_\<rbrace>" [20,20,20] 100) where
+  "\<lbrace>p\<rbrace> c \<lbrace>q\<rbrace> \<equiv> c \<Colon> p \<subseteq> q"
+
+lemma "\<lbrace>p\<rbrace> c1 \<lbrace>q\<rbrace> \<Longrightarrow> \<lbrace>q\<rbrace> c2 \<lbrace>r\<rbrace> \<Longrightarrow> \<lbrace>p\<rbrace> c1 \<cdot> c2 \<lbrace>r\<rbrace>"
+  apply (simp add: triple_def)
 
 end
