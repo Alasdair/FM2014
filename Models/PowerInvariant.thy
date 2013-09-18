@@ -62,9 +62,9 @@ lemma Pref_mono: "X \<subseteq> Y \<Longrightarrow> Pref X \<subseteq> Pref Y"
   by (auto simp add: Pref_def)
 
 definition pow_inv :: "'a set \<Rightarrow> 'a lan" ("\<iota>") where
-  "pow_inv X \<equiv> {xs. lset xs \<subseteq> X} \<inter> FIN"
+  "pow_inv X \<equiv> {xs. lset xs \<subseteq> X}"
 
-lemma Pref_pow_inv: "Pref (\<iota> X) = \<iota> X"
+lemma Pref_pow_inv: "Pref (\<iota> X) = \<iota> X \<inter> FIN"
 proof (auto simp add: pow_inv_def Pref_def)
   fix xs y ys
   assume "ys \<in> prefixes xs" and "lset xs \<subseteq> X" and "y \<in> lset ys"
@@ -79,24 +79,21 @@ next
   assume "xs \<in> FIN" and "lset xs \<subseteq> X"
   moreover hence "xs \<in> prefixes xs"
     by (metis FIN_def lappend_LNil2 mem_Collect_eq prefixes_lappend)
-  ultimately show "\<exists>ys\<in>{xs. lset xs \<subseteq> X} \<inter> FIN. xs \<in> prefixes ys"
+  ultimately show "\<exists>ys. lset ys \<subseteq> X \<and> xs \<in> prefixes ys"
     by blast
 qed
 
 definition symbols :: "'a lan \<Rightarrow> 'a set" ("\<rho>") where
   "symbols X \<equiv> \<Union>xs\<in>X. lset xs"
 
-lemma galois_connection: "X \<subseteq> FIN \<Longrightarrow> \<rho> X \<subseteq> Y \<longleftrightarrow> X \<subseteq> \<iota> Y"
+lemma galois_connection: "\<rho> X \<subseteq> Y \<longleftrightarrow> X \<subseteq> \<iota> Y"
   by (auto simp add: pow_inv_def symbols_def FIN_def)
 
-lemma \<rho>_iso: "Y \<subseteq> FIN \<Longrightarrow> X \<subseteq> Y \<Longrightarrow> \<rho> X \<subseteq> \<rho> Y"
+lemma \<rho>_iso: "X \<subseteq> Y \<Longrightarrow> \<rho> X \<subseteq> \<rho> Y"
   by (metis Int_absorb1 galois_connection le_infI1 order_refl)
 
-lemma pow_inv_finite: "\<iota> X \<subseteq> FIN"
-  by (simp add: pow_inv_def)
-
 lemma \<iota>_iso: "X \<subseteq> Y \<Longrightarrow> \<iota> X \<subseteq> \<iota> Y"
-  by (metis galois_connection order_refl order_trans pow_inv_finite)
+  by (metis galois_connection order_refl order_trans)
 
 lemma Pref_0 [simp]: "Pref {} = {}"
   by (auto simp add: Pref_def)
@@ -135,8 +132,10 @@ lemma pow_inv_l_prod_par: "\<iota> r \<cdot> \<iota> s \<le> \<iota> r \<paralle
   by (metis fin_l_prod_le_shuffle)
 *)
 
+(*
 lemma pow_inv_exchange1: "\<iota> r \<cdot> (x \<parallel> y) \<subseteq> \<iota> r \<cdot> x \<parallel> \<iota> r \<cdot> y"
   using exchange[where A = "\<iota> r" and B = "\<iota> r", simplified, OF pow_inv_finite] .
+*)
 
 (*
 shows "(lmap \<langle>id,id\<rangle> ` (a \<sha> b)) \<cdot> (lmap \<langle>id,id\<rangle> ` (c \<sha> d)) \<subseteq> lmap \<langle>id, id\<rangle> ` ((b \<frown> c) \<sha> (a \<frown> d))"
@@ -155,6 +154,7 @@ lemma traj_interleave: "traj (xs \<triangleright> zs \<triangleleft> ys) = lmap 
   sorry
 
 declare interleave_only_left[simp]
+declare interleave_only_right[simp]
 declare lfilter_left_interleave[simp]
 declare lfilter_right_interleave[simp]
 
@@ -176,6 +176,16 @@ lemma lefts_interleave_var: "llength (\<ll> t) = llength xs \<Longrightarrow> \<
 lemma rights_interleave_var: "llength (\<rr> t) = llength ys \<Longrightarrow> \<rr> (xs \<triangleright> t \<triangleleft> ys) = ys"
   sorry
 
+thm interleave_only_right
+
+lemma lappend_in_l_prod: "lfinite xs \<Longrightarrow> xs \<in> X \<Longrightarrow> ys \<in> Y \<Longrightarrow> xs \<frown> ys \<in> X \<cdot> Y"
+  by (auto simp add: l_prod_def)
+
+lemma pow_inv_split: "\<iota> r = \<iota> r \<cdot> \<iota> r"
+  by (auto simp add: pow_inv_def FIN_def l_prod_def) (metis empty_subsetI lappend_LNil2 lset_LNil)
+
+lemma pow_inv_fin_split: "\<iota> r = (\<iota> r \<inter> FIN) \<cdot> \<iota> r"
+  by (auto simp add: pow_inv_def FIN_def l_prod_def) (metis empty_subsetI lappend_LNil1 lfinite_code(1) lset_LNil)
 
 lemma "rs \<sha> (xs \<frown> ys) \<subseteq> \<Union>{(rs' \<sha> xs) \<cdot> (rs'' \<sha> ys) |rs' rs''. rs = rs' \<frown> rs''}"
 proof -
@@ -189,33 +199,31 @@ proof -
     then obtain rs' rs'' where rs_def: "rs = rs' \<frown> rs''" and rs'_finite: "lfinite rs'"
       by blast
     have "\<exists>t' t''. zs = (rs' \<triangleright> t' \<triangleleft> xs) \<frown> (rs'' \<triangleright> t'' \<triangleleft> ys)"
-      apply (subst zs_def)
-      apply (subst rs_def)
-      apply (rule interleave_exchange)
-      apply (simp only: rights_def o_def)
-      apply (subst traj_lfilter_rights[where f = "unr \<circ> Inr" and xs = "xs \<frown> ys"])
-      apply (simp add: rights_def)
-      apply (rule arg_cong) back
-      apply (subst zs_def)
-      apply simp
-      apply (subgoal_tac "lfilter is_right (traj zs) = 
-      sledgehammer
-      apply (subst rights_interleave)
+      sorry
     then obtain t' t'' where "zs = (rs' \<triangleright> t' \<triangleleft> xs) \<frown> (rs'' \<triangleright> t'' \<triangleleft> ys)"
-      sledgehammer
+      by blast
+    have "(rs' \<triangleright> t' \<triangleleft> xs) \<frown> (rs'' \<triangleright> t'' \<triangleleft> ys) \<in> \<Union>{(rs' \<sha> xs) \<cdot> (rs'' \<sha> ys) |rs' rs''. rs = rs' \<frown> rs''}"
+      apply simp
+      apply (rule_tac x = "(rs' \<sha> xs) \<cdot> (rs'' \<sha> ys)" in exI)
+      apply (intro conjI)
+      apply (rule_tac x = rs' in exI)
+      apply (rule_tac x = rs'' in exI)
+      apply (intro conjI)
+      apply (rule refl)
+      apply (simp only: rs_def)
+      apply (rule lappend_in_l_prod)
+      defer
+      apply (auto simp add: tshuffle_words_def)
+      sorry
+    hence "zs \<in> \<Union>{(rs' \<sha> xs) \<cdot> (rs'' \<sha> ys) |rs' rs''. rs = rs' \<frown> rs''}"
+      sorry
+  }
+  thus ?thesis by blast
+qed
 
-  apply auto
-  apply (subgoal_tac "\<exists>rs' rs''. rs = rs' \<frown> rs''")
-  apply (erule exE)+
-  apply (rule_tac x = "(rs' \<sha> xs) \<cdot> (rs'' \<sha> ys)" in exI)
-  apply (intro conjI)
-  apply (rule_tac x = rs' in exI)
-  apply (rule_tac x = rs'' in exI)
-  apply simp
-  sledgehammer
+find_theorems FIN l_prod
 
 lemma pow_inv1: "\<iota> r \<parallel> x \<cdot> y \<subseteq> (\<iota> r \<parallel> x) \<cdot> (\<iota> r \<parallel> y)"
-  apply (simp add: shuffle_def)
 proof -
   let ?lhs_inf = "\<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> xs) |rs xs. rs \<in> \<iota> r \<and> xs \<in> x \<and> \<not> lfinite xs}"
   let ?lhs_fin = "\<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> (xs \<frown> ys)) |rs xs ys. rs \<in> \<iota> r \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
@@ -223,27 +231,22 @@ proof -
   have "?lhs_inf \<subseteq> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> xs) |rs xs. rs \<in> \<iota> r \<and> xs \<in> x} \<cdot> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> ys) |rs ys. rs \<in> \<iota> r \<and> ys \<in> y}"
     by (auto simp only: l_prod_def) (metis (lifting, full_types) lfinite_lmap lfinite_rights mem_Collect_eq tshuffle_words_def)
 
-  have "?lhs_fin \<subseteq> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> xs) |rs xs. rs \<in> \<iota> r \<and> xs \<in> x} \<cdot> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> ys) |rs ys. rs \<in> \<iota> r \<and> ys \<in> y}"
-    apply (auto simp add: l_prod_def)
-    apply (rename_tac rs xs ys zs)
-    apply (rule_tac x = "lmap \<langle>id,id\<rangle> ` (rs \<sha> (xs \<frown> ys))" in exI)
-    apply (intro conjI)
+  have "?lhs_fin \<subseteq> \<Union>{lmap \<langle>id,id\<rangle> ` \<Union>{(rs' \<sha> xs) \<cdot> (rs'' \<sha> ys) |rs' rs''. rs = rs' \<frown> rs''} |rs xs ys. rs \<in> \<iota> r \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
+    sorry
+  also have "... \<subseteq> \<Union>{\<Union>{lmap \<langle>id,id\<rangle> ` (rs' \<sha> xs) \<cdot> lmap \<langle>id,id\<rangle> ` (rs'' \<sha> ys) |rs' rs''. rs = rs' \<frown> rs''} |rs xs ys. rs \<in> \<iota> r \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
+    sorry
+  also have "... = \<Union>{lmap \<langle>id,id\<rangle> ` (rs' \<sha> xs) \<cdot> lmap \<langle>id,id\<rangle> ` (rs'' \<sha> ys) |rs' rs'' rs xs ys. rs = rs' \<frown> rs'' \<and> rs \<in> \<iota> r \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
+    by blast
+  also have "... = \<Union>{{zs \<frown> ws |zs ws. zs \<in> lmap \<langle>id,id\<rangle> ` (rs' \<sha> xs) \<and> ws \<in> lmap \<langle>id,id\<rangle> ` (rs'' \<sha> ys)} |rs' rs'' rs xs ys. rs = rs' \<frown> rs'' \<and> rs \<in> \<iota> r \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
+    sorry
+  also have "... \<subseteq> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> xs) |rs xs. rs \<in> (\<iota> r \<inter> FIN) \<and> xs \<in> x \<and> lfinite xs} \<cdot> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> ys) |rs ys. rs \<in> \<iota> r \<and> ys \<in> y}"
+    apply (subst fin_l_prod)
     prefer 2
-    apply simp
-    apply (subgoal_tac "zs = (LNil \<frown> rs) \<triangleright> traj zs \<triangleleft> (xs \<frown> ys)")
-    prefer 2
-    apply simp
-    apply (metis tshuffle_interleave)
-    apply (subgoal_tac "\<exists>t' t''. LNil \<frown> rs \<triangleright> traj zs \<triangleleft> xs \<frown> ys = (LNil \<triangleright> t' \<triangleleft> xs) \<frown> (rs \<triangleright> t'' \<triangleleft> ys)")
-
-    apply (metis reinterleave)
-    apply (erule exE)+
-    apply (subgoal_tac "lfinite (lmap \<langle>id,id\<rangle> (rs \<triangleright> traj xa \<triangleleft> xs))")
-    apply (erule_tac x = "lmap \<langle>id,id\<rangle> (rs \<triangleright> traj xa \<triangleleft> xs)" in allE)
-    apply simp
-    apply (erule_tac x = "lmap \<langle>id,id\<rangle> (rs \<triangleright> traj xa \<triangleleft> ys)" in allE)
-    apply (
+    apply (auto simp add: image_def)
     sledgehammer
+    apply (auto simp add: l_prod_def)
+    sledgehammer
+    apply blast
 
   have "\<iota> r \<parallel> x \<cdot> y = \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> zs) |rs zs. rs \<in> \<iota> r \<and> zs \<in> x \<cdot> y}"
     by (simp add: shuffle_def)

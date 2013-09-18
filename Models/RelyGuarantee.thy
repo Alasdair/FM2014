@@ -12,7 +12,7 @@ definition I :: "'a lan set" where
   "I \<equiv> {x. \<exists>y. x = \<iota> y}"
 
 definition quintuple :: "'a rel lan \<Rightarrow> 'a rel lan \<Rightarrow> 'a set top \<Rightarrow> 'a rel lan \<Rightarrow> 'a set top \<Rightarrow> bool" ("_, _ \<turnstile> \<lbrace>_\<rbrace> _ \<lbrace>_\<rbrace>") where
-  "r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>q\<rbrace> \<longleftrightarrow> r \<parallel> c \<triangleright> p \<le> q \<and> Pref c \<le> g \<and> r \<in> I \<and> g \<in> I"
+  "r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>q\<rbrace> \<longleftrightarrow> r \<parallel> c \<triangleright> p \<le> q \<and> c \<le> g \<and> r \<in> I \<and> g \<in> I"
 
 lemma inv_dist:
   assumes "r \<in> I" shows "r\<parallel>(x\<cdot>y) \<le> (r\<parallel>x)\<cdot>(r\<parallel>y)"

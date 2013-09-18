@@ -145,4 +145,9 @@ end
 
 lemma top_bind [simp]: "f \<hookleftarrow> top = top" by (simp add: top_top_def)
 
+lemma [simp]: "NotTop x = bot \<longleftrightarrow> x = {}"
+  by (simp add: bot_top_def)
+
+lemmas Top_top = top_top_def[symmetric]
+
 end
