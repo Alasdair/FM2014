@@ -2,67 +2,73 @@ theory RelyGuarantee
   imports PowerInvariant Evaluation
 begin
 
-no_notation
-  Transitive_Closure.trancl ("(_\<^sup>+)" [1000] 999)
+definition quintuple :: "'a rel set \<Rightarrow> 'a rel set \<Rightarrow> 'a set top \<Rightarrow> 'a rel lan \<Rightarrow> 'a set top \<Rightarrow> bool" ("_, _ \<turnstile> \<lbrace>_\<rbrace> _ \<lbrace>_\<rbrace>") where
+  "r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>q\<rbrace> \<longleftrightarrow> relyF r \<parallel> c \<triangleright> p \<le> q \<and> guar c \<le> g"
 
-definition trancl :: "'a lan \<Rightarrow> 'a lan" ("_\<^sup>+" [101] 100) where
-  "x\<^sup>+ \<equiv> x\<cdot>x\<^sup>\<star>"
+theorem weakening:
+  assumes "r, g \<turnstile> \<lbrace>p\<rbrace> c1 \<lbrace>q\<rbrace>"
+  and "r' \<le> r" and "g \<le> g'" and "p' \<le> p" and "q \<le> q'"
+  shows "r', g' \<turnstile> \<lbrace>p'\<rbrace> c1 \<lbrace>q'\<rbrace>"
+proof (simp add: quintuple_def, intro conjI)
+  have "relyF r' \<parallel> c1 \<triangleright> p' \<le> relyF r \<parallel> c1 \<triangleright> p'"
+    by (metis assms(2) mod2_isol par.mult_isol relyF_iso shuffle_comm)
+  also have "... \<le> relyF r \<parallel> c1 \<triangleright> p"
+    by (metis assms(4) mod2_isor)
+  also have "... \<le> q"
+    by (metis assms(1) quintuple_def)
+  also have "... \<le> q'"
+    by (metis assms(5))
+  finally show "rely r' \<parallel> c1 \<triangleright> p' \<le> q'" .
 
-definition I :: "'a lan set" where
-  "I \<equiv> {x. \<exists>y. x = \<iota> y}"
-
-definition quintuple :: "'a rel lan \<Rightarrow> 'a rel lan \<Rightarrow> 'a set top \<Rightarrow> 'a rel lan \<Rightarrow> 'a set top \<Rightarrow> bool" ("_, _ \<turnstile> \<lbrace>_\<rbrace> _ \<lbrace>_\<rbrace>") where
-  "r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>q\<rbrace> \<longleftrightarrow> r \<parallel> c \<triangleright> p \<le> q \<and> c \<le> g \<and> r \<in> I \<and> g \<in> I"
-
-lemma inv_dist:
-  assumes "r \<in> I" shows "r\<parallel>(x\<cdot>y) \<le> (r\<parallel>x)\<cdot>(r\<parallel>y)"
-proof -
-  obtain r' where [simp]: "r = \<iota> r'"
-    using assms by (auto simp: I_def)
-  thus ?thesis by simp (rule pow_inv1)
+  show "guar c1 \<le> g'"
+    by (metis assms(1) assms(3) order_trans quintuple_def)
 qed
 
-lemma inv_mult_par: "r \<in> I \<Longrightarrow> s \<in> I \<Longrightarrow> r \<cdot> s \<le> r \<parallel> s"
-  apply (simp add: I_def)
-  apply (erule exE)+
-  apply simp
-  by (metis fin_l_prod_le_shuffle pow_inv_finite)
-
-lemma inv_par_closed: "r \<in> I \<Longrightarrow> s \<in> I \<Longrightarrow> r \<parallel> s \<in> I"
-  sorry
-
-lemma sequential:
-  assumes "r, g1 \<turnstile> \<lbrace>p\<rbrace> c1 \<lbrace>q\<rbrace>" and "r, g2 \<turnstile> \<lbrace>q\<rbrace> c2 \<lbrace>s\<rbrace>"
-  shows "r, (g1 \<parallel> g2) \<turnstile> \<lbrace>p\<rbrace> c1 \<cdot> c2 \<lbrace>s\<rbrace>"
+theorem sequential:
+  assumes "r, g \<turnstile> \<lbrace>p\<rbrace> c1 \<lbrace>q\<rbrace>" and "r, g \<turnstile> \<lbrace>q\<rbrace> c2 \<lbrace>s\<rbrace>"
+  shows "r, g \<turnstile> \<lbrace>p\<rbrace> c1 \<cdot> c2 \<lbrace>s\<rbrace>"
 proof -
-  have r_inv: "r \<in> I"
-    by (metis assms(1) quintuple_def)
-
   {
-    have "r \<parallel> (c1 \<cdot> c2) \<triangleright> p \<le> (r \<parallel> c1) \<cdot> (r \<parallel> c2) \<triangleright> p"
-      by (metis inv_dist mod2_isol r_inv)
-    also have "... \<le> r \<parallel> c2 \<triangleright> r \<parallel> c1 \<triangleright> p"
+    have "rely r \<parallel> (c1 \<cdot> c2) \<triangleright> p \<le> (rely r \<parallel> c1) \<cdot> (rely r \<parallel> c2) \<triangleright> p"
+      by (metis rely_l_prod mod2_isol)
+    also have "... \<le> rely r \<parallel> c2 \<triangleright> rely r \<parallel> c1 \<triangleright> p"
       by (metis mod2_mult)
-    also have "... \<le> r \<parallel> c2 \<triangleright> q"
+    also have "... \<le> rely r \<parallel> c2 \<triangleright> q"
       by (metis assms(1) mod2_isor quintuple_def)
     also have "... \<le> s"
       by (metis assms(2) quintuple_def)
-    finally have "r \<parallel> (c1 \<cdot> c2) \<triangleright> p \<le> s" .
+    finally have "rely r \<parallel> (c1 \<cdot> c2) \<triangleright> p \<le> s" .
   }
   moreover
   {
-    have "Pref (c1 \<cdot> c2) \<le> Pref c1 \<cdot> Pref c2"
-    have "Pref c1 \<cdot> Pref c2 \<le> g1 \<cdot> g2"
-      by (metis assms(1) assms(2) quintuple_def seq.mult_isol_var)
-    also have "... \<le> g1 \<parallel> g2"
-      by (metis assms(1) assms(2) inv_mult_par quintuple_def)
-    finally have "Pref c1 \<cdot> Pref c2 \<le> g1 \<parallel> g2" .
+    have "guar (c1 \<cdot> c2) \<le> guar c1 \<union> guar c2"
+      by (metis guar_l_prod)
+    also have "... \<le> g"
+      by (metis assms(1) assms(2) le_sup_iff quintuple_def)
+    finally have "guar (c1 \<cdot> c2) \<le> g" .
   }
   ultimately show ?thesis
-    by (metis assms(1) assms(2) inv_par_closed quintuple_def)
+    by (metis quintuple_def)
 qed
 
-lemma parallel
-  
+corollary weakened_sequential:
+  assumes "r1, g1 \<turnstile> \<lbrace>p\<rbrace> c1 \<lbrace>q\<rbrace>" and "r2, g2 \<turnstile> \<lbrace>q\<rbrace> c2 \<lbrace>s\<rbrace>"
+  shows "(r1 \<inter> r2), (g1 \<union> g2) \<turnstile> \<lbrace>p\<rbrace> c1 \<cdot> c2 \<lbrace>s\<rbrace>"
+  by (blast intro!: sequential[where q = q] weakening[OF assms(1)] weakening[OF assms(2)])
+
+lemma "guar c \<le> g \<Longrightarrow> c \<le> rely g"
+  apply (auto simp add: guar_def rely_def)
+
+theorem parallel:
+  assumes "r1, g1 \<turnstile> \<lbrace>p1\<rbrace> c1 \<lbrace>q1\<rbrace>" and "g2 \<le> r1"
+  and "r2, g2 \<turnstile> \<lbrace>p2\<rbrace> c2 \<lbrace>q2\<rbrace>" and "g1 \<le> r2"
+  shows "(r1 \<inter> r2), (g1 \<union> g2) \<turnstile> \<lbrace>inf p1 p2\<rbrace> c1 \<parallel> c2 \<lbrace>inf p1 p2\<rbrace>" 
+proof (simp add: quintuple_def, intro conjI)
+  have "rely (r1 \<inter> r2) \<parallel> (c1 \<parallel> c2) \<triangleright> inf p1 p2 \<le> rely (r1 \<inter> r2) \<parallel> (c1 \<parallel> c2) \<triangleright> p1"
+    by (metis inf_le1 mod2_isor)
+  also have "... \<le> rely r1 \<parallel> (c1 \<parallel> c2) \<triangleright> p1"
+    by (metis Int_lower1 mod2_isol par.mult_isol rely_iso shuffle_comm)
+  also have "... \<le> rely r1 \<parallel> (c1 \<parallel> rely g2) \<triangleright> p1"
+    sledgehammer
 
 end

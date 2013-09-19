@@ -2,255 +2,481 @@ theory PowerInvariant
   imports Language Topped
 begin
 
-inductive_set prefixes :: "'a llist \<Rightarrow> 'a llist set" for xs :: "'a llist" where
-  prefix: "ltake (enat n) xs \<in> prefixes xs"
+definition rely :: "'a set \<Rightarrow> 'a lan" where
+  "rely X \<equiv> {xs. lset xs \<subseteq> X} \<inter> FIN"
 
-lemma "LNil \<in> prefixes xs" using prefix[where n = 0]
-  by (auto simp: enat_0)
+definition guar :: "'a lan \<Rightarrow> 'a set" where
+  "guar X \<equiv> \<Union>xs\<in>X. lset xs"
 
-lemma prefixes_lappend: "lfinite xs \<Longrightarrow> xs \<in> prefixes (xs \<frown> ys)"
-  by (metis lfinite_llength_enat ltake_all ltake_lappend1 order_refl prefixes.simps)
+definition fshuffle :: "'a lan \<Rightarrow> 'a lan \<Rightarrow> 'a lan" (infixl "\<diamondsuit>" 85) where
+  "x \<diamondsuit> y = (x \<inter> FIN) \<parallel> (y \<inter> FIN)"
 
-definition Pref :: "'a lan \<Rightarrow> 'a lan" where
-  "Pref X = (\<Union>xs\<in>X. prefixes xs)"
+definition ishuffle :: "'a lan \<Rightarrow> 'a lan \<Rightarrow> 'a lan" (infixl "\<box>" 85) where
+  "x \<box> y = (x \<cdot> {}) \<parallel> (y \<cdot> {})"
 
-lemma prefixes_lfinite: "ys \<in> prefixes xs \<Longrightarrow> lfinite ys"
-  by (induct ys rule: prefixes.induct) (metis enat_ile lfinite_conv_llength_enat llength_ltake min_max.inf_le1)
+lemma [simp]: "(x \<cdot> {}) \<inter> FIN = {}"
+  by (auto simp add: l_prod_def FIN_def)
 
-lemma Pref_finite: "Pref X \<subseteq> FIN"
-  by (auto simp add: Pref_def FIN_def) (metis prefixes_lfinite)
+lemma [simp]: "(x \<inter> FIN) \<cdot> {} = {}"
+  by (auto simp add: l_prod_def FIN_def)
 
-lemma prefixes_ltake: "zs \<in> prefixes (ltake n xs) \<Longrightarrow> zs \<in> prefixes xs"
-  by (induct zs rule: prefixes.induct) (metis lprefix_def lprefix_trans ltake_is_lprefix prefixes.prefix prefixes_lappend prefixes_lfinite)
+lemma [elim]: "lfinite zs \<Longrightarrow> zs \<in> xs \<sha> ys \<Longrightarrow> lfinite xs"
+  apply (auto simp add: tshuffle_words_def)
+  by (metis lfinite_lefts)
 
-lemma prefixes_prefix: "ys \<in> prefixes xs \<Longrightarrow> zs \<in> prefixes ys \<Longrightarrow> zs \<in> prefixes xs"
-  by (induct ys rule: prefixes.induct) (auto intro: prefixes_ltake)
+lemma [elim]: "lfinite zs \<Longrightarrow> zs \<in> xs \<sha> ys \<Longrightarrow> lfinite ys"
+  apply (auto simp add: tshuffle_words_def)
+  by (metis lfinite_rights)
 
-lemma Pref_idem [simp]: "Pref (Pref X) = Pref X"
-  apply (auto simp add: Pref_def)
-  apply (rule_tac x = xa in bexI)
-  apply (metis prefixes_prefix)
-  apply blast
-  by (metis lappend_LNil2 prefixes_lappend prefixes_lfinite)
+lemma test1 [simp]: "(x \<parallel> y) \<inter> FIN = (x \<inter> FIN) \<parallel> (y \<inter> FIN)"
+  apply (auto simp add: l_prod_def shuffle_def FIN_def)
+  apply (rename_tac xs ys zs)
+  apply (rule_tac x = "lmap \<langle>id,id\<rangle> ` (xs \<sha> ys)" in exI)
+  apply (intro conjI)
+  apply (rule_tac x = xs in exI)
+  apply (rule_tac x = ys in exI)
+  by (auto intro: lfinite_shuffle)
 
-lemma Pref_continuous: "Pref (\<Union>X) = \<Union>(Pref ` X)"
-  by (simp add: Pref_def)
+lemma [simp]: "(x \<parallel> y) \<cdot> {} = (x \<parallel> y \<cdot> {}) \<union> (x \<cdot> {} \<parallel> y)"
+  apply (auto simp add: l_prod_def shuffle_def)
+  apply (rename_tac xs ys zs)
+  apply (rule_tac x = "lmap \<langle>id,id\<rangle> ` (xs \<sha> ys)" in exI)
+  apply (intro conjI)
+  apply (rule_tac x = xs in exI)
+  apply (rule_tac x = ys in exI)
+  apply (intro conjI)
+  apply simp_all
+  apply (metis imageI lfinite_shuffle)
+  apply (metis (mono_tags) lfinite_lefts mem_Collect_eq tshuffle_words_def)
+  by (metis (mono_tags) lfinite_rights mem_Collect_eq tshuffle_words_def)
 
-lemma Pref_lower_adjoint: "lower_adjoint Pref"
-  by (simp add: lower_is_jp join_preserving_def Pref_continuous)
+lemma [simp]: "(x \<box> y) \<diamondsuit> z = {}"
+  by (simp add: fshuffle_def ishuffle_def)
 
-lemma Pref_ge_finite: "X \<subseteq> FIN \<Longrightarrow> X \<subseteq> Pref X"
-  by (auto simp add: Pref_def FIN_def) (metis (full_types) lprefix_def lprefix_refl mem_Collect_eq prefixes_lappend subsetD)
+lemma [simp]: "(x \<diamondsuit> y) \<box> z = {}"
+  by (simp add: fshuffle_def ishuffle_def)
 
-lemma Pref_refl_finite: "X \<subseteq> Pref X \<Longrightarrow> X \<subseteq> FIN"
-  apply (auto simp add: Pref_def FIN_def)
-  apply (drule_tac c = x in subsetD)
-  apply assumption
-  apply auto
-  by (metis prefixes_lfinite)
+lemma [simp]: "x \<box> (y \<diamondsuit> z) = {}"
+  by (simp add: fshuffle_def ishuffle_def)
 
-lemma [iff]: "X \<subseteq> Pref X \<longleftrightarrow> X \<subseteq> FIN"
-  by (metis Pref_ge_finite Pref_refl_finite)
+lemma [simp]: "x \<diamondsuit> (y \<box> z) = {}"
+  by (simp add: fshuffle_def ishuffle_def)
 
-lemma prefixes_refl: "lfinite xs \<Longrightarrow> xs \<in> prefixes xs"
-  by (metis lappend_LNil2 prefixes_lappend)
+lemma [simp]: "x \<box> (y \<union> z) = x \<box> y \<union> x \<box> z"
+  sorry
 
-lemma prefixes_contra_refl: "xs \<notin> prefixes xs \<Longrightarrow> \<not> lfinite xs"
-  by (metis prefixes_refl)
+lemma [simp]: "(x \<union> y) \<box> z = x \<box> z \<union> y \<box> z"
+  sorry
 
-lemma Pref_mono: "X \<subseteq> Y \<Longrightarrow> Pref X \<subseteq> Pref Y"
-  by (auto simp add: Pref_def)
+lemma [simp]: "x \<diamondsuit> (y \<union> z) = x \<diamondsuit> y \<union> x \<diamondsuit> z"
+  sorry
 
-definition pow_inv :: "'a set \<Rightarrow> 'a lan" ("\<iota>") where
-  "pow_inv X \<equiv> {xs. lset xs \<subseteq> X}"
+lemma [simp]: "(x \<union> y) \<diamondsuit> z = x \<diamondsuit> z \<union> y \<diamondsuit> z"
+  sorry
 
-lemma Pref_pow_inv: "Pref (\<iota> X) = \<iota> X \<inter> FIN"
-proof (auto simp add: pow_inv_def Pref_def)
-  fix xs y ys
-  assume "ys \<in> prefixes xs" and "lset xs \<subseteq> X" and "y \<in> lset ys"
-  thus "y \<in> X"
-    by - (induct ys rule: prefixes.induct, metis lset_ltake set_mp)
-next
-  fix ys xs :: "'a llist"
-  assume "ys \<in> prefixes xs" thus "ys \<in> FIN"
-    by (metis FIN_def mem_Collect_eq prefixes_lfinite)
-next
-  fix xs
-  assume "xs \<in> FIN" and "lset xs \<subseteq> X"
-  moreover hence "xs \<in> prefixes xs"
-    by (metis FIN_def lappend_LNil2 mem_Collect_eq prefixes_lappend)
-  ultimately show "\<exists>ys. lset ys \<subseteq> X \<and> xs \<in> prefixes ys"
-    by blast
-qed
+lemma [simp]: "x \<diamondsuit> (y \<diamondsuit> z) = x \<diamondsuit> y \<diamondsuit> z"
+  sorry
 
-definition symbols :: "'a lan \<Rightarrow> 'a set" ("\<rho>") where
-  "symbols X \<equiv> \<Union>xs\<in>X. lset xs"
+lemma [simp]: "x \<box> (y \<box> z) = x \<box> y \<box> z"
+  sorry
 
-lemma galois_connection: "\<rho> X \<subseteq> Y \<longleftrightarrow> X \<subseteq> \<iota> Y"
-  by (auto simp add: pow_inv_def symbols_def FIN_def)
+lemma [simp]: "(x \<parallel> y) \<inter> FIN = x \<diamondsuit> y"
+  sorry
 
-lemma \<rho>_iso: "X \<subseteq> Y \<Longrightarrow> \<rho> X \<subseteq> \<rho> Y"
-  by (metis Int_absorb1 galois_connection le_infI1 order_refl)
+declare test1[simp del]
 
-lemma \<iota>_iso: "X \<subseteq> Y \<Longrightarrow> \<iota> X \<subseteq> \<iota> Y"
+definition pshuffle :: "'a lan \<Rightarrow> 'a lan \<Rightarrow> 'a lan" (infixl "\<bullet>" 85) where
+  "x \<bullet> y = (x \<inter> FIN) \<parallel> (y \<inter> FIN) \<union> (x \<cdot> {}) \<parallel> (y \<cdot> {})" 
+
+lemma pshuffle_bd: "x \<bullet> y = x \<diamondsuit> y \<union> x \<box> y"
+  by (simp add: pshuffle_def fshuffle_def ishuffle_def)
+
+lemma inf_traces: "x \<cdot> {} \<le> x"
+  by (auto simp add: l_prod_def)
+
+lemma pshuffle_le: "x \<bullet> y \<le> x \<parallel> y"
+  apply (simp add: pshuffle_def, intro conjI)
+  apply (metis inf_traces par.mult_isol_var)
+  by (metis inf_commute inf_le2 par.mult_isol_var)
+
+lemma pshuffle_assoc: "(x \<bullet> y) \<bullet> z = x \<bullet> (y \<bullet> z)"
+  by (simp add: pshuffle_bd)
+
+lemma shuffle_mono: "a \<le> b \<Longrightarrow> c \<le> d \<Longrightarrow> a \<parallel> c \<le> b \<parallel> d"
+  by (metis par.mult_isol_var)
+
+lemma [simp]: "a \<diamondsuit> b \<parallel> c \<diamondsuit> d = (a \<parallel> c) \<diamondsuit> (b \<parallel> d)"
+  apply (simp add: fshuffle_def)
+  by (metis fshuffle_def par.mult_assoc shuffle_comm test1)
+
+lemma iexchange [simp]: "a \<box> b \<parallel> c \<box> d \<subseteq> (a \<parallel> c) \<box> (b \<parallel> d)"
+  apply (simp add: ishuffle_def shuffle_dist par.distrib_right' shuffle_assoc[symmetric])
+  apply (rule le_supI1)
+  apply (rule shuffle_mono)
+  apply (simp add: shuffle_assoc)
+  apply (rule shuffle_mono)
+  apply (rule inf_traces)
+  apply (subst shuffle_comm)
+  apply (rule shuffle_mono)
+  by (intro order_refl inf_traces)+
+
+lemma rely_exchange: "(a \<bullet> b) \<parallel> (c \<bullet> d) \<subseteq> (a \<parallel> c) \<bullet> (b \<parallel> d)"
+  apply (simp add: pshuffle_bd shuffle_dist par.distrib_right')
+  apply (intro conjI)
+  prefer 2
+  apply (rule le_supI2)
+  apply (rule iexchange)
+  apply (rule le_supI2)
+  apply (simp add: fshuffle_def ishuffle_def shuffle_dist par.distrib_right')
+  apply (rule le_supI1)
+  apply (simp add: shuffle_assoc)
+  apply (rule shuffle_mono)
+  apply simp
+  apply (subst shuffle_comm)
+  apply (simp add: shuffle_assoc)
+  apply (rule shuffle_mono)
+  apply simp
+  apply (subst shuffle_comm)
+  apply (rule shuffle_mono)
+  apply simp_all
+  apply (rule le_supI2)
+  apply (simp add: fshuffle_def ishuffle_def shuffle_dist par.distrib_right')
+  apply (rule le_supI2)+
+  apply (simp add: shuffle_assoc)
+  apply (rule shuffle_mono)
+  apply simp
+  apply (subst shuffle_comm)
+  apply (simp add: shuffle_assoc)
+  apply (rule shuffle_mono)
+  apply simp
+  apply (subst shuffle_comm)
+  apply (rule shuffle_mono)
+  by simp_all
+
+lemma "(a \<parallel> b) \<bullet> (c \<parallel> d) \<subseteq> (a \<bullet> c) \<parallel> (b \<bullet> d)"
+  apply (simp add: pshuffle_bd shuffle_dist par.distrib_right')
+  apply (intro conjI)
+  apply (simp only: Un_assoc[symmetric])
+  apply (rule le_supI2)
+  apply (rule order_refl)
+  apply (rule le_supI2)
+  apply (rule le_supI1)
+
+lemma "(a \<bullet> b) \<parallel> (c \<bullet> d) \<subseteq> (a \<parallel> c) \<bullet> (b \<parallel> d)"
+  apply (simp add: pshuffle_bd shuffle_dist par.distrib_right')
+  apply (intro conjI)
+  apply (simp add: fshuffle_def ishuffle_def)
+  sledgehammer
+  apply (rule le_supI1)
+  apply (intro conjI)
+  apply (subst fshuffle_def)
+  apply (rule shuffle_mono)
+  apply simp_all
+  apply (subst ishuffle_def)
+  apply (rule shuffle_mono)
+  sledgehammer
+
+lemma test: "(x \<cdot> {} \<parallel> y \<cdot> {}) \<subseteq> (x \<parallel> y) \<cdot> {}"
+  by (auto simp add: l_prod_def shuffle_def) (metis fair_non_empty shuffle_fair)
+
+lemma test3: "(x \<parallel> y) \<cdot> {} = (x \<parallel> y \<cdot> {}) \<union> (x \<cdot> {} \<parallel> y)"
+  apply (auto simp add: l_prod_def shuffle_def)
+  apply (rename_tac xs ys zs)
+  apply (rule_tac x = "lmap \<langle>id,id\<rangle> ` (xs \<sha> ys)" in exI)
+  apply (intro conjI)
+  apply (rule_tac x = xs in exI)
+  apply (rule_tac x = ys in exI)
+  apply (intro conjI)
+  apply simp_all
+  apply (metis imageI lfinite_shuffle)
+  apply (metis (mono_tags) lfinite_lefts mem_Collect_eq tshuffle_words_def)
+  by (metis (mono_tags) lfinite_rights mem_Collect_eq tshuffle_words_def)
+
+lemma [elim]: "lfinite zs \<Longrightarrow> zs \<in> xs \<sha> ys \<Longrightarrow> lfinite xs"
+  apply (auto simp add: tshuffle_words_def)
+  by (metis lfinite_lefts)
+
+lemma [elim]: "lfinite zs \<Longrightarrow> zs \<in> xs \<sha> ys \<Longrightarrow> lfinite ys"
+  apply (auto simp add: tshuffle_words_def)
+  by (metis lfinite_rights)
+
+lemma test2: "(x \<parallel> y) \<inter> FIN = (x \<inter> FIN) \<parallel> (y \<inter> FIN)"
+  apply (auto simp add: l_prod_def shuffle_def FIN_def)
+  apply (rename_tac xs ys zs)
+  apply (rule_tac x = "lmap \<langle>id,id\<rangle> ` (xs \<sha> ys)" in exI)
+  apply (intro conjI)
+  apply (rule_tac x = xs in exI)
+  apply (rule_tac x = ys in exI)
+  by (auto intro: lfinite_shuffle)
+
+find_theorems "op \<parallel>"
+
+lemma "(a \<bullet> b) \<parallel> (c \<bullet> d) \<subseteq> (a \<parallel> b) \<bullet> (c \<parallel> d)"
+  apply (simp add: pshuffle_def par.distrib_right' shuffle_dist)
+  apply (intro conjI)
+  sledgehammer
+
+lemma "(a \<parallel> b) \<bullet> (c \<parallel> d) \<subseteq> (a \<bullet> b) \<parallel> (c \<bullet> d)"
+  apply (simp add: pshuffle_def par.distrib_right' shuffle_dist)
+  apply (intro conjI)
+  oops
+
+lemma finite_infinite_split: "y = (y \<inter> FIN) \<union> (y \<cdot> {})"
+  sorry
+
+lemma "x \<parallel> (y \<inter> FIN) \<union> x \<parallel> (y \<cdot> {}) = x \<parallel> y"
+  by (metis finite_infinite_split par.distrib_left)
+
+lemma par_inter: "x \<parallel> y \<union> x \<parallel> (y \<inter> z) = x \<parallel> y"
+  by (metis par.distrib_left sup_inf_absorb)
+
+lemma shuffle_assoc_var: "(a \<parallel> b) \<parallel> (c \<parallel> d) = a \<parallel> b \<parallel> c \<parallel> d"
+  sorry
+
+lemma test4: "b \<subseteq> c \<union> d \<Longrightarrow> a \<parallel> b \<subseteq> a \<parallel> c \<union> a \<parallel> d"
+  by (metis par.distrib_left par.mult_isol)
+
+find_theorems "_ \<le> _ \<Longrightarrow> _ \<le> sup _ _"
+
+lemma test5: "x \<parallel> y \<cdot> {} \<subseteq> (x \<parallel> y) \<cdot> {}"
+  by (metis par.order_prop test3)
+
+lemma test6: "x \<cdot> {} \<parallel> z \<union> (x \<inter> FIN) \<parallel> z = x \<parallel> z"
+  by (metis finite_infinite_split par.add_comm par.distrib_left shuffle_comm)
+
+
+lemma "x \<bullet> (y \<parallel> z) \<subseteq> (x \<bullet> y) \<parallel> z"
+proof (simp add: pshuffle_def par.distrib_right' shuffle_dist test2 test3, intro conjI)
+  have "(x \<inter> FIN) \<parallel> ((y \<inter> FIN) \<parallel> (z \<inter> FIN)) \<subseteq> (x \<inter> FIN) \<parallel> (y \<cdot> {} \<parallel> z) \<union> (x \<inter> FIN) \<parallel> ((y \<inter> FIN) \<parallel> z)"
+    apply (rule test4)
+    apply (rule le_supI2)
+    by (metis inf.commute inf_le2 par.mult_isor shuffle_comm)
+  also have "... \<subseteq> x \<parallel> (y \<cdot> {} \<parallel> z) \<union> (x \<inter> FIN) \<parallel> ((y \<inter> FIN) \<parallel> z)"
+    apply (rule sup_mono)
+    apply simp_all
+    by (metis inf_commute inf_le2 par.mult_isor)
+  finally show "(x \<inter> FIN) \<parallel> ((y \<inter> FIN) \<parallel> (z \<inter> FIN)) \<subseteq> x \<parallel> y \<cdot> {} \<parallel> z \<union> (x \<inter> FIN) \<parallel> (y \<inter> FIN) \<parallel> z"
+    by (metis par.mult_assoc)
+
+  have "x \<parallel> (y \<parallel> z \<cdot> {}) \<subseteq> x \<parallel> y \<cdot> {} \<parallel> z \<union> (x \<inter> FIN) \<parallel> (y \<inter> FIN) \<parallel> z"
+    sledgehammer
+
+lemma "x \<parallel> y \<cdot> {} \<subseteq> (x \<parallel> y) \<cdot> {}"
+  
+
+lemma "x \<parallel> y \<cdot> {} \<parallel> z \<union> x \<parallel> (y \<inter> FIN) \<parallel> z"
+
+lemma "(a \<bullet> b) \<parallel> (c \<bullet> d) \<subseteq> (a \<parallel> c) \<bullet> (b \<parallel> d)"
+  oops
+
+lemma galois_connection: "(X \<subseteq> FIN \<and> guar X \<subseteq> Y) \<longleftrightarrow> X \<subseteq> rely Y"
+  by (auto simp add: rely_def guar_def FIN_def)
+
+lemma galois_connection_var: "X \<subseteq> FIN \<Longrightarrow> guar X \<subseteq> Y \<longleftrightarrow> X \<subseteq> rely Y"
+  by (metis galois_connection)
+
+lemma guar_iso: "X \<subseteq> Y \<Longrightarrow> guar X \<subseteq> guar Y"
+  by (auto simp add: guar_def)
+
+lemma rely_iso: "X \<subseteq> Y \<Longrightarrow> rely X \<subseteq> rely Y"
   by (metis galois_connection order_refl order_trans)
 
-lemma Pref_0 [simp]: "Pref {} = {}"
-  by (auto simp add: Pref_def)
+lemma rely_prod: "rely r \<cdot> rely r = rely r"
+  apply (simp add: rely_def)
+  apply (subst fin_l_prod)
+  apply simp
+  apply (auto simp add: FIN_def)
+  by (metis empty_subsetI lappend_LNil1 lfinite_code(1) lset_LNil)
 
-lemma Pref_zeror [simp]: "Pref X \<cdot> {} = {}"
-  by (auto simp add: Pref_def l_prod_def) (metis prefixes_lfinite)
+lemma rely_finite: "rely r \<subseteq> FIN"
+  by (metis galois_connection order_refl)
 
-(*
-lemma "ys \<in> prefixes xs \<Longrightarrow> Y \<noteq> {} \<Longrightarrow> xs \<in> X \<Longrightarrow> \<not> lfinite xs \<Longrightarrow> \<exists>zs\<in>X \<parallel> Y. ys \<in> prefixes zs"
-proof (induct ys rule: prefixes.induct)
-  fix n
-  assume "xs \<in> X" and "\<not> lfinite xs"
-  {
-    fix ys
-    assume "ys \<in> Y"2
-    hence "\<exists>zs\<in>X \<parallel> Y. ltake (enat n) xs \<in> prefixes zs"
-      apply (auto simp add: shuffle_def)
-      apply (rule_tac x = "lmap \<langle>id,id\<rangle> ` (xs \<sha> ys)" in exI)
-      apply auto
-      apply (rule_tac x = xs in exI)
-      apply (rule_tac x = ys in exI)
-      apply simp
-      apply (rule `xs \<in> X`)
-      sorry
-  }
-  thus "\<exists>zs\<in>X \<parallel> Y. ltake (enat n) xs \<in> prefixes zs"
-    sorry
+lemma rely_prod_le_shuffle: "rely r \<cdot> rely s \<subseteq> rely r \<parallel> rely s"
+  by (metis fin_l_prod_le_shuffle rely_finite)
+
+lemma tshuffle_lsetl [elim]: "xs \<in> ys \<sha> zs \<Longrightarrow> Inl x \<in> lset xs \<Longrightarrow> x \<in> lset ys"
+  by (auto simp add: tshuffle_words_def lefts_def image_def) (metis is_left.simps(1) unl.simps(1))
+
+lemma tshuffle_lsetr [elim]: "xs \<in> ys \<sha> zs \<Longrightarrow> Inr x \<in> lset xs \<Longrightarrow> x \<in> lset zs"
+  by (auto simp add: tshuffle_words_def rights_def image_def) (metis is_right.simps(1) unr.simps(1))
+
+lemma rely_par_Un: "rely r \<parallel> rely s \<subseteq> rely (r \<union> s)"
+proof -
+  have "rely r \<parallel> rely s \<subseteq> FIN"
+    by (metis fin_shuffle rely_finite)
+  moreover have "guar (rely r \<parallel> rely s) \<subseteq> r \<union> s"
+  proof (auto simp add: guar_def shuffle_def)
+    fix xs ys zs z
+    assume "(case z of Inl x \<Rightarrow> id x | Inr x \<Rightarrow> id x) \<notin> s" and "zs \<in> xs \<sha> ys"
+    and "xs \<in> rely r" and "ys \<in> rely s" and "z \<in> lset zs"
+    thus "(case z of Inl x \<Rightarrow> id x | Inr x \<Rightarrow> id x) \<in> r"
+      by (cases z, auto simp add: rely_def) (metis in_mono tshuffle_lsetr)
+  qed
+  ultimately show ?thesis
+    by (simp add: galois_connection[symmetric])
 qed
-*)
 
-lemma pow_inv_par [simp]: "\<iota> r \<parallel> \<iota> r = \<iota> r"
-  sorry
+lemma rely_par_le: "rely r \<parallel> rely r \<subseteq> rely r"
+proof (auto intro: lfinite_shuffle simp add: shuffle_def rely_def FIN_def)
+  fix zs ys xs x
+  assume "xs \<in> zs \<sha> ys" and "lset zs \<subseteq> r" and "lfinite zs" and "lset ys \<subseteq> r" and "lfinite ys" and "x \<in> lset xs"
+  thus "(case x of Inl x \<Rightarrow> id x | Inr x \<Rightarrow> id x) \<in> r"
+    by (cases x) auto
+qed
 
-(*
-lemma pow_inv_l_prod_par: "\<iota> r \<cdot> \<iota> s \<le> \<iota> r \<parallel> \<iota> s"
-  by (metis fin_l_prod_le_shuffle)
-*)
+lemma rely_par_idem [simp]: "rely r \<parallel> rely r = rely r"
+  by (metis rely_par_le rely_prod rely_prod_le_shuffle subset_antisym)
 
-(*
-lemma pow_inv_exchange1: "\<iota> r \<cdot> (x \<parallel> y) \<subseteq> \<iota> r \<cdot> x \<parallel> \<iota> r \<cdot> y"
-  using exchange[where A = "\<iota> r" and B = "\<iota> r", simplified, OF pow_inv_finite] .
-*)
+lemma rely_prod_par: "rely r \<cdot> rely r = rely r \<parallel> rely r"
+  by (metis rely_par_idem rely_prod)
 
-(*
-shows "(lmap \<langle>id,id\<rangle> ` (a \<sha> b)) \<cdot> (lmap \<langle>id,id\<rangle> ` (c \<sha> d)) \<subseteq> lmap \<langle>id, id\<rangle> ` ((b \<frown> c) \<sha> (a \<frown> d))"
-*)
-
-lemma interleave_exchange:
-  assumes "llength (\<rr> t) = llength (cs \<frown> ds)"
-  and "llength (\<ll> t) = llength (as \<frown> bs)"
-  shows "\<exists>t' t''. (as \<frown> bs) \<triangleright> t \<triangleleft> (cs \<frown> ds) = (as \<triangleright> t' \<triangleleft> cs) \<frown> (bs \<triangleright> t'' \<triangleleft> ds)"
-  sorry
-
-lemma tshuffle_interleave: "zs \<in> xs \<sha> ys \<Longrightarrow> zs = xs \<triangleright> traj zs \<triangleleft> ys"
-  by (auto simp add: tshuffle_words_def) (metis reinterleave)
-
-lemma traj_interleave: "traj (xs \<triangleright> zs \<triangleleft> ys) = lmap (\<lambda>x. ()) xs \<triangleright> zs \<triangleleft> lmap (\<lambda>x. ()) ys"
-  sorry
-
-declare interleave_only_left[simp]
-declare interleave_only_right[simp]
-declare lfilter_left_interleave[simp]
-declare lfilter_right_interleave[simp]
-
-lemma [simp]: "lmap unl (lmap Inl xs) = xs"
-  by (metis lmap2_id unl.simps(1))
-
-lemma [simp]: "lset (lmap (\<lambda>x. y) (LCons x xs)) = {y}"
-  by auto
-
-lemma [simp]: "llength (lfilter is_left t) = llength xs \<longleftrightarrow> lfilter is_left t = lmap (\<lambda>x. Inl ()) xs"
-  sorry
-
-lemma [simp]: "llength (lfilter is_right t) = llength xs \<longleftrightarrow> lfilter is_right t = lmap (\<lambda>x. Inr ()) xs"
-  sorry
-
-lemma lefts_interleave_var: "llength (\<ll> t) = llength xs \<Longrightarrow> \<ll> (xs \<triangleright> t \<triangleleft> ys) = xs"
-  by (simp add: lefts_def)
-
-lemma rights_interleave_var: "llength (\<rr> t) = llength ys \<Longrightarrow> \<rr> (xs \<triangleright> t \<triangleleft> ys) = ys"
-  sorry
-
-thm interleave_only_right
+lemma rely_lappend [simp]: "(\<exists>rs. rs \<in> rely r \<and> rs = rs' \<frown> rs'') \<longleftrightarrow> (rs' \<in> rely r \<and> rs'' \<in> rely r)"
+  by (auto simp add: rely_def FIN_def)
 
 lemma lappend_in_l_prod: "lfinite xs \<Longrightarrow> xs \<in> X \<Longrightarrow> ys \<in> Y \<Longrightarrow> xs \<frown> ys \<in> X \<cdot> Y"
   by (auto simp add: l_prod_def)
 
-lemma pow_inv_split: "\<iota> r = \<iota> r \<cdot> \<iota> r"
-  by (auto simp add: pow_inv_def FIN_def l_prod_def) (metis empty_subsetI lappend_LNil2 lset_LNil)
+lemma LCons_cont [simp]: "LCons x ` \<Union>{f xs ys|xs ys. P xs ys} = \<Union>{LCons x ` f xs ys|xs ys. P xs ys}"
+  by (auto simp add: image_def)
 
-lemma pow_inv_fin_split: "\<iota> r = (\<iota> r \<inter> FIN) \<cdot> \<iota> r"
-  by (auto simp add: pow_inv_def FIN_def l_prod_def) (metis empty_subsetI lappend_LNil1 lfinite_code(1) lset_LNil)
+lemma [simp]: "LCons x ` (ys \<cdot> zs) = LCons x ` ys \<cdot> zs"
+  apply (auto simp add: l_prod_def)
+  apply (metis image_eqI lappend_LCons lfinite_LCons)
+  by (metis image_eqI lappend_LCons lfinite_LCons)
 
-lemma "rs \<sha> (xs \<frown> ys) \<subseteq> \<Union>{(rs' \<sha> xs) \<cdot> (rs'' \<sha> ys) |rs' rs''. rs = rs' \<frown> rs''}"
-proof -
-  {
-    fix zs
-    assume "zs \<in> rs \<sha> (xs \<frown> ys)"
-    hence zs_def: "zs = rs \<triangleright> traj zs \<triangleleft> (xs \<frown> ys)"
-      by (metis tshuffle_interleave)
-    have "\<exists>rs' rs''. rs = rs' \<frown> rs'' \<and> lfinite rs'"
-      by (rule_tac x = LNil in exI) auto
-    then obtain rs' rs'' where rs_def: "rs = rs' \<frown> rs''" and rs'_finite: "lfinite rs'"
-      by blast
-    have "\<exists>t' t''. zs = (rs' \<triangleright> t' \<triangleleft> xs) \<frown> (rs'' \<triangleright> t'' \<triangleleft> ys)"
-      sorry
-    then obtain t' t'' where "zs = (rs' \<triangleright> t' \<triangleleft> xs) \<frown> (rs'' \<triangleright> t'' \<triangleleft> ys)"
-      by blast
-    have "(rs' \<triangleright> t' \<triangleleft> xs) \<frown> (rs'' \<triangleright> t'' \<triangleleft> ys) \<in> \<Union>{(rs' \<sha> xs) \<cdot> (rs'' \<sha> ys) |rs' rs''. rs = rs' \<frown> rs''}"
+lemma tshuffle_image1: "LCons (Inl x) ` (xs \<sha> ys) \<subseteq> LCons x xs \<sha> ys"
+  by (auto simp add: tshuffle_words_def)
+
+lemma tshuffle_image2: "LCons (Inr y) ` (xs \<sha> ys) \<subseteq> xs \<sha> LCons y ys"
+  by (auto simp add: tshuffle_words_def)
+
+lemma rely_dist: "lfinite rs \<Longrightarrow> lfinite xs \<Longrightarrow> rs \<sha> (xs \<frown> ys) \<subseteq> \<Union>{(rs' \<sha> xs) \<cdot> (rs'' \<sha> ys) |rs' rs''. rs = rs' \<frown> rs''}"
+proof (induct rs arbitrary: xs rule: lfinite_induct)
+  case Nil
+  thus ?case
+    apply simp
+    apply (rule_tac x = "{lmap Inr (xs \<frown> ys)}" in exI)
+    apply simp
+    apply (rule exI[of _ LNil])+
+    by (auto simp add: l_prod_def lmap_lappend_distrib)
+next
+  case (Cons r rs) note ih_rs = this
+  from Cons.prems show ?case
+  proof (induct xs rule: lfinite_induct)
+    case Nil
+    show ?case
+      apply auto
+      apply (rule_tac x = "LCons r rs \<sha> ys" in exI)
       apply simp
-      apply (rule_tac x = "(rs' \<sha> xs) \<cdot> (rs'' \<sha> ys)" in exI)
+      apply (rule_tac x = LNil in exI)
+      by simp
+  next
+    case (Cons z zs)
+    hence z_zs_finite: "lfinite (LCons z zs)"
+      by (metis lfinite_LCons)
+    have "LCons r rs \<sha> (LCons z zs \<frown> ys) = LCons r rs \<sha> (LCons z (zs \<frown> ys))"
+      by simp
+    also have "... = LCons (Inl r) ` (rs \<sha> LCons z (zs \<frown> ys)) \<union> LCons (Inr z) ` (LCons r rs \<sha> (zs \<frown> ys))"
+      by (simp only: LCons_tshuffle)
+    also have "... = LCons (Inl r) ` (rs \<sha> (LCons z zs \<frown> ys)) \<union> LCons (Inr z) ` (LCons r rs \<sha> (zs \<frown> ys))"
+      by simp
+    also have "... \<subseteq> LCons (Inl r) ` \<Union>{(rs' \<sha> LCons z zs) \<cdot> (rs'' \<sha> ys) |rs' rs''. rs = rs' \<frown> rs''} \<union> LCons (Inr z) ` \<Union>{(rs' \<sha> zs) \<cdot> (rs'' \<sha> ys) |rs' rs''. LCons r rs = rs' \<frown> rs''}"
+      by (rule sup_mono[OF image_mono[OF ih_rs(2)[OF z_zs_finite]] image_mono[OF Cons(2)]])
+    also have "... = \<Union>{LCons (Inl r) ` ((rs' \<sha> LCons z zs) \<cdot> (rs'' \<sha> ys)) |rs' rs''. rs = rs' \<frown> rs''} \<union> \<Union>{LCons (Inr z) ` ((rs' \<sha> zs) \<cdot> (rs'' \<sha> ys)) |rs' rs''. LCons r rs = rs' \<frown> rs''}"
+      by simp
+    also have "... \<subseteq> \<Union>{(rs' \<sha> LCons z zs) \<cdot> (rs'' \<sha> ys) |rs' rs''. LCons r rs = rs' \<frown> rs''} \<union> \<Union>{LCons (Inr z) ` ((rs' \<sha> zs) \<cdot> (rs'' \<sha> ys)) |rs' rs''. LCons r rs = rs' \<frown> rs''}"
+      apply (rule sup_mono[OF _ order_refl])
+      apply (rule Sup_mono)
+      apply auto
+      apply (rule_tac x = "(LCons r rs' \<sha> LCons z zs) \<cdot> (rs'' \<sha> ys)" in exI)
+      apply (intro conjI)
+      apply (rule_tac x = "LCons r rs'" in exI)
+      apply (rule_tac x = rs'' in exI)
+      apply simp
+      by (intro l_prod_isol tshuffle_image1)
+    also have "... \<subseteq> \<Union>{(rs' \<sha> LCons z zs) \<cdot> (rs'' \<sha> ys) |rs' rs''. LCons r rs = rs' \<frown> rs''} \<union> \<Union>{(rs' \<sha> LCons z zs) \<cdot> (rs'' \<sha> ys) |rs' rs''. LCons r rs = rs' \<frown> rs''}"
+      apply (rule sup_mono[OF order_refl _])
+      apply (rule Sup_mono)
+      apply auto
+      apply (rule_tac x = "(rs' \<sha> LCons z zs) \<cdot> (rs'' \<sha> ys)" in exI)
       apply (intro conjI)
       apply (rule_tac x = rs' in exI)
       apply (rule_tac x = rs'' in exI)
-      apply (intro conjI)
-      apply (rule refl)
-      apply (simp only: rs_def)
-      apply (rule lappend_in_l_prod)
-      defer
-      apply (auto simp add: tshuffle_words_def)
-      sorry
-    hence "zs \<in> \<Union>{(rs' \<sha> xs) \<cdot> (rs'' \<sha> ys) |rs' rs''. rs = rs' \<frown> rs''}"
-      sorry
-  }
-  thus ?thesis by blast
+      apply simp
+      by (intro l_prod_isol tshuffle_image2)
+    also have "... = \<Union>{(rs' \<sha> LCons z zs) \<cdot> (rs'' \<sha> ys) |rs' rs''. LCons r rs = rs' \<frown> rs''}"
+      by simp
+    finally show ?case .
+  qed
 qed
 
-find_theorems FIN l_prod
+lemma set_comp_Union_iso3: "(\<And>x y z. P x y z \<Longrightarrow> f x y z \<subseteq> g x y z) \<Longrightarrow> \<Union>{f x y z |x y z. P x y z} \<subseteq> \<Union>{g x y z |x y z. P x y z}"
+  by auto (metis in_mono)
 
-lemma pow_inv1: "\<iota> r \<parallel> x \<cdot> y \<subseteq> (\<iota> r \<parallel> x) \<cdot> (\<iota> r \<parallel> y)"
+lemma set_comp_Union_eq4: "(\<And>x y z w. P x y z w \<Longrightarrow> f x y z w = g x y z w) \<Longrightarrow> \<Union>{f x y z w |x y z w. P x y z w} = \<Union>{g x y z w |x y z w. P x y z w}"
+  by auto metis+
+
+lemma set_comp_Union_eq3: "(\<And>x y z. P x y z \<Longrightarrow> f x y z = g x y z) \<Longrightarrow> \<Union>{f x y z |x y z. P x y z} = \<Union>{g x y z |x y z. P x y z}"
+  by auto metis+
+
+lemma set_comp_Union_eq2: "(\<And>x y z. P x y \<Longrightarrow> f x y = g x y) \<Longrightarrow> \<Union>{f x y |x y. P x y} = \<Union>{g x y |x y. P x y}"
+  by auto
+
+lemma [simp]: "lmap \<langle>id,id\<rangle> ` (x \<cdot> y) = lmap \<langle>id,id\<rangle> ` x \<cdot> lmap \<langle>id,id\<rangle> ` y"
+  apply (simp add: image_def)
+  apply (auto simp add: l_prod_def)
+  apply (metis lfinite_lmap lmap_lappend_distrib)
+  apply (metis lfinite_lmap lmap_lappend_distrib)
+  by (metis l_prod_def lappend_in_l_prod lmap_lappend_distrib par.add_comm)
+
+lemma guar_l_prod: "guar (x \<cdot> y) \<subseteq> guar x \<union> guar y"
+  by (auto simp add: guar_def l_prod_def)
+
+lemma rely_l_prod: "rely r \<parallel> x \<cdot> y \<subseteq> (rely r \<parallel> x) \<cdot> (rely r \<parallel> y)"
 proof -
-  let ?lhs_inf = "\<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> xs) |rs xs. rs \<in> \<iota> r \<and> xs \<in> x \<and> \<not> lfinite xs}"
-  let ?lhs_fin = "\<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> (xs \<frown> ys)) |rs xs ys. rs \<in> \<iota> r \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
+  let ?lhs_inf = "\<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> xs) |rs xs. rs \<in> rely r \<and> xs \<in> x \<and> \<not> lfinite xs}"
+  let ?lhs_fin = "\<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> (xs \<frown> ys)) |rs xs ys. rs \<in> rely r \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
 
-  have "?lhs_inf \<subseteq> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> xs) |rs xs. rs \<in> \<iota> r \<and> xs \<in> x} \<cdot> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> ys) |rs ys. rs \<in> \<iota> r \<and> ys \<in> y}"
+  have inf_case: "?lhs_inf \<subseteq> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> xs) |rs xs. rs \<in> rely r \<and> xs \<in> x} \<cdot> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> ys) |rs ys. rs \<in> rely r \<and> ys \<in> y}"
     by (auto simp only: l_prod_def) (metis (lifting, full_types) lfinite_lmap lfinite_rights mem_Collect_eq tshuffle_words_def)
 
-  have "?lhs_fin \<subseteq> \<Union>{lmap \<langle>id,id\<rangle> ` \<Union>{(rs' \<sha> xs) \<cdot> (rs'' \<sha> ys) |rs' rs''. rs = rs' \<frown> rs''} |rs xs ys. rs \<in> \<iota> r \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
-    sorry
-  also have "... \<subseteq> \<Union>{\<Union>{lmap \<langle>id,id\<rangle> ` (rs' \<sha> xs) \<cdot> lmap \<langle>id,id\<rangle> ` (rs'' \<sha> ys) |rs' rs''. rs = rs' \<frown> rs''} |rs xs ys. rs \<in> \<iota> r \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
-    sorry
-  also have "... = \<Union>{lmap \<langle>id,id\<rangle> ` (rs' \<sha> xs) \<cdot> lmap \<langle>id,id\<rangle> ` (rs'' \<sha> ys) |rs' rs'' rs xs ys. rs = rs' \<frown> rs'' \<and> rs \<in> \<iota> r \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
+  have "?lhs_fin \<subseteq> \<Union>{lmap \<langle>id,id\<rangle> ` \<Union>{(rs' \<sha> xs) \<cdot> (rs'' \<sha> ys) |rs' rs''. rs = rs' \<frown> rs''} |rs xs ys. rs \<in> rely r \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
+    by (intro set_comp_Union_iso3 image_mono rely_dist) (auto simp add: rely_def FIN_def)
+  also have "... \<subseteq> \<Union>{\<Union>{lmap \<langle>id,id\<rangle> ` ((rs' \<sha> xs) \<cdot> (rs'' \<sha> ys)) |rs' rs''. rs = rs' \<frown> rs''} |rs xs ys. rs \<in> rely r \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
+    by (rule set_comp_Union_iso3) blast
+  also have "... = \<Union>{\<Union>{lmap \<langle>id,id\<rangle> ` (rs' \<sha> xs) \<cdot> lmap \<langle>id,id\<rangle> ` (rs'' \<sha> ys) |rs' rs''. rs = rs' \<frown> rs''} |rs xs ys. rs \<in> rely r \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
+    by simp
+  also have "... = \<Union>{lmap \<langle>id,id\<rangle> ` (rs' \<sha> xs) \<cdot> lmap \<langle>id,id\<rangle> ` (rs'' \<sha> ys) |rs' rs'' rs xs ys. rs = rs' \<frown> rs'' \<and> rs \<in> rely r \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
     by blast
-  also have "... = \<Union>{{zs \<frown> ws |zs ws. zs \<in> lmap \<langle>id,id\<rangle> ` (rs' \<sha> xs) \<and> ws \<in> lmap \<langle>id,id\<rangle> ` (rs'' \<sha> ys)} |rs' rs'' rs xs ys. rs = rs' \<frown> rs'' \<and> rs \<in> \<iota> r \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
-    sorry
-  also have "... \<subseteq> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> xs) |rs xs. rs \<in> (\<iota> r \<inter> FIN) \<and> xs \<in> x \<and> lfinite xs} \<cdot> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> ys) |rs ys. rs \<in> \<iota> r \<and> ys \<in> y}"
+  also have "... = \<Union>{lmap \<langle>id,id\<rangle> ` (rs' \<sha> xs) \<cdot> lmap \<langle>id,id\<rangle> ` (rs'' \<sha> ys) |rs' rs'' xs ys. (\<exists>rs. rs \<in> rely r \<and> rs = rs' \<frown> rs'') \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
+    by blast
+  also have "... = \<Union>{lmap \<langle>id,id\<rangle> ` (rs' \<sha> xs) \<cdot> lmap \<langle>id,id\<rangle> ` (rs'' \<sha> ys) |rs' rs'' xs ys. rs' \<in> rely r \<and> rs'' \<in> rely r \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
+    by simp
+  also have "... = \<Union>{{zs \<frown> ws |zs ws. zs \<in> lmap \<langle>id,id\<rangle> ` (rs' \<sha> xs) \<and> ws \<in> lmap \<langle>id,id\<rangle> ` (rs'' \<sha> ys)} |rs' rs'' xs ys. rs' \<in> rely r \<and> rs'' \<in> rely r \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
+    apply (rule set_comp_Union_eq4)
+    apply (erule conjE)
     apply (subst fin_l_prod)
-    prefer 2
-    apply (auto simp add: image_def)
-    sledgehammer
-    apply (auto simp add: l_prod_def)
-    sledgehammer
-    apply blast
+    apply (auto simp add: FIN_def)
+    by (metis (full_types) FIN_def in_mono lfinite_shuffle mem_Collect_eq rely_finite)
+  also have "... = \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> xs) |rs xs. rs \<in> rely r \<and> xs \<in> x \<and> lfinite xs} \<cdot> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> ys) |rs ys. rs \<in> rely r \<and> ys \<in> y}"
+    apply (subst fin_l_prod)
+    apply (simp add: FIN_def)
+    apply clarify
+    apply (metis (full_types) FIN_def lfinite_lmap lfinite_shuffle mem_Collect_eq rely_finite set_mp)
+    by blast
+  also have "... \<subseteq> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> xs) |rs xs. rs \<in> rely r \<and> xs \<in> x} \<cdot> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> ys) |rs ys. rs \<in> rely r \<and> ys \<in> y}"
+    by (auto intro!: l_prod_isol)
+  finally have fin_case: "?lhs_fin \<subseteq> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> xs) |rs xs. rs \<in> rely r \<and> xs \<in> x} \<cdot> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> ys) |rs ys. rs \<in> rely r \<and> ys \<in> y}" .
 
-  have "\<iota> r \<parallel> x \<cdot> y = \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> zs) |rs zs. rs \<in> \<iota> r \<and> zs \<in> x \<cdot> y}"
+  have "rely r \<parallel> x \<cdot> y = \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> zs) |rs zs. rs \<in> rely r \<and> zs \<in> x \<cdot> y}"
     by (simp add: shuffle_def)
   also have "... = ?lhs_inf \<union> ?lhs_fin"
     by (simp add: l_prod_def) blast
+  also have "... \<subseteq> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> xs) |rs xs. rs \<in> rely r \<and> xs \<in> x} \<cdot> \<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> ys) |rs ys. rs \<in> rely r \<and> ys \<in> y}"
+    by (subst Un_absorb[symmetric], rule sup_mono[OF inf_case fin_case])
+  also have "... = (rely r \<parallel> x) \<cdot> (rely r \<parallel> y)"
+    by (simp add: shuffle_def)
+  finally show ?thesis .
+qed
 
 end
