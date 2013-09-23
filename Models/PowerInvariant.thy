@@ -3,10 +3,61 @@ theory PowerInvariant
 begin
 
 definition rely :: "'a set \<Rightarrow> 'a lan" where
-  "rely X \<equiv> {xs. lset xs \<subseteq> X} \<inter> FIN"
+  "rely X \<equiv> {xs. lset xs \<subseteq> X}"
 
 definition guar :: "'a lan \<Rightarrow> 'a set" where
   "guar X \<equiv> \<Union>xs\<in>X. lset xs"
+
+lemma shuffle_mono: "a \<le> b \<Longrightarrow> c \<le> d \<Longrightarrow> a \<parallel> c \<le> b \<parallel> d"
+  by (metis par.mult_isol_var)
+
+lemma inf_traces [intro!]: "x \<cdot> {} \<le> x"
+  by (auto simp add: l_prod_def)
+
+lemma [elim]: "lfinite zs \<Longrightarrow> zs \<in> xs \<sha> ys \<Longrightarrow> lfinite xs"
+  apply (auto simp add: tshuffle_words_def)
+  by (metis lfinite_lefts)
+
+lemma [elim]: "lfinite zs \<Longrightarrow> zs \<in> xs \<sha> ys \<Longrightarrow> lfinite ys"
+  apply (auto simp add: tshuffle_words_def)
+  by (metis lfinite_rights)
+
+lemma test1 [simp]: "(x \<parallel> y) \<inter> FIN = (x \<inter> FIN) \<parallel> (y \<inter> FIN)"
+  apply (auto simp add: l_prod_def shuffle_def FIN_def)
+  apply (rename_tac xs ys zs)
+  apply (rule_tac x = "lmap \<langle>id,id\<rangle> ` (xs \<sha> ys)" in exI)
+  apply (intro conjI)
+  apply (rule_tac x = xs in exI)
+  apply (rule_tac x = ys in exI)
+  by (auto intro: lfinite_shuffle)
+
+definition rshuffle :: "'a lan \<Rightarrow> 'a lan \<Rightarrow> 'a lan" (infixl "\<star>" 85) where
+  "x \<star> y = (x \<inter> FIN) \<parallel> y"
+
+lemma "x \<star> y \<le> x \<parallel> y"
+  by (simp add: rshuffle_def, rule shuffle_mono, auto)
+
+lemma rexchange: "(a \<star> b) \<parallel> (c \<star> d) = (a \<parallel> c) \<star> (b \<parallel> d)"
+  apply (rule antisym)
+  apply (simp_all add: rshuffle_def)
+  apply (metis order_refl par.mult_assoc shuffle_comm)
+  by (metis eq_iff par.mult_assoc shuffle_comm)
+
+lemma [simp]: "x \<star> {LNil} = x \<inter> FIN"
+  by (simp add: rshuffle_def)
+
+lemma [simp]: "{LNil} \<star> x = x"
+  by (simp add: rshuffle_def FIN_def)
+
+lemmas rexchange_a = rexchange[where a = "{LNil}", simplified]
+  and rexchange_b = rexchange[where b = "{LNil}", simplified]
+  and rexchange_c = rexchange[where c = "{LNil}", simplified]
+  and rexchange_d = rexchange[where d = "{LNil}", simplified]
+
+thm rexchange_a
+thm rexchange_b
+thm rexchange_c
+thm rexchange_d
 
 definition fshuffle :: "'a lan \<Rightarrow> 'a lan \<Rightarrow> 'a lan" (infixl "\<diamondsuit>" 85) where
   "x \<diamondsuit> y = (x \<inter> FIN) \<parallel> (y \<inter> FIN)"
@@ -153,73 +204,18 @@ lemma rely_exchange: "(a \<bullet> b) \<parallel> (c \<bullet> d) \<subseteq> (a
   apply (rule shuffle_mono)
   by simp_all
 
-lemma "(a \<parallel> b) \<bullet> (c \<parallel> d) \<subseteq> (a \<bullet> c) \<parallel> (b \<bullet> d)"
-  apply (simp add: pshuffle_bd shuffle_dist par.distrib_right')
-  apply (intro conjI)
-  apply (simp only: Un_assoc[symmetric])
-  apply (rule le_supI2)
-  apply (rule order_refl)
-  apply (rule le_supI2)
-  apply (rule le_supI1)
+lemma rely_exchange2: "(a \<parallel> c) \<bullet> (b \<parallel> d) \<subseteq> (a \<bullet> b) \<parallel> (c \<bullet> d)"
 
-lemma "(a \<bullet> b) \<parallel> (c \<bullet> d) \<subseteq> (a \<parallel> c) \<bullet> (b \<parallel> d)"
-  apply (simp add: pshuffle_bd shuffle_dist par.distrib_right')
-  apply (intro conjI)
-  apply (simp add: fshuffle_def ishuffle_def)
-  sledgehammer
-  apply (rule le_supI1)
-  apply (intro conjI)
-  apply (subst fshuffle_def)
-  apply (rule shuffle_mono)
-  apply simp_all
-  apply (subst ishuffle_def)
-  apply (rule shuffle_mono)
-  sledgehammer
+lemma [simp]: "x \<bullet> {LNil} = x \<inter> FIN"
+  by (simp add: pshuffle_def FIN_def)
 
-lemma test: "(x \<cdot> {} \<parallel> y \<cdot> {}) \<subseteq> (x \<parallel> y) \<cdot> {}"
-  by (auto simp add: l_prod_def shuffle_def) (metis fair_non_empty shuffle_fair)
+lemma [simp]: "{LNil} \<bullet> x = x \<inter> FIN"
+  by (simp add: pshuffle_def FIN_def)
 
-lemma test3: "(x \<parallel> y) \<cdot> {} = (x \<parallel> y \<cdot> {}) \<union> (x \<cdot> {} \<parallel> y)"
-  apply (auto simp add: l_prod_def shuffle_def)
-  apply (rename_tac xs ys zs)
-  apply (rule_tac x = "lmap \<langle>id,id\<rangle> ` (xs \<sha> ys)" in exI)
-  apply (intro conjI)
-  apply (rule_tac x = xs in exI)
-  apply (rule_tac x = ys in exI)
-  apply (intro conjI)
-  apply simp_all
-  apply (metis imageI lfinite_shuffle)
-  apply (metis (mono_tags) lfinite_lefts mem_Collect_eq tshuffle_words_def)
-  by (metis (mono_tags) lfinite_rights mem_Collect_eq tshuffle_words_def)
-
-lemma [elim]: "lfinite zs \<Longrightarrow> zs \<in> xs \<sha> ys \<Longrightarrow> lfinite xs"
-  apply (auto simp add: tshuffle_words_def)
-  by (metis lfinite_lefts)
-
-lemma [elim]: "lfinite zs \<Longrightarrow> zs \<in> xs \<sha> ys \<Longrightarrow> lfinite ys"
-  apply (auto simp add: tshuffle_words_def)
-  by (metis lfinite_rights)
-
-lemma test2: "(x \<parallel> y) \<inter> FIN = (x \<inter> FIN) \<parallel> (y \<inter> FIN)"
-  apply (auto simp add: l_prod_def shuffle_def FIN_def)
-  apply (rename_tac xs ys zs)
-  apply (rule_tac x = "lmap \<langle>id,id\<rangle> ` (xs \<sha> ys)" in exI)
-  apply (intro conjI)
-  apply (rule_tac x = xs in exI)
-  apply (rule_tac x = ys in exI)
-  by (auto intro: lfinite_shuffle)
-
-find_theorems "op \<parallel>"
-
-lemma "(a \<bullet> b) \<parallel> (c \<bullet> d) \<subseteq> (a \<parallel> b) \<bullet> (c \<parallel> d)"
-  apply (simp add: pshuffle_def par.distrib_right' shuffle_dist)
-  apply (intro conjI)
-  sledgehammer
-
-lemma "(a \<parallel> b) \<bullet> (c \<parallel> d) \<subseteq> (a \<bullet> b) \<parallel> (c \<bullet> d)"
-  apply (simp add: pshuffle_def par.distrib_right' shuffle_dist)
-  apply (intro conjI)
-  oops
+thm rely_exchange[where a = "{LNil}", simplified]
+thm rely_exchange[where b = "{LNil}", simplified]
+thm rely_exchange[where c = "{LNil}", simplified]
+thm rely_exchange[where d = "{LNil}", simplified]
 
 lemma finite_infinite_split: "y = (y \<inter> FIN) \<union> (y \<cdot> {})"
   sorry
