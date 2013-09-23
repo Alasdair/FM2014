@@ -4,18 +4,18 @@ begin
 
 coinductive transitions :: "'a llist \<Rightarrow> 'a set llist \<Rightarrow> bool" where
   tr_LNil [intro!]: "transitions LNil LNil"
-| tr_LCons [intro]: "t \<in> x \<Longrightarrow> transitions ts xs \<Longrightarrow> transitions (LCons t ts) (LCons x xs)"
+| tr_LConsI [intro!]: "t \<in> x \<Longrightarrow> transitions ts xs \<Longrightarrow> transitions (LCons t ts) (LCons x xs)"
 
-lemma [elim]: "transitions (LCons t ts) (LCons x xs) \<Longrightarrow> transitions ts xs"
+lemma tr_LConsE [dest]: "transitions (LCons t ts) (LCons x xs) \<Longrightarrow> transitions ts xs"
   by (metis LNil_not_LCons transitions.simps ltl_LCons)
 
 lemma [elim]: "transitions (LCons t ts) (LCons x xs) \<Longrightarrow> t \<in> x"
   by (metis LCons_inject LNil_not_LCons transitions.simps)
 
-lemma [simp]: "transitions t LNil \<longleftrightarrow> t = LNil"
+lemma [iff]: "transitions t LNil \<longleftrightarrow> t = LNil"
   by (metis LNil_not_LCons transitions.simps)
 
-lemma [simp]: "transitions LNil xs \<longleftrightarrow> xs = LNil"
+lemma [iff]: "transitions LNil xs \<longleftrightarrow> xs = LNil"
   by (metis LNil_not_LCons transitions.simps)
 
 lemma transitions_llength: "transitions t xs \<Longrightarrow> llength t = llength xs"
@@ -59,7 +59,9 @@ qed
 coinductive consistent :: "('a \<times> 'a) llist \<Rightarrow> bool" where
   EqNil [intro!]: "consistent LNil"
 | EqSingle [intro!]: "consistent (LCons \<sigma> LNil)"
-| EqPair [intro]: "snd \<sigma> = fst \<sigma>' \<Longrightarrow> consistent (LCons \<sigma>' t) \<Longrightarrow> consistent (LCons \<sigma> (LCons \<sigma>' t))"
+| EqPair [intro!]: "snd \<sigma> = fst \<sigma>' \<Longrightarrow> consistent (LCons \<sigma>' t) \<Longrightarrow> consistent (LCons \<sigma> (LCons \<sigma>' t))"
+
+thm consistent.coinduct
 
 lemma lnth_repeat [simp]: "lnth (repeat x) n = x"
   by (induct n) simp_all
@@ -121,12 +123,62 @@ lemma tr'_ind: "tr' (LCons x xs) = {LCons t ts |t ts. t \<in> x \<and> ts \<in> 
 lemma [simp]: "{LNil} \<inter> Con = {LNil}"
   by (auto simp add: Con_def)
 
-lemma "lfinite xs \<Longrightarrow> (tr' xs \<inter> Con) \<cdot> (tr' ys \<inter> Con) = tr' xs \<cdot> tr' ys \<inter> Con"
+lemma consistent_LConsD [dest]: "consistent (LCons \<sigma> t) \<Longrightarrow> consistent t"
+  by (erule consistent.cases) auto
+
+lemma consistent_LConsE [elim]: "consistent (LCons \<sigma> (LCons \<sigma>' t)) \<Longrightarrow> snd \<sigma> = fst \<sigma>'"
+  by (erule consistent.cases) auto
+
+lemma consistent_lappend [dest]: assumes "consistent (t \<frown> s)" shows "consistent t"
+proof (cases "lfinite t")
+  assume "lfinite t"
+  from this and assms
+  show "consistent t"
+  proof (induct t rule: lfinite_induct)
+    case Nil show ?case by blast
+  next
+    case (Cons \<sigma> t)
+    thus ?case
+      by (cases t) auto
+  qed
+next
+  assume "\<not> lfinite t"
+  from this and assms
+  show "consistent t"
+    by (metis lappend_inf)
+qed
+
+lemma transitions_lappend:
+  assumes "transitions t xs" and "transitions s ys"
+  shows "transitions (t \<frown> s) (xs \<frown> ys)"
+proof (cases "lfinite xs")
+  assume "lfinite xs"
+  from this and assms
+  show "transitions (t \<frown> s) (xs \<frown> ys)"
+  proof (induct xs arbitrary: t rule: lfinite_induct)
+    case Nil thus ?case by (cases t) auto
+  next
+    case (Cons x xs) thus ?case by (cases t) auto
+  qed
+next
+  assume "\<not> lfinite xs"
+  moreover hence "\<not> lfinite t" using assms
+    by (auto dest!: transitions_llength simp: lfinite_conv_llength_enat)
+  ultimately show "transitions (t \<frown> s) (xs \<frown> ys)"
+    by (metis assms(1) lappend_inf)
+qed
+
+lemma "lfinite xs \<Longrightarrow> (tr' xs \<inter> Con) \<cdot> (tr' ys \<inter> Con) \<inter> Con = tr' xs \<cdot> tr' ys \<inter> Con"
 proof (induct xs rule: lfinite_induct)
   case Nil show ?case by simp
 next
   case (Cons x xs)
   thus ?case
+    apply (auto simp add: tr'_ind)
+    apply (auto simp add: l_prod_def Con_def)
+    apply (metis lappend_LCons lfinite_LCons)
+    apply (metis lappend_LCons lfinite_LCons)
+    sledgehammer
     sorry
 qed
 
