@@ -1092,27 +1092,27 @@ definition star :: "'a lan \<Rightarrow> 'a lan" ("_\<^sup>\<star>" [101] 100) w
 definition loop :: "'a lan \<Rightarrow> 'a lan" ("_\<^sup>\<infinity>" [101] 100) where
   "X\<^sup>\<infinity> = X\<^sup>\<star> \<union> X\<^sup>\<omega>"
 
-lemma [simp,intro!]: "isotone (op \<cdot> x)"
-  by (metis isotone_def seq.mult_isol)
+lemma [simp,intro!]: "mono (op \<cdot> x)"
+  by (metis mono_def seq.mult_isol)
 
-lemma iso_Un1 [intro!]: "isotone (\<lambda>Y. f Y) \<Longrightarrow> isotone (\<lambda>Y. X \<union> f Y)"
-  by (auto simp add: isotone_def)
+lemma iso_Un1 [intro!]: "mono (\<lambda>Y. f Y) \<Longrightarrow> mono (\<lambda>Y. X \<union> f Y)"
+  by (auto simp add: mono_def)
 
-lemma iso_Un2 [intro!]: "isotone (\<lambda>Y. f Y) \<Longrightarrow> isotone (\<lambda>Y. f Y \<union> X)"
-  by (auto simp add: isotone_def)
+lemma iso_Un2 [intro!]: "mono (\<lambda>Y. f Y) \<Longrightarrow> mono (\<lambda>Y. f Y \<union> X)"
+  by (auto simp add: mono_def)
 
 interpretation seq!: left_kleene_algebra_zerol "op \<union>" "op \<cdot>" "{LNil}" "{}" "op \<subseteq>" "op \<subset>" star
 proof
   fix X Y Z :: "'a lan"
   show "{LNil} \<union> X \<cdot> X\<^sup>\<star> \<subseteq> X\<^sup>\<star>"
     unfolding star_def
-    by (subst fp_compute[symmetric], metis (lifting) insert_is_Un insert_mono isotone_def seq.mult_isol, blast)
+    by (subst fp_compute[symmetric], metis (lifting) insert_is_Un insert_mono mono_def seq.mult_isol, blast)
 
   show "Z \<union> X \<cdot> Y \<subseteq> Y \<longrightarrow> X\<^sup>\<star> \<cdot> Z \<subseteq> Y"
   proof
     assume "Z \<union> X \<cdot> Y \<subseteq> Y"
     hence "(\<mu> Y. Z \<union> X \<cdot> Y) \<subseteq> Y"
-      by (rule fp_induct[rotated 1]) (metis (lifting) isotone_def l_prod_isor subset_refl sup_mono)
+      by (rule fp_induct[rotated 1]) (metis (lifting) mono_def l_prod_isor subset_refl sup_mono)
     moreover have "X\<^sup>\<star> \<cdot> Z = (\<mu> Y. Z \<union> X \<cdot> Y)"
       unfolding star_def
       by (rule fixpoint_fusion) (auto simp only: lower_is_jp join_preserving_def l_prod_inf_distr o_def l_prod_distr l_prod_one l_prod_assoc)
@@ -1125,10 +1125,10 @@ interpretation seq!: left_omega_algebra_zerol "op \<union>" "op \<cdot>" "{LNil}
 proof
   fix X Y Z :: "'a lan"
   show omega_unfold: "X\<^sup>\<omega> \<subseteq> X \<cdot> X\<^sup>\<omega>"
-    unfolding omega_def by (subst gfp_compute[symmetric]) simp_all
+    unfolding omega_def by (subst gfp_compute[symmetric]) (auto simp: seq.mult_isol)
 
   have omega_coinduct: "\<And>X Y Z. Y \<subseteq> X\<cdot>Y \<Longrightarrow> Y \<subseteq> X\<^sup>\<omega>"
-    unfolding omega_def by (rule gfp_induct) simp_all
+    unfolding omega_def by (rule gfp_induct) (auto simp: seq.mult_isol)
 
   have omega_star_fuse: "X\<^sup>\<omega> \<union> X\<^sup>\<star>\<cdot>Z = (\<nu> Y. Z \<union> X \<cdot> Y)" unfolding omega_def
   proof (rule greatest_fixpoint_fusion, auto simp add: o_def)
@@ -1154,7 +1154,7 @@ proof
        (simp only: l_prod_distr l_prod_one par.add_zerol l_prod_assoc)
 
   assume "Y \<subseteq> Z \<union> X\<cdot>Y" thus "Y \<subseteq> X\<^sup>\<omega> \<union> X\<^sup>\<star>\<cdot>Z"
-    by - (simp only: omega_star_fuse, rule gfp_induct, auto)
+    by - (simp only: omega_star_fuse, rule gfp_induct, auto, metis set_mp seq.mult_isol)
 qed
 
 lemma sumlist_cases [case_names LConsl LConsr LNil]:
@@ -1222,8 +1222,6 @@ proof (auto simp add: tshuffle_words_def image_def)
     thus ?goal by blast
   qed
 qed
-
-find_theorems "op `" "op \<union>"
 
 lemma [simp]: "lmap \<langle>id,id\<rangle> ` LCons (Inl x) ` X = LCons x ` lmap \<langle>id,id\<rangle> ` X"
   by (auto simp add: image_def)
@@ -1302,35 +1300,5 @@ proof -
     by (simp add: shuffle_def)
   finally show ?thesis .
 qed
-
-(*
-datatype 'a LTL = Var 'a
-                | Not "'a LTL"
-                | Or "'a LTL" "'a LTL"
-                | Next "'a LTL" ("\<XX>")
-                | Until "'a LTL" "'a LTL" (infix "\<UU>" 65)
-
-locale LTL =
-  fixes satisfies (infix "\<Turnstile>" 55)
-  assumes atom: "p \<in> lhd w \<longleftrightarrow> w \<Turnstile> Var p"
-  and not: "\<not> (w \<Turnstile> \<psi>) \<longleftrightarrow> w \<Turnstile> Not \<psi>"
-  and conj: "w \<Turnstile> \<phi> \<or> w \<Turnstile> \<psi> \<longleftrightarrow> w \<Turnstile> Or \<phi> \<psi>"
-  and nxt: "w \<Turnstile> \<XX> \<psi> \<longleftrightarrow> ltl w \<Turnstile> \<psi>"
-  and until: "\<exists>i\<ge>0. ldropn i w \<Turnstile> \<psi> \<and> (\<forall>k. k < i \<longrightarrow> dropn k \<Turnstile> \<phi>) \<Longrightarrow> w \<Turnstile> \<phi> \<UU> \<psi>"
-
-definition "LTL_True = Or (Var undefined) (Not (Var undefined))" 
-
-definition Finally :: "'a LTL \<Rightarrow> 'a LTL" ("\<diamondsuit>_") where
-  "Finally \<psi> = LTL_True \<UU> \<psi>"
-
-definition ST :: "'a set \<Rightarrow> 'a rel llist \<Rightarrow> 'a set llist" where
-  "ST p xs = llist_corec (p, xs) (\<lambda>(p, xs). case xs of LNil \<Rightarrow> None | LCons y ys \<Rightarrow> Some (y `` p, y `` p, ys))"
-
-lemma
-  fixes satisfies :: "'a set llist \<Rightarrow> 'a LTL \<Rightarrow> bool"(infixl "\<Turnstile>" 55)
-  assumes "LTL satisfies"
-  and "ST p xs \<frown> repeat {} \<Turnstile> \<diamondsuit>\<psi>" and "ST p ys \<frown> repeat {} \<Turnstile> \<diamondsuit>\<phi>" and "zs \<in> lmap \<langle>id,id\<rangle> ` (xs \<sha> ys)"
-  shows "ST p zs \<frown> repeat {} \<Turnstile> \<diamondsuit>\<psi>"
-*)
 
 end

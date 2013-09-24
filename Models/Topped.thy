@@ -99,8 +99,6 @@ begin
   qed
 end
 
-find_theorems "Inf" "{}"
-
 instantiation top :: (complete_lattice) complete_lattice
 begin
   definition Inf_top :: "'a top set \<Rightarrow> 'a top" where "Inf_top X \<equiv> if X \<subseteq> {Top} then Top else NotTop (Inf {x. NotTop x \<in> X})"

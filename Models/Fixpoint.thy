@@ -2,6 +2,134 @@ theory Fixpoint
   imports Main
 begin
 
+context order
+begin
+
+definition endo_galois_connection :: "('a \<Rightarrow> 'a) \<Rightarrow> ('a \<Rightarrow> 'a) \<Rightarrow> bool" where
+  "endo_galois_connection f g \<equiv> \<forall>x y. (f x \<le> y) \<longleftrightarrow> (x \<le> g y)"
+
+definition endo_lower_adjoint :: "('a \<Rightarrow> 'a) \<Rightarrow> bool" where
+  "endo_lower_adjoint f \<equiv> \<exists>g. endo_galois_connection f g"
+
+definition endo_upper_adjoint :: "('a \<Rightarrow> 'a) \<Rightarrow> bool" where
+  "endo_upper_adjoint g \<equiv> \<exists>f. endo_galois_connection f g"
+
+lemma endo_deflation: "endo_galois_connection f g \<Longrightarrow> f (g y) \<le> y"
+  by (metis endo_galois_connection_def le_less)
+
+lemma endo_inflation: "endo_galois_connection f g \<Longrightarrow> x \<le> g (f x)"
+  by (metis endo_galois_connection_def le_less)
+
+(* Sledgehammer can't seem to use mono due to it's sort constraints *)
+definition isotone :: "('a \<Rightarrow> 'a) \<Rightarrow> bool" where
+  "isotone f \<equiv> \<forall>x y. x \<le> y \<longrightarrow> f x \<le> f y"
+
+lemma isotone_is_mono: "isotone f \<Longrightarrow> mono f"
+  by (metis (hide_lams, mono_tags) order_class.isotone_def order_class.mono_def)
+
+lemma isotoneD: "\<lbrakk>isotone f; x \<le> y\<rbrakk> \<Longrightarrow> f x \<le> f y"
+  by (metis isotone_def)
+
+definition idempotent :: "('a \<Rightarrow> 'a) \<Rightarrow> bool" where
+  "idempotent f \<equiv> f \<circ> f = f"
+
+lemma endo_lower_iso: "endo_galois_connection f g \<Longrightarrow> isotone f"
+  by (metis endo_galois_connection_def endo_inflation isotone_def order_trans)
+
+lemma endo_upper_iso: "endo_galois_connection f g \<Longrightarrow> isotone g"
+  by (metis (lifting) endo_deflation endo_galois_connection_def isotone_def order_trans)
+
+lemma endo_lower_comp: "endo_galois_connection f g \<Longrightarrow> f \<circ> g \<circ> f = f"
+proof
+  fix x
+  assume "endo_galois_connection f g"
+  thus "(f \<circ> g \<circ> f) x = f x"
+    by (metis comp_apply endo_deflation endo_galois_connection_def endo_inflation isotoneD less_le less_le_not_le endo_lower_iso endo_upper_adjoint_def)
+qed
+
+lemma endo_upper_comp: "endo_galois_connection f g \<Longrightarrow> g \<circ> f \<circ> g = g"
+proof
+  fix x
+  assume "endo_galois_connection f g"
+  thus "(g \<circ> f \<circ> g) x = g x"
+    by (metis (full_types) antisym endo_deflation endo_inflation isotone_def o_apply endo_upper_iso)
+qed
+
+lemma endo_upper_idempotency1: "endo_galois_connection f g \<Longrightarrow> idempotent (f \<circ> g)"
+  by (metis idempotent_def o_assoc endo_upper_comp)
+
+lemma endo_upper_idempotency2: "endo_galois_connection f g \<Longrightarrow> idempotent (g \<circ> f)"
+  by (metis idempotent_def o_assoc endo_lower_comp)
+
+lemma endo_galois_comp: assumes g1: "endo_galois_connection F G" and g2 :"endo_galois_connection H K"
+  shows "endo_galois_connection (F \<circ> H) (K \<circ> G)"
+  by (smt g1 g2 endo_galois_connection_def o_apply)
+
+lemma endo_galois_id: "endo_galois_connection id id" by (metis endo_galois_connection_def id_def)
+
+lemma endo_galois_isotone1: "endo_galois_connection f g \<Longrightarrow> isotone (g \<circ> f)"
+  by (smt endo_galois_connection_def endo_inflation isotoneD isotone_def o_apply order_trans endo_upper_iso)
+
+lemma endo_galois_isotone2: "endo_galois_connection f g \<Longrightarrow> isotone (f \<circ> g)"
+  by (metis isotone_def endo_lower_iso o_apply endo_upper_iso)
+
+lemma endo_cancel: assumes g: "endo_galois_connection f g" shows "f (g x) \<le> g (f x)"
+  by (metis assms endo_deflation endo_inflation order_trans)
+
+lemma endo_cancel_cor1: assumes g: "endo_galois_connection f g"
+  shows "(g x = g y) \<longleftrightarrow> (f (g x) = f (g y))"
+  by (metis assms endo_upper_comp o_apply)
+
+lemma endo_cancel_cor2: assumes g: "endo_galois_connection f g"
+  shows "(f x = f y) \<longleftrightarrow> (g (f x) = g (f y))"
+  by (metis assms endo_lower_comp o_apply)
+
+lemma endo_semi_inverse1: "endo_galois_connection f g \<Longrightarrow> f x = f (g (f x))"
+  by (metis o_def endo_lower_comp)
+
+lemma endo_semi_inverse2: "endo_galois_connection f g \<Longrightarrow> g x = g (f (g x))"
+  by (metis o_def endo_upper_comp)
+
+lemma endo_universal_mapping_property1:
+  assumes a: "isotone g" and b: "\<forall>x. x \<le> g (f x)"
+  and c: "\<forall>x y. (x \<le> g y) \<longrightarrow> (f x \<le> y)"
+  shows "endo_galois_connection f g"
+  by (metis a b c endo_galois_connection_def isotoneD order_trans)
+
+lemma endo_universal_mapping_property2:
+  assumes a: "isotone f" and b: "\<forall>x. f (g x) \<le> x"
+  and c: "\<forall>x y. (f x \<le> y) \<longrightarrow> (x \<le> g y)"
+  shows "endo_galois_connection f g"
+  by (metis a b c endo_galois_connection_def isotoneD order_trans)
+
+lemma endo_galois_ump2: "endo_galois_connection f g = (isotone f \<and> (\<forall>y. f (g y) \<le> y) \<and> (\<forall>x y. f x \<le> y \<longrightarrow> x \<le> g y))"
+  by (metis endo_deflation endo_galois_connection_def endo_lower_iso endo_universal_mapping_property2)
+
+lemma endo_galois_ump1: "endo_galois_connection f g = (isotone g \<and> (\<forall>x. x \<le> g (f x)) \<and> (\<forall>x y. x \<le> g y \<longrightarrow> f x \<le> y))"
+  by (metis endo_galois_connection_def endo_inflation endo_universal_mapping_property1 endo_upper_iso)
+
+(* +------------------------------------------------------------------------+
+   | Theorem 4.10(a)                                                        |
+   +------------------------------------------------------------------------+ *)
+
+lemma endo_ore_galois:
+  assumes"\<forall>x. x \<le> g (f x)" and "\<forall>x. f (g x) \<le> x"
+  and "isotone f" and  "isotone g"
+  shows "endo_galois_connection f g"
+  by (metis assms isotoneD order_trans endo_universal_mapping_property1)
+
+(* +------------------------------------------------------------------------+
+   | Theorems 4.32(a) and 4.32(b)                                           |
+   +------------------------------------------------------------------------+ *)
+
+lemma endo_perfect1: "endo_galois_connection f g \<Longrightarrow> g (f x) = x \<longleftrightarrow> x \<in> range g"
+  by (metis (full_types) image_iff range_eqI endo_semi_inverse2)
+
+lemma endo_perfect2: "endo_galois_connection f g \<Longrightarrow> f (g x) = x \<longleftrightarrow> x \<in> range f"
+  by (metis (full_types) image_iff range_eqI endo_semi_inverse1)
+
+end
+
 definition pleq :: "('a::order \<Rightarrow> 'b::order) \<Rightarrow> ('a \<Rightarrow> 'b) \<Rightarrow> bool" (infix "\<sqsubseteq>" 50) where
   "pleq f g \<equiv> \<forall>x. f x \<le> g x"
 
@@ -34,8 +162,6 @@ lemma inflationD: "galois_connection f g \<Longrightarrow> \<forall>x. x \<le> g
 
 definition idempotent :: "('a \<Rightarrow> 'a) \<Rightarrow> bool" where
   "idempotent f \<equiv> f \<circ> f = f"
-
-declare [[show_types]]
 
 lemma lower_iso: "galois_connection f g \<Longrightarrow> mono f"
   apply (frule galoisD)
@@ -200,8 +326,24 @@ lemma gpp_is_gfp: "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y) \<Long
 
 end
 
+lemma continuity_mono:
+  fixes f :: "'a::complete_lattice \<Rightarrow> 'b::complete_lattice"
+  shows "(\<And>X. Sup (f ` X) = f (Sup X)) \<Longrightarrow> x \<le> y \<Longrightarrow> f x \<le> f y"
+  by (metis Sup_le_iff antisym atMost_iff imageI order_refl)
+
+lemma Inf_continuity_mono:
+  fixes f :: "'a::complete_lattice \<Rightarrow> 'b::complete_lattice"
+  shows "(\<And>X. Inf (f ` X) = f (Inf X)) \<Longrightarrow> x \<le> y \<Longrightarrow> f x \<le> f y"
+  by (metis antisym atLeast_iff image_eqI le_Inf_iff order_refl)
+
 context complete_lattice
 begin
+
+lemma continuity_mono1: "(\<And>X. Sup (f ` X) = f (Sup X)) \<Longrightarrow> x \<le> y \<Longrightarrow> f x \<le> f y"
+  by (metis Sup_le_iff antisym atMost_iff imageI order_refl)
+
+lemma Inf_continuity_mono1: "(\<And>X. Inf (f ` X) = f (Inf X)) \<Longrightarrow> x \<le> y \<Longrightarrow> f x \<le> f y"
+  by (metis antisym atLeast_iff image_eqI le_Inf_iff order_refl)
 
 theorem knaster_tarski_lpp:
   assumes "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y)" shows "\<exists>!x. is_lpp x f"
@@ -281,12 +423,6 @@ primrec iter :: "('a \<Rightarrow> 'a) \<Rightarrow> nat \<Rightarrow> 'a \<Righ
   "iter f 0 x = x"
 | "iter f (Suc n) x = f (iter f n x)"
 
-lemma continuity_mono: "(\<And>X. Sup (f ` X) = f (Sup X)) \<Longrightarrow> x \<le> y \<Longrightarrow> f x \<le> f y"
-  by (metis Sup_le_iff antisym atMost_iff imageI order_refl)
-
-lemma Inf_continuity_mono: "(\<And>X. Inf (f ` X) = f (Inf X)) \<Longrightarrow> x \<le> y \<Longrightarrow> f x \<le> f y"
-  by (metis antisym atLeast_iff image_eqI le_Inf_iff order_refl)
-
 lemma iter_mono: "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y) \<Longrightarrow> x \<le> y \<Longrightarrow> iter f n x \<le> iter f n y"
   by (induct n) simp_all
 
@@ -321,9 +457,9 @@ proof -
     have "bot \<le> y"
       by (metis bot_least)
     hence "\<forall>n. iter f n bot \<le> iter f n y"
-      by (metis continuity continuity_mono iter_mono)
+      by (metis continuity continuity_mono1 iter_mono)
      hence "\<forall>n. iter f n bot \<le> y"
-      by (metis continuity continuity_mono iter_pp order_trans y_fp)
+      by (metis continuity continuity_mono1 iter_pp order_trans y_fp)
     thus "?c \<le> y"
       by (auto intro!: Sup_least)
   qed
@@ -331,7 +467,7 @@ proof -
   ultimately have "is_lpp ?c f"
     by (auto simp add: is_lpp_def)
   hence "is_lfp ?c f"
-    by (metis (full_types) continuity continuity_mono lpp_is_lfp)
+    by (metis (full_types) continuity continuity_mono1 lpp_is_lfp)
   thus "\<mu> f = ?c"
     by (metis lfp_equality)
 qed
@@ -362,13 +498,13 @@ proof -
     have "y \<le> top"
      by (metis top_greatest)
     hence "\<forall>n. iter f n y \<le> iter f n top"
-      by (metis continuity Inf_continuity_mono iter_mono)
+      by (metis continuity Inf_continuity_mono1 iter_mono)
     moreover have "\<forall>n. y \<le> iter f n y"
     proof clarify
       fix n show "y \<le> iter f n y" apply (induct n) apply simp_all
         apply (rule order_trans[of _ "f y"])
         apply (metis y_fp)
-        apply (rule Inf_continuity_mono[OF continuity])
+        apply (rule Inf_continuity_mono1[OF continuity])
         by auto
     qed
     ultimately have "\<forall>n. y \<le> iter f n top"
@@ -380,7 +516,7 @@ proof -
   ultimately have "is_gpp ?c f"
     by (auto simp add: is_gpp_def)
   hence "is_gfp ?c f"
-    by (metis (full_types) Inf_continuity_mono continuity gpp_is_gfp)
+    by (metis (full_types) Inf_continuity_mono1 continuity gpp_is_gfp)
   thus "\<nu> f = ?c"
     by (metis gfp_equality)
 qed
@@ -390,6 +526,46 @@ lemma gfp_equality_var [intro?]: "\<lbrakk>f x = x; \<And>y. f y = y \<Longright
 
 lemma lfp_equality_var [intro?]: "\<lbrakk>f x = x; \<And>y. f y = y \<Longrightarrow> x \<le> y\<rbrakk> \<Longrightarrow> x = \<mu> f"
   by (metis is_lfp_def lfp_equality)
+
+theorem endo_fixpoint_fusion [simp]:
+  assumes upper_ex: "endo_lower_adjoint f"
+  and hiso: "isotone h" and kiso: "isotone k"
+  and comm: "f\<circ>h = k\<circ>f"
+  shows "f (\<mu> h) = \<mu> k"
+proof
+  show "k (f (\<mu> h)) = f (\<mu> h)"
+    by (metis comm fp_compute hiso isotone_def o_eq_dest_lhs)
+next
+  fix y assume ky: "k y = y"
+  obtain g where conn: "endo_galois_connection f g" by (metis endo_lower_adjoint_def upper_ex)
+  have "\<mu> h \<le> g y" using isotoneD[OF hiso]
+  proof (rule fp_induct)
+    have "f (g y) \<le> y" by (metis conn endo_deflation)
+    hence "f (h (g y)) \<le> y" by (metis comm kiso ky isotoneD o_def)
+    thus "h (g y) \<le> g y" by (metis conn endo_galois_connection_def)
+  qed
+  thus "f (\<mu> h) \<le> y" by (metis conn endo_galois_connection_def)
+qed
+
+theorem endo_greatest_fixpoint_fusion [simp]:
+  assumes lower_ex: "endo_upper_adjoint g"
+  and hiso: "isotone h" and kiso: "isotone k"
+  and comm: "g\<circ>h = k\<circ>g"
+  shows "g (\<nu> h) = \<nu> k"
+proof
+  show "k (g (\<nu> h)) = g (\<nu> h)"
+    by (metis comm gfp_compute hiso isotone_def o_eq_dest_lhs)
+next
+  fix y assume ky: "k y = y"
+  obtain f where conn: "endo_galois_connection f g" by (metis lower_ex endo_upper_adjoint_def)
+  have "f y \<le> \<nu> h" using isotoneD[OF hiso]
+  proof (rule gfp_induct)
+    have "y \<le> g (f y)" by (metis conn endo_inflation)
+    hence "y \<le> g (h (f y))" by (metis (full_types) comm comp_apply isotoneD kiso ky)
+    thus "f y \<le> h (f y)" by (metis conn endo_galois_connection_def)
+  qed
+  thus "y \<le> g (\<nu> h)" by (metis conn endo_galois_connection_def)
+qed
 
 end
 
@@ -455,17 +631,17 @@ definition meet_preserving :: "('a::complete_lattice \<Rightarrow> 'b::complete_
    | Theorems 4.25(a) and 4.25(b)                                           |
    +------------------------------------------------------------------------+ *)
 
-find_theorems Sup image
-
-lemma Sup_eq_equiv: "Sup A = x \<longleftrightarrow> (\<forall>z. (x \<le> z \<longleftrightarrow> (\<forall>y\<in>A. y \<le> z)))"
+lemma (in complete_lattice) Sup_eq_equiv: "Sup A = x \<longleftrightarrow> (\<forall>z. (x \<le> z \<longleftrightarrow> (\<forall>y\<in>A. y \<le> z)))"
   apply default
   apply (metis Sup_le_iff)
   by (metis (full_types) Sup_le_iff Sup_upper le_iff_inf less_infI2 less_le order_refl)
 
-lemma lower_adjoint_Sup: "Sup X = x \<Longrightarrow> lower_adjoint f \<Longrightarrow> Sup (f ` X) = f x"
+lemma lower_adjoint_Sup:
+  fixes f :: "'a::complete_lattice \<Rightarrow> 'b::complete_lattice"
+  assumes "Sup X = x" and "lower_adjoint f" shows "Sup (f ` X) = f x" using assms
   apply (simp add: Sup_eq_equiv lower_adjoint_def)
   apply (erule exE)
-  apply (simp add: galois_ump2 isotone_def)
+  apply (simp add: galois_ump2 mono_def)
   apply (erule conjE)+
   by (metis order_trans)
 
@@ -481,13 +657,16 @@ proof (intro iffI conjI)
     by (rule lower_preserves_join)
   from `galois_connection f g`
   show "\<forall>y. Sup {x. f x \<le> y} = g y"
-    by (simp add: Sup_eq_equiv galois_ump2 isotone_def) (metis (full_types) order_trans)
+    by (simp add: Sup_eq_equiv galois_ump2 mono_def) (metis (full_types) order_trans)
 next
   assume "join_preserving f \<and> (\<forall>y. Sup {x. f x \<le> y} = g y)"
   hence f_jp: "join_preserving f" and a2: "\<And>y. Sup {x. f x \<le> y} = g y"
     by auto
-  hence f_iso: "isotone f"
-    by (metis continuity_mono join_preserving_def)
+  have f_iso: "mono f"
+    apply (rule monoI)
+    apply (rule continuity_mono) back
+    apply (metis f_jp join_preserving_def)
+    by simp
   show "galois_connection f g"
   proof (simp add: galois_connection_def)
     have "\<forall>x y. (f x \<le> y) \<longrightarrow> (x \<le> g y)"
@@ -499,12 +678,12 @@ next
       show "f x \<le> y"
       proof -
         have lem: "Sup (f ` {x. f x \<le> y}) \<le> y"
-          by (metis (full_types) SUP_def SUP_le_iff mem_Collect_eq)
+          by (rule Sup_least) auto
 
         have "f x \<le> y \<Longrightarrow> x \<le> Sup {z. f z \<le> y}"
           by (metis `join_preserving f \<and> (\<forall>y. Sup {x. f x \<le> y} = g y)` gr)
         moreover have "x \<le> Sup {z. f z \<le> y} \<Longrightarrow> f x \<le> f (Sup {z. f z \<le> y})"
-          by (metis f_iso isotoneD)
+          by (metis f_iso monoD)
         moreover have "(f x \<le> f (Sup {z. f z \<le> y})) = (f x \<le> Sup (f ` {z. f z \<le> y}))"
           by (metis (full_types) `join_preserving f \<and> (\<forall>y. Sup {x. f x \<le> y} = g y)` join_preserving_def)
         moreover have "... \<Longrightarrow> f x \<le> y" using lem
@@ -528,6 +707,86 @@ next
     by auto
   ultimately show "lower_adjoint f"
     by (metis (full_types) lower_adjoint_def suprema_galois)
+qed
+
+context complete_lattice begin
+
+definition endo_join_preserving :: "('a \<Rightarrow> 'a) \<Rightarrow> bool" where
+  "endo_join_preserving f \<equiv> \<forall>X. Sup (f ` X) = f (Sup X)"
+
+definition endo_meet_preserving :: "('a \<Rightarrow> 'a) \<Rightarrow> bool" where
+  "endo_meet_preserving g \<equiv> \<forall>X. Inf (g ` X) = g (Inf X)"
+
+(* +------------------------------------------------------------------------+
+   | Theorems 4.25(a) and 4.25(b)                                           |
+   +------------------------------------------------------------------------+ *)
+
+lemma endo_lower_adjoint_Sup: "Sup X = x \<Longrightarrow> endo_lower_adjoint f \<Longrightarrow> Sup (f ` X) = f x"
+  apply (simp add: Sup_eq_equiv endo_lower_adjoint_def)
+  apply (erule exE)
+  apply (simp add: endo_galois_ump2 isotone_def)
+  apply (erule conjE)+
+  by (metis order_trans)
+
+lemma endo_lower_preserves_join: "endo_lower_adjoint f \<Longrightarrow> endo_join_preserving f"
+  by (metis endo_join_preserving_def endo_lower_adjoint_Sup)
+
+theorem endo_suprema_galois: "endo_galois_connection f g = (endo_join_preserving f \<and> (\<forall>y. Sup {x. f x \<le> y} = g y))"
+proof (intro iffI conjI)
+  assume "endo_galois_connection f g"
+  hence "endo_lower_adjoint f"
+    by (metis endo_lower_adjoint_def)
+  thus "endo_join_preserving f"
+    by (rule endo_lower_preserves_join)
+  from `endo_galois_connection f g`
+  show "\<forall>y. Sup {x. f x \<le> y} = g y"
+    by (simp add: Sup_eq_equiv endo_galois_ump2 isotone_def) (metis (full_types) order_trans)
+next
+  assume "endo_join_preserving f \<and> (\<forall>y. Sup {x. f x \<le> y} = g y)"
+  hence f_jp: "endo_join_preserving f" and a2: "\<And>y. Sup {x. f x \<le> y} = g y"
+    by auto
+  hence f_iso: "isotone f"
+    by (metis (mono_tags) continuity_mono1 endo_join_preserving_def isotone_def)
+  show "endo_galois_connection f g"
+  proof (simp add: endo_galois_connection_def)
+    have "\<forall>x y. (f x \<le> y) \<longrightarrow> (x \<le> g y)"
+      using a2 by (auto simp only: Sup_eq_equiv)
+    moreover have "\<forall>x y. (x \<le> g y) \<longrightarrow> (f x \<le> y)"
+    proof (intro impI allI)
+      fix x y
+      assume gr: "x \<le> g y"
+      show "f x \<le> y"
+      proof -
+        have lem: "Sup (f ` {x. f x \<le> y}) \<le> y"
+          by (metis (full_types) SUP_def SUP_le_iff mem_Collect_eq)
+
+        have "f x \<le> y \<Longrightarrow> x \<le> Sup {z. f z \<le> y}"
+          by (metis `endo_join_preserving f \<and> (\<forall>y. Sup {x. f x \<le> y} = g y)` gr)
+        moreover have "x \<le> Sup {z. f z \<le> y} \<Longrightarrow> f x \<le> f (Sup {z. f z \<le> y})"
+          by (metis f_iso isotoneD)
+        moreover have "(f x \<le> f (Sup {z. f z \<le> y})) = (f x \<le> Sup (f ` {z. f z \<le> y}))"
+          by (metis (full_types) `endo_join_preserving f \<and> (\<forall>y. Sup {x. f x \<le> y} = g y)` endo_join_preserving_def)
+        moreover have "... \<Longrightarrow> f x \<le> y" using lem
+          by (metis order_trans)
+        ultimately show ?thesis
+          by (metis `endo_join_preserving f \<and> (\<forall>y. Sup {x. f x \<le> y} = g y)` gr)
+      qed
+    qed
+    ultimately show "\<forall>x y. (f x \<le> y) = (x \<le> g y)"
+      by auto
+  qed
+qed
+
+lemma endo_lower_is_jp: "endo_lower_adjoint f \<longleftrightarrow> endo_join_preserving f"
+proof
+  assume "endo_lower_adjoint f" thus "endo_join_preserving f"
+    by (metis endo_lower_preserves_join)
+next
+  assume "endo_join_preserving f"
+  moreover hence "\<exists>g. \<forall>y. Sup {x. f x \<le> y} = g y"
+    by auto
+  ultimately show "endo_lower_adjoint f"
+    by (metis (full_types) endo_lower_adjoint_def endo_suprema_galois)
 qed
 
 end
