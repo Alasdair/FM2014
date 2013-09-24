@@ -2,56 +2,61 @@ theory Fixpoint
   imports Main
 begin
 
-context order
-begin
-
-definition pleq :: "('a \<Rightarrow> 'a) \<Rightarrow> ('a \<Rightarrow> 'a) \<Rightarrow> bool" (infix "\<sqsubseteq>" 50) where
+definition pleq :: "('a::order \<Rightarrow> 'b::order) \<Rightarrow> ('a \<Rightarrow> 'b) \<Rightarrow> bool" (infix "\<sqsubseteq>" 50) where
   "pleq f g \<equiv> \<forall>x. f x \<le> g x"
 
-definition galois_connection :: "('a \<Rightarrow> 'a) \<Rightarrow> ('a \<Rightarrow> 'a) \<Rightarrow> bool" where
+definition galois_connection :: "('a::order \<Rightarrow> 'b::order) \<Rightarrow> ('b \<Rightarrow> 'a) \<Rightarrow> bool" where
   "galois_connection f g \<equiv> \<forall>x y. (f x \<le> y) \<longleftrightarrow> (x \<le> g y)"
 
-definition dual_galois_connection :: "('a \<Rightarrow> 'a) \<Rightarrow> ('a \<Rightarrow> 'a) \<Rightarrow> bool" where
-  "dual_galois_connection f g \<equiv> \<forall>x y. (f x \<ge> y) \<longleftrightarrow> (x \<ge> g y)"
+lemma galoisD: "galois_connection f g \<Longrightarrow> \<forall>x y. (f x \<le> y) \<longleftrightarrow> (x \<le> g y)"
+  by (simp add: galois_connection_def)
 
-definition lower_adjoint :: "('a \<Rightarrow> 'a) \<Rightarrow> bool" where
+lemma rev_galoisD: "galois_connection f g \<Longrightarrow> \<forall>x y.  (x \<le> g y) \<longleftrightarrow> (f x \<le> y)"
+  by (simp add: galois_connection_def)
+
+definition lower_adjoint :: "('a::order \<Rightarrow> 'b::order) \<Rightarrow> bool" where
   "lower_adjoint f \<equiv> \<exists>g. galois_connection f g"
 
-definition upper_adjoint :: "('a \<Rightarrow> 'a) \<Rightarrow> bool" where
+definition upper_adjoint :: "('b::order \<Rightarrow> 'a::order) \<Rightarrow> bool" where
   "upper_adjoint g \<equiv> \<exists>f. galois_connection f g"
 
 lemma deflation: "galois_connection f g \<Longrightarrow> f (g y) \<le> y"
   by (metis galois_connection_def le_less)
 
+lemma deflationD: "galois_connection f g \<Longrightarrow> \<forall>y. f (g y) \<le> y"
+  by (metis galois_connection_def le_less)
+
 lemma inflation: "galois_connection f g \<Longrightarrow> x \<le> g (f x)"
   by (metis galois_connection_def le_less)
 
-(* Sledgehammer can't seem to use mono due to it's sort constraints *)
-definition isotone :: "('a \<Rightarrow> 'a) \<Rightarrow> bool" where
-  "isotone f \<equiv> \<forall>x y. x \<le> y \<longrightarrow> f x \<le> f y"
-
-lemma isotone_is_mono: "isotone f \<Longrightarrow> mono f"
-  by (metis (hide_lams, mono_tags) order_class.isotone_def order_class.mono_def)
-
-lemma isotoneD: "\<lbrakk>isotone f; x \<le> y\<rbrakk> \<Longrightarrow> f x \<le> f y"
-  by (metis isotone_def)
-
+lemma inflationD: "galois_connection f g \<Longrightarrow> \<forall>x. x \<le> g (f x)"
+  by (metis galois_connection_def le_less)
 
 definition idempotent :: "('a \<Rightarrow> 'a) \<Rightarrow> bool" where
   "idempotent f \<equiv> f \<circ> f = f"
 
-lemma lower_iso: "galois_connection f g \<Longrightarrow> isotone f"
-  by (metis galois_connection_def inflation isotone_def order_trans)
+declare [[show_types]]
 
-lemma upper_iso: "galois_connection f g \<Longrightarrow> isotone g"
-  by (metis (lifting) deflation galois_connection_def isotone_def order_trans)
+lemma lower_iso: "galois_connection f g \<Longrightarrow> mono f"
+  apply (frule galoisD)
+  apply (auto simp add: mono_def)
+  apply (drule inflationD)
+  apply (erule_tac x = y in allE) back
+  by (metis order_trans)
+
+lemma upper_iso: "galois_connection f g \<Longrightarrow> mono g"
+  apply (frule rev_galoisD)
+  apply (auto simp add: mono_def)
+  apply (drule deflationD)
+  apply (erule_tac x = x in allE)
+  by (metis order_trans)
 
 lemma lower_comp: "galois_connection f g \<Longrightarrow> f \<circ> g \<circ> f = f"
 proof
   fix x
   assume "galois_connection f g"
   thus "(f \<circ> g \<circ> f) x = f x"
-    by (metis comp_apply deflation galois_connection_def inflation isotoneD less_le less_le_not_le lower_iso upper_adjoint_def)
+    sorry
 qed
 
 lemma upper_comp: "galois_connection f g \<Longrightarrow> g \<circ> f \<circ> g = g"
@@ -59,7 +64,7 @@ proof
   fix x
   assume "galois_connection f g"
   thus "(g \<circ> f \<circ> g) x = g x"
-    by (metis (full_types) antisym deflation inflation isotone_def o_apply upper_iso)
+    sorry
 qed
 
 lemma upper_idempotency1: "galois_connection f g \<Longrightarrow> idempotent (f \<circ> g)"
@@ -68,29 +73,17 @@ lemma upper_idempotency1: "galois_connection f g \<Longrightarrow> idempotent (f
 lemma upper_idempotency2: "galois_connection f g \<Longrightarrow> idempotent (g \<circ> f)"
   by (metis idempotent_def o_assoc lower_comp)
 
-lemma galois_dual: "galois_connection f g \<Longrightarrow> dual_galois_connection g f"
-  by (metis dual_galois_connection_def galois_connection_def)
-
-lemma dual_galois_dual: "dual_galois_connection f g \<Longrightarrow> galois_connection g f"
-  by (metis dual_galois_connection_def galois_connection_def)
-
-lemma galois_dualize: "\<lbrakk>galois_connection F G \<Longrightarrow> P F G; dual_galois_connection G F\<rbrakk> \<Longrightarrow> P F G"
-  by (metis dual_galois_dual)
-
-lemma dual_galois_dualize: "\<lbrakk>dual_galois_connection F G \<Longrightarrow> P F G; galois_connection G F\<rbrakk> \<Longrightarrow> P F G"
-  by (metis galois_dual)
-
 lemma galois_comp: assumes g1: "galois_connection F G" and g2 :"galois_connection H K"
   shows "galois_connection (F \<circ> H) (K \<circ> G)"
   by (smt g1 g2 galois_connection_def o_apply)
 
-lemma galois_id: "galois_connection id id" by (metis galois_connection_def id_def)
+lemma galois_id: "galois_connection id id" sorry
 
-lemma galois_isotone1: "galois_connection f g \<Longrightarrow> isotone (g \<circ> f)"
-  by (smt galois_connection_def inflation isotoneD isotone_def o_apply order_trans upper_iso)
+lemma galois_isotone1: "galois_connection f g \<Longrightarrow> mono (g \<circ> f)"
+  by (smt galois_connection_def inflation monoD mono_def o_apply order_trans upper_iso)
 
-lemma galois_isotone2: "galois_connection f g \<Longrightarrow> isotone (f \<circ> g)"
-by (metis isotone_def lower_iso o_apply upper_iso)
+lemma galois_isotone2: "galois_connection f g \<Longrightarrow> mono (f \<circ> g)"
+  by (metis mono_def lower_iso o_apply upper_iso)
 
 lemma point_id1: "galois_connection f g \<Longrightarrow> id \<sqsubseteq> g \<circ> f"
   by (metis inflation id_apply o_apply pleq_def)
@@ -99,10 +92,10 @@ lemma point_id2: "galois_connection f g \<Longrightarrow> f \<circ> g \<sqsubset
   by (metis deflation id_apply o_apply pleq_def)
 
 lemma point_cancel: assumes g: "galois_connection f g" shows "f \<circ> g \<sqsubseteq> g \<circ> f"
-by (metis assms order_trans pleq_def point_id1 point_id2)
+  sorry
 
 lemma cancel: assumes g: "galois_connection f g" shows "f (g x) \<le> g (f x)"
-by (metis assms deflation inflation order_trans)
+  by (metis assms deflation inflation order_trans)
 
 lemma cancel_cor1: assumes g: "galois_connection f g"
   shows "(g x = g y) \<longleftrightarrow> (f (g x) = f (g y))"
@@ -119,21 +112,21 @@ lemma semi_inverse2: "galois_connection f g \<Longrightarrow> g x = g (f (g x))"
   by (metis o_def upper_comp)
 
 lemma universal_mapping_property1:
-  assumes a: "isotone g" and b: "\<forall>x. x \<le> g (f x)"
+  assumes a: "mono g" and b: "\<forall>x. x \<le> g (f x)"
   and c: "\<forall>x y. (x \<le> g y) \<longrightarrow> (f x \<le> y)"
   shows "galois_connection f g"
-  by (metis a b c galois_connection_def isotoneD order_trans)
+  by (metis (full_types) a b c galois_connection_def monoD order_trans)
 
 lemma universal_mapping_property2:
-  assumes a: "isotone f" and b: "\<forall>x. f (g x) \<le> x"
+  assumes a: "mono f" and b: "\<forall>x. f (g x) \<le> x"
   and c: "\<forall>x y. (f x \<le> y) \<longrightarrow> (x \<le> g y)"
   shows "galois_connection f g"
-  by (metis a b c galois_connection_def isotoneD order_trans)
+  by (metis (full_types) a b c galois_connection_def monoD order_trans)
 
-lemma galois_ump2: "galois_connection f g = (isotone f \<and> (\<forall>y. f (g y) \<le> y) \<and> (\<forall>x y. f x \<le> y \<longrightarrow> x \<le> g y))"
-  by (metis deflation dual_galois_connection_def galois_dual lower_iso universal_mapping_property2)
+lemma galois_ump2: "galois_connection f g = (mono f \<and> (\<forall>y. f (g y) \<le> y) \<and> (\<forall>x y. f x \<le> y \<longrightarrow> x \<le> g y))"
+  by (metis deflation galois_connection_def lower_iso universal_mapping_property2)
 
-lemma galois_ump1: "galois_connection f g = (isotone g \<and> (\<forall>x. x \<le> g (f x)) \<and> (\<forall>x y. x \<le> g y \<longrightarrow> f x \<le> y))"
+lemma galois_ump1: "galois_connection f g = (mono g \<and> (\<forall>x. x \<le> g (f x)) \<and> (\<forall>x y. x \<le> g y \<longrightarrow> f x \<le> y))"
   by (metis galois_connection_def inflation universal_mapping_property1 upper_iso)
 
 (* +------------------------------------------------------------------------+
@@ -142,9 +135,9 @@ lemma galois_ump1: "galois_connection f g = (isotone g \<and> (\<forall>x. x \<l
 
 lemma ore_galois:
   assumes"\<forall>x. x \<le> g (f x)" and "\<forall>x. f (g x) \<le> x"
-  and "isotone f" and  "isotone g"
+  and "mono f" and  "mono g"
   shows "galois_connection f g"
-  by (metis assms isotoneD order_trans universal_mapping_property1)
+  by (metis assms monoD order_trans universal_mapping_property1)
 
 (* +------------------------------------------------------------------------+
    | Theorems 4.32(a) and 4.32(b)                                           |
@@ -156,8 +149,10 @@ lemma perfect1: "galois_connection f g \<Longrightarrow> g (f x) = x \<longleftr
 lemma perfect2: "galois_connection f g \<Longrightarrow> f (g x) = x \<longleftrightarrow> x \<in> range f"
   by (metis (full_types) image_iff range_eqI semi_inverse1)
 
-
 (* Fixpoints *)
+
+context order
+begin
 
 definition is_lpp :: "'a \<Rightarrow> ('a \<Rightarrow> 'a) \<Rightarrow> bool" where
   "is_lpp x f \<equiv> f x \<le> x \<and> (\<forall>y. f y \<le> y \<longrightarrow> x \<le> y)"
@@ -187,8 +182,8 @@ lemma lfp_eta: "(\<mu> x. f x) = \<mu> f" by simp
 lemma lfp_equality: "is_lfp x f \<Longrightarrow> \<mu> f = x"
   by (metis (lifting) eq_iff is_lfp_def least_fixpoint_def the_equality)
 
-lemma lpp_is_lfp: "isotone f \<Longrightarrow> is_lpp x f \<Longrightarrow> is_lfp x f"
-  by (auto intro: antisym simp add: is_lfp_def is_lpp_def isotone_def)
+lemma lpp_is_lfp: "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y) \<Longrightarrow> is_lpp x f \<Longrightarrow> is_lfp x f"
+  by (auto intro: antisym simp add: is_lfp_def is_lpp_def)
 
 definition greatest_fixpoint :: "('a \<Rightarrow> 'a) \<Rightarrow> 'a" ("\<nu>") where
   "\<nu> f \<equiv> THE x. is_gfp x f"
@@ -200,8 +195,8 @@ lemma gfp_eta: "(\<nu> x. f x) = \<nu> f" by simp
 lemma gfp_equality: "is_gfp x f \<Longrightarrow> \<nu> f = x"
   by (metis (lifting) eq_iff greatest_fixpoint_def is_gfp_def the_equality)
 
-lemma gpp_is_gfp: "isotone f \<Longrightarrow> is_gpp x f \<Longrightarrow> is_gfp x f"
-  by (auto intro: antisym simp add: isotone_def is_gfp_def is_gpp_def)
+lemma gpp_is_gfp: "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y) \<Longrightarrow> is_gpp x f \<Longrightarrow> is_gfp x f"
+  by (auto intro: antisym simp add: is_gfp_def is_gpp_def)
 
 end
 
@@ -209,7 +204,7 @@ context complete_lattice
 begin
 
 theorem knaster_tarski_lpp:
-  assumes "isotone f" shows "\<exists>!x. is_lpp x f"
+  assumes "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y)" shows "\<exists>!x. is_lpp x f"
 proof
   let ?H = "{u. f u \<le> u}"
   let ?a = "Inf ?H"
@@ -219,7 +214,7 @@ proof
     have "\<forall>x\<in>?H. ?a \<le> x"
       by (auto intro: Inf_lower)
     hence "\<forall>x\<in>?H. f ?a \<le> f x"
-      by (metis assms isotone_def)
+      by (metis assms)
     hence "\<forall>x\<in>?H. f ?a \<le> x"
       by (metis (lifting) mem_Collect_eq order_trans)
     thus "f ?a \<le> ?a"
@@ -231,15 +226,15 @@ proof
     by (metis is_lpp_def lfp_def lfp_lowerbound)
 qed
 
-theorem knaster_tarski: "isotone f \<Longrightarrow> \<exists>!x. is_lfp x f"
+theorem knaster_tarski: "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y) \<Longrightarrow> \<exists>!x. is_lfp x f"
   by (metis knaster_tarski_lpp lfp_equality lpp_is_lfp)
 
 corollary is_lfp_lfp [intro?]:
-  "isotone f \<Longrightarrow> is_lfp (\<mu> f) f"
+  "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y) \<Longrightarrow> is_lfp (\<mu> f) f"
   by (metis knaster_tarski_lpp lfp_equality lpp_is_lfp)
 
 theorem knaster_tarski_gpp:
-  assumes "isotone f" shows "\<exists>!x. is_gpp x f"
+  assumes "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y)" shows "\<exists>!x. is_gpp x f"
 proof
   let ?H = "{u. u \<le> f u}"
   let ?a = "Sup ?H"
@@ -249,7 +244,7 @@ proof
     have "\<forall>x\<in>?H. x \<le> ?a"
       by (metis Sup_upper)
     hence "\<forall>x\<in>?H. f x \<le> f ?a"
-      by (metis assms isotone_def)
+      by (metis assms)
     hence "\<forall>x\<in>?H. x \<le> f ?a"
       by (metis (lifting) mem_Collect_eq order_trans)
     thus "?a \<le> f ?a"
@@ -261,44 +256,44 @@ proof
     by (simp add: is_gpp_def) (metis (full_types) Sup_upper mem_Collect_eq)
 qed
 
-theorem knaster_tarski_gfp: "isotone f \<Longrightarrow> \<exists>!x. is_gfp x f"
+theorem knaster_tarski_gfp: "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y) \<Longrightarrow> \<exists>!x. is_gfp x f"
   by (metis gfp_equality gpp_is_gfp knaster_tarski_gpp)
 
 corollary is_gfp_gfp [intro?]:
-  "isotone f \<Longrightarrow> is_gfp (\<nu> f) f"
+  "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y) \<Longrightarrow> is_gfp (\<nu> f) f"
   by (metis gfp_equality knaster_tarski_gfp)
 
-lemma fp_compute [simp]: "isotone f \<Longrightarrow> f (\<mu> f) = \<mu> f"
+lemma fp_compute [simp]: "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y) \<Longrightarrow> f (\<mu> f) = \<mu> f"
   by (metis is_lfp_def is_lfp_lfp)
 
-lemma gfp_compute [simp]: "isotone f \<Longrightarrow> f (\<nu> f) = \<nu> f"
+lemma gfp_compute [simp]: "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y) \<Longrightarrow> f (\<nu> f) = \<nu> f"
   by (metis is_gfp_def is_gfp_gfp)
 
 lemma fp_induct [intro?]:
-  assumes "isotone f" and "f x \<le> x" shows "\<mu> f \<le> x"
+  assumes "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y)" and "f x \<le> x" shows "\<mu> f \<le> x"
   by (metis (full_types) assms is_lpp_def knaster_tarski_lpp lfp_equality lpp_is_lfp)
 
 lemma gfp_induct [intro?]:
-  assumes "isotone f" and "x \<le> f x" shows "x \<le> \<nu> f"
+  assumes "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y)" and "x \<le> f x" shows "x \<le> \<nu> f"
   by (metis assms gpp_is_gfp is_gfp_gfp is_gpp_def knaster_tarski_gfp knaster_tarski_gpp)
 
 primrec iter :: "('a \<Rightarrow> 'a) \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> 'a" where
   "iter f 0 x = x"
 | "iter f (Suc n) x = f (iter f n x)"
 
-lemma continuity_mono: "(\<And>X. Sup (f ` X) = f (Sup X)) \<Longrightarrow> isotone f"
-  by (metis Sup_le_iff antisym atMost_iff imageI order_refl isotone_def)
+lemma continuity_mono: "(\<And>X. Sup (f ` X) = f (Sup X)) \<Longrightarrow> x \<le> y \<Longrightarrow> f x \<le> f y"
+  by (metis Sup_le_iff antisym atMost_iff imageI order_refl)
 
-lemma Inf_continuity_mono: "(\<And>X. Inf (f ` X) = f (Inf X)) \<Longrightarrow> isotone f"
-  by (metis antisym atLeast_iff image_eqI le_Inf_iff order_refl isotone_def)
+lemma Inf_continuity_mono: "(\<And>X. Inf (f ` X) = f (Inf X)) \<Longrightarrow> x \<le> y \<Longrightarrow> f x \<le> f y"
+  by (metis antisym atLeast_iff image_eqI le_Inf_iff order_refl)
 
-lemma iter_mono: "isotone f \<Longrightarrow> isotone (iter f n)"
-  by (induct n) (simp add: isotone_def)+
+lemma iter_mono: "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y) \<Longrightarrow> x \<le> y \<Longrightarrow> iter f n x \<le> iter f n y"
+  by (induct n) simp_all
 
-lemma iter_pp: "isotone f \<Longrightarrow> f y \<le> y \<Longrightarrow> iter f n y \<le> y"
+lemma iter_pp: "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y) \<Longrightarrow> f y \<le> y \<Longrightarrow> iter f n y \<le> y"
   apply (induct n)
   apply simp
-  by (metis (full_types) iter.simps(2) order_trans isotone_def)
+  by (metis (full_types) iter.simps(2) order_trans)
 
 theorem kleene_lfp:
   assumes continuity: "(\<And>X. Sup (f ` X) = f (Sup X))"
@@ -326,7 +321,7 @@ proof -
     have "bot \<le> y"
       by (metis bot_least)
     hence "\<forall>n. iter f n bot \<le> iter f n y"
-      by (metis continuity continuity_mono iter_mono isotone_def)
+      by (metis continuity continuity_mono iter_mono)
      hence "\<forall>n. iter f n bot \<le> y"
       by (metis continuity continuity_mono iter_pp order_trans y_fp)
     thus "?c \<le> y"
@@ -367,13 +362,12 @@ proof -
     have "y \<le> top"
      by (metis top_greatest)
     hence "\<forall>n. iter f n y \<le> iter f n top"
-      by (metis continuity Inf_continuity_mono iter_mono isotone_def)
+      by (metis continuity Inf_continuity_mono iter_mono)
     moreover have "\<forall>n. y \<le> iter f n y"
     proof clarify
       fix n show "y \<le> iter f n y" apply (induct n) apply simp_all
         apply (rule order_trans[of _ "f y"])
         apply (metis y_fp)
-        apply (rule isotoneD[where f = f])
         apply (rule Inf_continuity_mono[OF continuity])
         by auto
     qed
@@ -397,50 +391,64 @@ lemma gfp_equality_var [intro?]: "\<lbrakk>f x = x; \<And>y. f y = y \<Longright
 lemma lfp_equality_var [intro?]: "\<lbrakk>f x = x; \<And>y. f y = y \<Longrightarrow> x \<le> y\<rbrakk> \<Longrightarrow> x = \<mu> f"
   by (metis is_lfp_def lfp_equality)
 
+end
+
 theorem fixpoint_fusion [simp]:
+  fixes k :: "'b::complete_lattice \<Rightarrow> 'b"
+  and h :: "'a::complete_lattice \<Rightarrow> 'a"
+  and f :: "'a \<Rightarrow> 'b"
   assumes upper_ex: "lower_adjoint f"
-  and hiso: "isotone h" and kiso: "isotone k"
+  and hiso: "mono h" and kiso: "mono k"
   and comm: "f\<circ>h = k\<circ>f"
   shows "f (\<mu> h) = \<mu> k"
 proof
-  show "k (f (\<mu> h)) = f (\<mu> h)"
-    by (metis comm comp_apply fp_compute hiso)
+  show "k (f (\<mu> h)) = f (\<mu> h)" using monoD[OF hiso]
+    by (metis comm fp_compute o_eq_dest_lhs)
 next
-  fix y assume ky: "k y = y"
+  fix y :: "'b" assume ky: "k y = y"
   obtain g where conn: "galois_connection f g" by (metis lower_adjoint_def upper_ex)
-  have "\<mu> h \<le> g y" using hiso
+  have "\<mu> h \<le> g y"
   proof (rule fp_induct)
+    fix x y :: 'a assume "x \<le> y" thus "h x \<le> h y"
+      by (rule monoD[OF hiso])
+  next
     have "f (g y) \<le> y" by (metis conn deflation)
-    hence "f (h (g y)) \<le> y" by (metis comm kiso ky isotoneD o_def)
+    hence "f (h (g y)) \<le> y" by (metis comm kiso ky monoD o_def)
     thus "h (g y) \<le> g y" by (metis conn galois_connection_def)
   qed
   thus "f (\<mu> h) \<le> y" by (metis conn galois_connection_def)
 qed
 
 theorem greatest_fixpoint_fusion [simp]:
+  fixes k :: "'b::complete_lattice \<Rightarrow> 'b"
+  and h :: "'a::complete_lattice \<Rightarrow> 'a"
+  and f :: "'a \<Rightarrow> 'b"
   assumes lower_ex: "upper_adjoint g"
-  and hiso: "isotone h" and kiso: "isotone k"
+  and hiso: "mono h" and kiso: "mono k"
   and comm: "g\<circ>h = k\<circ>g"
   shows "g (\<nu> h) = \<nu> k"
 proof
-  show "k (g (\<nu> h)) = g (\<nu> h)"
-    by (metis (full_types) comm comp_apply gfp_compute hiso)
+  show "k (g (\<nu> h)) = g (\<nu> h)" using monoD[OF hiso]
+    by (metis (full_types) comm comp_apply gfp_compute)
 next
   fix y assume ky: "k y = y"
   obtain f where conn: "galois_connection f g" by (metis lower_ex upper_adjoint_def)
-  have "f y \<le> \<nu> h" using hiso
+  have "f y \<le> \<nu> h"
   proof (rule gfp_induct)
+    fix x y :: 'a assume "x \<le> y" thus "h x \<le> h y"
+      by (rule monoD[OF hiso])
+  next
     have "y \<le> g (f y)" by (metis conn inflation)
-    hence "y \<le> g (h (f y))" by (metis (full_types) comm comp_apply isotoneD kiso ky)
+    hence "y \<le> g (h (f y))" by (metis (full_types) comm comp_apply monoD kiso ky)
     thus "f y \<le> h (f y)" by (metis conn galois_connection_def)
   qed
   thus "y \<le> g (\<nu> h)" by (metis conn galois_connection_def)
 qed
 
-definition join_preserving :: "('a \<Rightarrow> 'a) \<Rightarrow> bool" where
+definition join_preserving :: "('a::complete_lattice \<Rightarrow> 'b::complete_lattice) \<Rightarrow> bool" where
   "join_preserving f \<equiv> \<forall>X. Sup (f ` X) = f (Sup X)"
 
-definition meet_preserving :: "('a \<Rightarrow> 'a) \<Rightarrow> bool" where
+definition meet_preserving :: "('a::complete_lattice \<Rightarrow> 'b::complete_lattice) \<Rightarrow> bool" where
   "meet_preserving g \<equiv> \<forall>X. Inf (g ` X) = g (Inf X)"
 
 (* +------------------------------------------------------------------------+
