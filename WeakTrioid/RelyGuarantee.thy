@@ -4,13 +4,58 @@ begin
 
 class rg_algebra = weak_trioid + meet_semilattice +
   fixes I :: "'a set"
-  assumes inv_def: "r \<in> I \<longleftrightarrow>  1 \<le> r \<and> r \<parallel> r = r \<and> r\<parallel>(x\<cdot>y) \<le> (r\<parallel>x)\<cdot>(r\<parallel>y) \<and> (r\<parallel>x)\<^sup>+ = r\<parallel>x\<^sup>+"
-  and inv_add_closed: "\<lbrakk>r \<in> I; s \<in> I\<rbrakk> \<Longrightarrow> (r+s) \<in> I"
-  and inv_mult_par: "\<lbrakk>r \<in> I; s \<in> I\<rbrakk> \<Longrightarrow> r\<cdot>s \<le> r\<parallel>s"
-  and inv_par_closed: "\<lbrakk>r \<in> I; s \<in> I\<rbrakk> \<Longrightarrow> (r\<parallel>s) \<in> I"
+  assumes inv_def: "r \<in> I \<longleftrightarrow>  (\<forall>x y. 1 \<le> r \<and> r \<parallel> r = r \<and> r \<cdot> r = r \<and> r\<parallel>(x\<cdot>y) \<le> (r\<parallel>x)\<cdot>(r\<parallel>y) \<and> (r\<parallel>x)\<^sup>+ = r\<parallel>x\<^sup>+)"
+(*
   and inv_meet_closed: "\<lbrakk>r \<in> I; s \<in> I\<rbrakk> \<Longrightarrow> (r \<sqinter> s) \<in> I"
+*)
 
 begin
+
+lemma inv_par_closed:
+  assumes "r \<in> I" and "s \<in> I" shows "(r\<parallel>s) \<in> I"
+proof (auto simp: inv_def)
+  have "1 \<le> r" and "1 \<le> s" using assms
+    by (simp_all add: inv_def)
+  thus "1 \<le> r \<parallel> s"
+    by (metis par_double_iso par_unitl)
+
+  have "r \<parallel> r = r" and "s \<parallel> s = s" using assms
+    by (simp_all add: inv_def)    
+  thus "r \<parallel> s \<parallel> (r \<parallel> s) = r \<parallel> s"
+    by (metis par_assoc par_comml)
+
+  have "s \<cdot> s = s" and "r \<cdot> r = r" using assms
+    by (simp_all add: inv_def)
+  thus "(r \<parallel> s) \<cdot> (r \<parallel> s) = r \<parallel> s"
+    sledgehammer
+
+  {
+    fix x y
+    have r_dist: "\<And>x y. r \<parallel> (x \<cdot> y) \<le> (r \<parallel> x) \<cdot> (r \<parallel> y)"
+    and s_dist: "\<And>x y. s \<parallel> (x \<cdot> y) \<le> (s \<parallel> x) \<cdot> (s \<parallel> y)"
+      using assms by (simp_all add: inv_def)
+    have "(r \<parallel> s) \<parallel> (x \<cdot> y) = r \<parallel> (s \<parallel> (x \<cdot> y))"
+      by (metis par_assoc)
+    also have "... \<le>  r \<parallel> ((s \<parallel> x) \<cdot> (s \<parallel> y))"
+      by (metis par_isor s_dist)
+    also have "... \<le> (r \<parallel> (s \<parallel> x) \<cdot> (r \<parallel> (s \<parallel> y)))"
+      by (metis r_dist)
+    also have "... = (r \<parallel> s \<parallel> x) \<cdot> (r \<parallel> s \<parallel> y)"
+      by (metis par_comm par_comml)
+    finally show "(r \<parallel> s) \<parallel> (x \<cdot> y) \<le> (r \<parallel> s \<parallel> x) \<cdot> (r \<parallel> s \<parallel> y)" .
+  }
+
+  {
+    fix x
+    have "\<And>x. (r \<parallel> x)\<^sup>+ = r \<parallel> x\<^sup>+" and "\<And>x. (s \<parallel> x)\<^sup>+ = s \<parallel> x\<^sup>+" using assms
+      by (simp_all add: inv_def)
+    thus "(r \<parallel> s \<parallel> x)\<^sup>+ = r \<parallel> s \<parallel> x\<^sup>+"
+      by (metis par_assoc)
+  }
+qed
+
+lemma "r \<in> I \<Longrightarrow> s \<in> I \<Longrightarrow> r \<cdot> s \<le> r \<parallel> s"
+  sorry
 
 definition guarantee_relation :: "'a \<Rightarrow> 'a \<Rightarrow> bool" ("_ guar _" [99, 99] 100) where
   "b guar g \<equiv> g \<in> I \<and> b \<le> g"

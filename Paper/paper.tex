@@ -1,0 +1,80 @@
+\documentclass{llncs}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{tikz}
+\usepackage{graphicx,color}
+\usepackage{multicol}
+\usepackage{bussproofs}
+\usepackage{float}
+
+\begin{document}
+
+\title{TACAS Paper}
+
+\author{Alasdair Armstrong \and Victor B.~F.~Gomes \and Georg Struth}
+
+\institute{Department of Computer Science, University of Sheffield, UK\\
+\email{$\{$a.armstrong,v.gomes,g.struth$\}$@dcs.shef.ac.uk}}
+
+\maketitle
+
+\begin{abstract}
+  TODO
+\end{abstract}
+
+\pagestyle{plain}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Introduction}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{align}
+1&\le r\\
+r\|r &= r\\
+r\|xy &= rx\|ry\\
+(r\|x)^+ &= r\|x^+
+\end{align}
+
+$r, g \vdash \{p\}x\{q\} \longleftrightarrow p(r\|x)\le q \land x \le g$
+
+\begin{prooftree}
+\LeftLabel{Weakening}
+\AxiomC{$r' \le r$}
+\AxiomC{$g \le g'$}
+\AxiomC{$p \le p'$}
+\AxiomC{$r', g' \vdash \{p'\}x\{q'\}$}
+\AxiomC{$q' \le q$}
+\QuinaryInfC{$r, g \vdash \{p\}x\{q\}$}
+\end{prooftree}
+
+\begin{prooftree}
+\LeftLabel{Sequential}
+\AxiomC{$r, g \vdash \{p\}x\{q\}$}
+\AxiomC{$r, g \vdash \{q\}y\{s\}$}
+\BinaryInfC{$r, g \vdash \{q\}xy\{s\}$}
+\end{prooftree}
+
+\begin{prooftree}
+\LeftLabel{Parallel}
+\AxiomC{$r_1, g_2 \vdash \{p_1\}x\{q_1\}$}
+\AxiomC{$g_1 \le r_2$}
+\AxiomC{$r_1, g_2 \vdash \{p_2\}y\{q_2\}$}
+\AxiomC{$g_2 \le r_1$}
+\QuaternaryInfC{$r_1 \sqcap r_2, g_1 \| g_2 \vdash \{p_1 \sqcap q_2\}x\|y\{q_1 \sqcap q_2\}$}
+\end{prooftree}
+
+\begin{prooftree}
+\LeftLabel{Choice}
+\AxiomC{$r, g \vdash \{p\}x\{q\}$}
+\AxiomC{$r, g \vdash \{p\}y\{q\}$}
+\BinaryInfC{$r, g \vdash \{p\}x + y\{q\}$}
+\end{prooftree}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Conclusion}
+
+
+\end{document}

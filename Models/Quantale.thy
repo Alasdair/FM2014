@@ -7,6 +7,41 @@ and sup (infixl "\<squnion>" 65)
 and Inf ("\<Sqinter>_" [900] 900)
 and Sup ("\<Squnion>_" [900] 900)
 
+class par_dioid = dioid_one_zerol +
+  fixes par :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" (infixl "\<parallel>" 69)
+  assumes par_assoc: "(x\<parallel>y)\<parallel>z = x\<parallel>(y\<parallel>z)"
+  and par_comm: "x\<parallel>y = y\<parallel>x"
+  and par_distl: "x\<parallel>(y+z) = x\<parallel>y+x\<parallel>z"
+  and par_unitl: "1\<parallel>x = x"
+  and par_annil: "0\<parallel>x = 0"
+
+begin
+
+  lemma par_distr: "(x + y)\<parallel>z = x\<parallel>z+y\<parallel>z"
+    by (metis par_comm par_distl)
+
+  lemma par_isol: "x \<le> y \<Longrightarrow> x\<parallel>z \<le> y\<parallel>z"
+    by (metis less_eq_def par_distr)
+
+  lemma par_isor: "x \<le> y \<Longrightarrow> z\<parallel>x \<le> z\<parallel>y"
+    by (metis less_eq_def par_distl)
+
+  lemma par_unitr: "x\<parallel>1 = x"
+    by (metis par_comm par_unitl)
+
+  lemma par_annir: "x\<parallel>0 = 0"
+    by (metis par_annil par_comm)
+
+  lemma par_subdistl: "x\<parallel>z \<le> (x + y)\<parallel>z"
+    by (metis order_prop par_distr)
+
+  lemma par_subdistr: "z\<parallel>x \<le> z\<parallel>(x + y)"
+    by (metis par_comm par_subdistl)
+
+  lemma par_double_iso: "w \<le> x \<Longrightarrow> y \<le> z \<Longrightarrow> w\<parallel>y \<le> x\<parallel>z"
+    by (metis order_trans par_isol par_isor)
+end
+
 class weak_left_quantale = complete_boolean_algebra + dioid_one_zerol +
   assumes sup_is_plus [simp]: "x \<squnion> y = x + y"
   and bot_is_zero [simp]: "bot = 0"
@@ -115,29 +150,122 @@ proof
     by - (simp only: omega_star_fuse, rule gfp_induct, auto, metis add_iso_var eq_refl mult_isol)
 qed
 
-locale weak_left_quantale_hom =
-  fixes hom :: "'a::weak_left_quantale \<Rightarrow> 'b::weak_left_quantale"
-  assumes hom_continuous: "hom (\<Squnion>X) = \<Squnion>(hom`X)"
-  and hom_mult: "hom (x \<cdot> y) = hom x \<cdot> hom y"
-  and hom_one: "hom 1 = 1"
+definition (in order) interior :: "('a \<Rightarrow> 'a) \<Rightarrow> bool" where
+  "interior f \<longleftrightarrow> (\<forall>x. f x \<le> x) \<and> isotone f \<and> idempotent f"
+
+class rg_quantale = weak_left_quantale + par_dioid +
+  fixes atomic :: "'a \<Rightarrow> 'a" ("\<langle>_\<rangle>")
+  assumes atomic_interior: "interior atomic"
+  and atomic_star: "\<langle>x\<rangle> \<parallel> \<langle>y\<rangle>\<^sup>\<star> = \<langle>y\<rangle>\<^sup>\<star> \<cdot> \<langle>x\<rangle> \<cdot> \<langle>y\<rangle>\<^sup>\<star>"
+  and atomic_omega: "\<langle>x\<rangle> \<parallel> \<langle>y\<rangle>\<^sup>\<omega> = \<langle>y\<rangle>\<^sup>\<star> \<cdot> \<langle>x\<rangle> \<cdot> \<langle>y\<rangle>\<^sup>\<omega>"
+  and atomic_star2: "\<langle>x\<rangle>\<^sup>\<star> \<parallel> \<langle>y\<rangle>\<^sup>\<star> = \<langle>x + y\<rangle>\<^sup>\<star>"
+  and atomic_star3 [simp]: "\<langle>x\<rangle>\<^sup>\<star> \<sqinter> \<langle>y\<rangle>\<^sup>\<star> = \<langle>x \<sqinter> y\<rangle>\<^sup>\<star>"
+  and atomic_omega2: "\<langle>x\<rangle>\<^sup>\<omega> \<parallel> \<langle>y\<rangle>\<^sup>\<omega> = \<langle>x + y\<rangle>\<^sup>\<omega>"
+  and atomic_star_omega: "\<langle>x\<rangle>\<^sup>\<star> \<parallel> \<langle>y\<rangle>\<^sup>\<omega> = \<langle>x + y\<rangle>\<^sup>\<star> \<cdot> \<langle>y\<rangle>\<^sup>\<omega>"
+  and rely_dist: "\<langle>x\<rangle>\<^sup>\<star> \<parallel> y \<cdot> z = (\<langle>x\<rangle>\<^sup>\<star> \<parallel> y) \<cdot> (\<langle>x\<rangle>\<^sup>\<star> \<parallel> z)"
 
 begin
 
-  lemma hom_plus: "hom (x + y) = hom x + hom y"
+  find_theorems "omega" "op \<cdot>"
+
+  lemma atomic_loop: "\<langle>x\<rangle> \<parallel> \<langle>y\<rangle>\<^sup>\<infinity> = \<langle>y\<rangle>\<^sup>\<star> \<cdot> \<langle>x\<rangle> \<cdot> \<langle>y\<rangle>\<^sup>\<infinity>"
+    by (simp add: loop_def par_distl atomic_star atomic_omega distrib_left)
+
+  lemma atomic_star_omega2: "\<langle>x\<rangle>\<^sup>\<omega> \<parallel> \<langle>y\<rangle>\<^sup>\<star> = \<langle>x + y\<rangle>\<^sup>\<star> \<cdot> \<langle>x\<rangle>\<^sup>\<omega>"
+    by (metis add_commute atomic_star_omega par_comm)
+
+  lemma atomic_loop2: "\<langle>x\<rangle>\<^sup>\<infinity> \<parallel> \<langle>y\<rangle>\<^sup>\<infinity> = \<langle>x + y\<rangle>\<^sup>\<infinity>"
+  proof (rule antisym)
+    have unfold: "\<langle>x\<rangle>\<^sup>\<infinity> \<parallel> \<langle>y\<rangle>\<^sup>\<infinity> = \<langle>x + y\<rangle>\<^sup>\<star> + \<langle>x + y\<rangle>\<^sup>\<star> \<cdot> \<langle>y\<rangle>\<^sup>\<omega> + \<langle>x + y\<rangle>\<^sup>\<star> \<cdot> \<langle>x\<rangle>\<^sup>\<omega> + \<langle>x + y\<rangle>\<^sup>\<omega>"
+      apply (simp add: loop_def par_distl par_distr atomic_star2 atomic_omega2 atomic_star_omega atomic_star_omega2)
+      by (metis add_commute add_left_commute)
+
+    have "\<langle>x\<rangle>\<^sup>\<infinity> \<parallel> \<langle>y\<rangle>\<^sup>\<infinity> = \<langle>x + y\<rangle>\<^sup>\<star> + \<langle>x + y\<rangle>\<^sup>\<star> \<cdot> \<langle>y\<rangle>\<^sup>\<omega> + \<langle>x + y\<rangle>\<^sup>\<star> \<cdot> \<langle>x\<rangle>\<^sup>\<omega> + \<langle>x + y\<rangle>\<^sup>\<omega>"
+      by (simp add: unfold)
+    also have "... \<le> \<langle>x + y\<rangle>\<^sup>\<omega> + \<langle>x + y\<rangle>\<^sup>\<star>\<cdot>1"
+      apply (rule omega_coinduct)
+      by (metis add_0_left add_0_right atomic_interior atomic_omega2 atomic_star2 calculation eq_iff interior_def loop_def par_annil star_unfoldl_eq zero_omega zero_unique)
+    also have "... \<le> \<langle>x + y\<rangle>\<^sup>\<infinity>"
+      by (metis add_commute loop_def mult_1_right order_refl)
+    finally show "\<langle>x\<rangle>\<^sup>\<infinity> \<parallel> \<langle>y\<rangle>\<^sup>\<infinity> \<le> \<langle>x + y\<rangle>\<^sup>\<infinity>" .
+
+    have "\<langle>x + y\<rangle>\<^sup>\<infinity> \<le> \<langle>x + y\<rangle>\<^sup>\<star> + \<langle>x + y\<rangle>\<^sup>\<star> \<cdot> \<langle>y\<rangle>\<^sup>\<omega> + \<langle>x + y\<rangle>\<^sup>\<star> \<cdot> \<langle>x\<rangle>\<^sup>\<omega> + \<langle>x + y\<rangle>\<^sup>\<omega>"
+      by (smt add_assoc add_commute loop_def order_prop)
+    also have "... = \<langle>x\<rangle>\<^sup>\<infinity> \<parallel> \<langle>y\<rangle>\<^sup>\<infinity>"
+      by (simp add: unfold)
+    finally show "\<langle>x + y\<rangle>\<^sup>\<infinity> \<le> \<langle>x\<rangle>\<^sup>\<infinity> \<parallel> \<langle>y\<rangle>\<^sup>\<infinity>" .
+  qed
+
+  lemma atomic_iso: "x \<le> y \<Longrightarrow> \<langle>x\<rangle> \<le> \<langle>y\<rangle>"
+    by (metis atomic_interior interior_def isotone_def)
+
+  lemma atomic_idem [simp]: "\<langle>\<langle>x\<rangle>\<rangle> = \<langle>x\<rangle>"
+    by (metis Fixpoint.idempotent_def atomic_interior comp_apply interior_def)
+
+  definition RG :: "'a set" where
+    "RG \<equiv> {r. \<exists>r'. r = \<langle>r'\<rangle>\<^sup>\<star>}"
+
+  lemma loop_idem [simp]: "x\<^sup>\<infinity> \<cdot> x\<^sup>\<infinity> = x\<^sup>\<infinity>"
+    apply (simp add: loop_def distrib_right distrib_left)
+    apply (simp only: add_assoc[symmetric])
+    by (metis (full_types) add_commute add_ub1 less_eq_def omega_1 omega_sup_id star_unfoldl_eq)
+
+  lemma rg_mult_idem: "r \<in> RG \<Longrightarrow> r \<cdot> r = r"
+    apply (simp add: RG_def)
+    apply (erule exE)
+    apply (erule ssubst)
+    by simp
+
+  lemma rg_par_idem: "r \<in> RG \<Longrightarrow> r \<parallel> r = r"
+    apply (simp add: RG_def)
+    apply (erule exE)
+    apply simp
+    by (simp add: atomic_star2)
+
+  lemma rg_par_closed: "r \<in> RG \<Longrightarrow> s \<in> RG \<Longrightarrow> r \<parallel> s \<in> RG"
+    apply (simp add: RG_def)
+    apply (erule exE)+
+    apply (erule ssubst)+
+    apply (simp add: atomic_star2)
+    by auto
+
+  lemma rg_meet_closed: "r \<in> RG \<Longrightarrow> s \<in> RG \<Longrightarrow> r \<sqinter> s \<in> RG"
+    apply (simp add: RG_def)
+    apply (erule exE)+
+    apply (erule ssubst)+    
+    apply (simp add: atomic_star3)
+    by auto
+end
+
+lemma (in boolean_algebra) uminus_top: "- x = top - x"
+  by (metis diff_eq inf_top_left)
+
+locale weak_left_quantale_hom =
+  fixes hom :: "'a::rg_quantale \<Rightarrow> 'b::weak_left_quantale" ("\<lbrakk>_\<rbrakk>")
+  assumes hom_continuous: "\<lbrakk>\<Squnion>X\<rbrakk> = \<Squnion>(hom`X)"
+  and hom_mult: "\<lbrakk>x \<cdot> y\<rbrakk> = \<lbrakk>x\<rbrakk> \<cdot> \<lbrakk>y\<rbrakk>"
+  and hom_one: "\<lbrakk>1\<rbrakk> = 1"
+
+  and refine_under_rely: "\<lbrakk>x\<rbrakk> \<le> \<lbrakk>y\<rbrakk> \<Longrightarrow> \<lbrakk>\<langle>r\<rangle>\<^sup>\<star> \<parallel> x\<rbrakk> \<le> \<lbrakk>\<langle>r\<rangle>\<^sup>\<star> \<parallel> y\<rbrakk>"
+  and introduce_guarantee: "\<lbrakk>y\<rbrakk> \<le> \<lbrakk>\<langle>g\<rangle>\<^sup>\<star>\<rbrakk> \<Longrightarrow> \<lbrakk>x \<parallel> y\<rbrakk> \<le> \<lbrakk>x \<parallel> \<langle>g\<rangle>\<^sup>\<star>\<rbrakk>"
+
+begin
+
+  lemma hom_plus: "\<lbrakk>x + y\<rbrakk> = \<lbrakk>x\<rbrakk> + \<lbrakk>y\<rbrakk>"
   proof -
-    have "hom (x + y) = hom (\<Squnion>{x,y})"
+    have "\<lbrakk>x + y\<rbrakk> = \<lbrakk>\<Squnion>{x,y}\<rbrakk>"
       by (simp del: sup_is_plus bot_is_zero add: sup_is_plus[symmetric] bot_is_zero[symmetric])
-    also have "... = \<Squnion>{hom x, hom y}"
+    also have "... = \<Squnion>{\<lbrakk>x\<rbrakk>, \<lbrakk>y\<rbrakk>}"
       by (simp only: hom_continuous) (rule arg_cong, auto simp add: image_def)
-    also have "... = hom x + hom y"
+    also have "... = \<lbrakk>x\<rbrakk> + \<lbrakk>y\<rbrakk>"
       by simp
     finally show ?thesis .
   qed
 
-  lemma hom_iso: "x \<le> y \<Longrightarrow> hom x \<le> hom y"
+  lemma hom_iso: "x \<le> y \<Longrightarrow> \<lbrakk>x\<rbrakk> \<le> \<lbrakk>y\<rbrakk>"
     by (metis hom_plus less_eq_def)
 
-  lemma hom_star: "hom (x\<^sup>\<star>) = (hom x)\<^sup>\<star>"
+  lemma hom_star: "\<lbrakk>x\<^sup>\<star>\<rbrakk> = \<lbrakk>x\<rbrakk>\<^sup>\<star>"
   proof -
     have "hom (\<mu> y. 1 + x \<cdot> y) = (\<mu> y. 1 + hom x \<cdot> y)"
     proof (rule fixpoint_fusion[where f = hom])
@@ -159,8 +287,162 @@ begin
       by (simp add: star_def)
   qed
 
-  lemma hom_omega: "hom (x\<^sup>\<omega>) \<le> (hom x)\<^sup>\<omega>"
+  lemma hom_omega: "\<lbrakk>x\<^sup>\<omega>\<rbrakk> \<le> \<lbrakk>x\<rbrakk>\<^sup>\<omega>"
     by (rule omega_coinduct_var2, subst omega_unfold_eq[symmetric], simp only: hom_mult)
+
+  lemma hom_meet: "\<lbrakk>x \<sqinter> y\<rbrakk> \<le> \<lbrakk>x\<rbrakk> \<sqinter> \<lbrakk>y\<rbrakk>"
+    by (metis hom_iso inf_sup_ord(1) inf_sup_ord(2) le_inf_iff)
+
+  definition quintuple :: "'a \<Rightarrow> 'a \<Rightarrow> 'b  \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> bool" ("_, _ \<turnstile> \<lbrace>_\<rbrace> _ \<lbrace>_\<rbrace>") where
+    "r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>q\<rbrace> \<longleftrightarrow> p \<cdot> \<lbrakk>(r \<parallel> c)\<rbrakk> \<le> q \<and> \<lbrakk>c\<rbrakk> \<le> \<lbrakk>g\<rbrakk> \<and> r \<in> RG \<and> g \<in> RG" 
+
+  theorem weakening:
+    assumes "r, g \<turnstile> \<lbrace>p\<rbrace> c1 \<lbrace>q\<rbrace>"
+    and "r' \<le> r" and "r' \<in> RG" and "g \<le> g'" and "g' \<in> RG"
+    and "p' \<le> p" and "q \<le> q'"
+    shows "r', g' \<turnstile> \<lbrace>p'\<rbrace> c1 \<lbrace>q'\<rbrace>"
+  proof (simp add: quintuple_def, intro conjI)
+    show "r' \<in> RG" and "g' \<in> RG"
+      by (metis assms(3)) (metis assms(5))
+
+    have "p' \<cdot> \<lbrakk>r' \<parallel> c1\<rbrakk> \<le> p \<cdot> \<lbrakk>r \<parallel> c1\<rbrakk>"
+      by (intro mult_isol_var[rule_format] conjI assms hom_iso par_double_iso order_refl)
+    also have "... \<le> q"
+      by (metis assms(1) quintuple_def)
+    also have "... \<le> q'"
+      by (metis assms(7))
+    finally show "p' \<cdot> \<lbrakk>r' \<parallel> c1\<rbrakk> \<le> q'" .
+
+    have "\<lbrakk>c1\<rbrakk> \<le> \<lbrakk>g\<rbrakk>"
+      by (metis assms(1) quintuple_def)
+    also have "... \<le> \<lbrakk>g'\<rbrakk>"
+      by (metis assms(4) hom_iso)
+    finally show "\<lbrakk>c1\<rbrakk> \<le> \<lbrakk>g'\<rbrakk>" .
+  qed
+
+  theorem sequential:
+    assumes "r, g \<turnstile> \<lbrace>p\<rbrace> c1 \<lbrace>q\<rbrace>" and "r, g \<turnstile> \<lbrace>q\<rbrace> c2 \<lbrace>s\<rbrace>"
+    shows "r, g \<turnstile> \<lbrace>p\<rbrace> c1 \<cdot> c2 \<lbrace>s\<rbrace>"
+  proof (simp add: quintuple_def, intro conjI)
+    show "r \<in> RG" and "g \<in> RG"
+      by (metis assms(1) quintuple_def)+
+    then obtain r' and g' where [simp]: "r = \<langle>r'\<rangle>\<^sup>\<star>" and [simp]: "g = \<langle>g'\<rangle>\<^sup>\<star>"
+      by (auto simp add: RG_def)
+
+    have "p \<cdot> \<lbrakk>r \<parallel> c1 \<cdot> c2\<rbrakk> = p \<cdot> \<lbrakk>(r \<parallel> c1) \<cdot> (r \<parallel> c2)\<rbrakk>"
+      apply (simp add: mult_assoc)
+      apply (rule arg_cong) back back
+      apply (subst rely_dist)
+      by simp
+    also have "... \<le> q \<cdot> \<lbrakk>r \<parallel> c2\<rbrakk>"
+      apply (subst hom_mult)
+      apply (simp only: mult_assoc[symmetric])
+      apply (intro mult_isol_var[rule_format] conjI)
+      apply (metis assms(1) quintuple_def)
+      by (rule order_refl)
+    also have "... \<le> s"
+      by (metis assms(2) quintuple_def)
+    finally show "p \<cdot> \<lbrakk>r \<parallel> c1 \<cdot> c2\<rbrakk> \<le> s" .
+
+    have "\<lbrakk>c1 \<cdot> c2\<rbrakk> = \<lbrakk>c1\<rbrakk> \<cdot> \<lbrakk>c2\<rbrakk>"
+      by (simp add: hom_mult)
+    also have "... \<le> \<lbrakk>g\<rbrakk> \<cdot> \<lbrakk>g\<rbrakk>"
+      apply (intro mult_isol_var[rule_format] conjI)
+      apply (metis assms(1) quintuple_def)
+      by (metis assms(2) quintuple_def)
+    also have "... = \<lbrakk>g\<rbrakk>"
+      by (simp add: hom_mult[symmetric])
+    finally show "\<lbrakk>c1 \<cdot> c2\<rbrakk> \<le> \<lbrakk>g\<rbrakk>" .
+  qed
+
+  corollary weakened_sequential:
+    assumes "r1, g1 \<turnstile> \<lbrace>p\<rbrace> c1 \<lbrace>q\<rbrace>" and "r2, g2 \<turnstile> \<lbrace>q\<rbrace> c2 \<lbrace>s\<rbrace>"
+    shows "(r1 \<sqinter> r2), (g1 \<parallel> g2) \<turnstile> \<lbrace>p\<rbrace> c1 \<cdot> c2 \<lbrace>s\<rbrace>"
+    apply (rule sequential[where q = q])
+    apply (rule weakening[OF assms(1)])
+    apply (metis inf_sup_ord(1))
+    apply (metis assms(1) assms(2) quintuple_def rg_meet_closed)
+    apply (subgoal_tac "g1 \<in> RG \<and> g2 \<in> RG")
+    apply (force intro!: star_iso[rule_format] atomic_iso simp add: RG_def atomic_star2)
+    apply (metis assms(1) assms(2) quintuple_def)
+    apply (metis assms(1) assms(2) quintuple_def rg_par_closed)
+    apply auto
+    apply (rule weakening[OF assms(2)])
+    apply (metis inf_sup_ord(2))
+    apply (metis assms(1) assms(2) quintuple_def rg_meet_closed)
+    apply (subgoal_tac "g1 \<in> RG \<and> g2 \<in> RG")
+    apply (force intro!: star_iso[rule_format] atomic_iso simp add: RG_def atomic_star2)
+    apply (metis assms(1) assms(2) quintuple_def)
+    apply (metis assms(1) assms(2) quintuple_def rg_par_closed)
+    by auto
+
+  theorem parallel:
+    assumes "r1, g1 \<turnstile> \<lbrace>p1\<rbrace> c1 \<lbrace>q1\<rbrace>" and "g2 \<le> r1"
+    and "r2, g2 \<turnstile> \<lbrace>p2\<rbrace> c2 \<lbrace>q2\<rbrace>" and "g1 \<le> r2"
+    shows "(r1 \<sqinter> r2), (g1 \<parallel> g2) \<turnstile> \<lbrace>p1 \<sqinter> p2\<rbrace> c1 \<parallel> c2 \<lbrace>q1 \<sqinter> q2\<rbrace>" 
+  proof (simp add: quintuple_def, intro conjI)
+    have "r1 \<in> RG" and "r2 \<in> RG" and "g1 \<in> RG" and "g2 \<in> RG"
+      by (metis assms(1) assms(3) quintuple_def)+
+    then obtain r1' and r2' and g1' and g2'
+    where [simp]: "r1 = \<langle>r1'\<rangle>\<^sup>\<star>" and [simp]: "r2 = \<langle>r2'\<rangle>\<^sup>\<star>" and [simp]: "g1 = \<langle>g1'\<rangle>\<^sup>\<star>" and [simp]: "g2 = \<langle>g2'\<rangle>\<^sup>\<star>"
+      by (auto simp add: RG_def)
+
+    have "p1 \<sqinter> p2 \<cdot> \<lbrakk>r1 \<sqinter> r2 \<parallel> (c1 \<parallel> c2)\<rbrakk> \<le> p1 \<cdot> \<lbrakk>r1 \<sqinter> r2 \<parallel> (c1 \<parallel> c2)\<rbrakk>"
+      by (metis inf_le1 mult_isor)
+    also have "... \<le> p1 \<cdot> \<lbrakk>r1 \<sqinter> r2 \<parallel> (c1 \<parallel> g2)\<rbrakk>"
+      apply (intro mult_isol_var[rule_format] conjI order_refl)
+      apply simp
+      apply (rule refine_under_rely)
+      apply (rule introduce_guarantee)
+      by (metis `g2 = \<langle>g2'\<rangle>\<^sup>\<star>` assms(3) quintuple_def)
+    also have "... \<le> p1 \<cdot> \<lbrakk>r1 \<parallel> (c1 \<parallel> r1)\<rbrakk>"
+      apply (intro mult_isol_var[rule_format] conjI order_refl)
+      by (metis assms(2) hom_iso inf_le1 par_double_iso par_isor)
+    also have "... \<le> p1 \<cdot> \<lbrakk>r1 \<parallel> c1\<rbrakk>"
+      apply (intro mult_isol_var[rule_format] conjI order_refl)
+      by (metis `r1 \<in> RG` eq_iff par_assoc par_comm rg_par_idem)
+    also have "... \<le> q1"
+      by (metis assms(1) quintuple_def)
+    finally show "p1 \<sqinter> p2 \<cdot> \<lbrakk>r1 \<sqinter> r2 \<parallel> (c1 \<parallel> c2)\<rbrakk> \<le> q1" .
+
+    have "p1 \<sqinter> p2 \<cdot> \<lbrakk>r1 \<sqinter> r2 \<parallel> (c1 \<parallel> c2)\<rbrakk> \<le> p2 \<cdot> \<lbrakk>r1 \<sqinter> r2 \<parallel> (c1 \<parallel> c2)\<rbrakk>"
+      by (metis inf_le2 mult_isor)
+    also have "... \<le> p2 \<cdot> \<lbrakk>r1 \<sqinter> r2 \<parallel> (g1 \<parallel> c2)\<rbrakk>"
+      apply (intro mult_isol_var[rule_format] conjI order_refl)
+      apply simp
+      apply (rule refine_under_rely)
+      apply (subst par_comm)
+      apply (subst par_comm) back
+      apply (rule introduce_guarantee)
+      by (metis `g1 = \<langle>g1'\<rangle>\<^sup>\<star>` assms(1) quintuple_def)
+    also have "... \<le> p2 \<cdot> \<lbrakk>r2 \<parallel> (r2 \<parallel> c2)\<rbrakk>"
+      apply (intro mult_isol_var[rule_format] conjI order_refl)
+      by (metis add_idem assms(4) hom_iso inf_sup_ord(2) less_eq_def par_double_iso)
+    also have "... \<le> p2 \<cdot> \<lbrakk>r2 \<parallel> c2\<rbrakk>"
+      apply (intro mult_isol_var[rule_format] conjI order_refl)
+      by (metis `r2 \<in> RG` eq_iff par_assoc rg_par_idem)
+    also have "... \<le> q2"
+      by (metis assms(3) quintuple_def)
+    finally show "p1 \<sqinter> p2 \<cdot> \<lbrakk>r1 \<sqinter> r2 \<parallel> (c1 \<parallel> c2)\<rbrakk> \<le> q2" .
+
+    have "\<lbrakk>c1 \<parallel> c2\<rbrakk> \<le> \<lbrakk>c1 \<parallel> g2\<rbrakk>"
+      apply simp
+      apply (rule introduce_guarantee)
+      by (metis `g2 = \<langle>g2'\<rangle>\<^sup>\<star>` assms(3) quintuple_def)
+    also have "... \<le> \<lbrakk>g1 \<parallel> g2\<rbrakk>"
+      apply (subst par_comm)
+      apply (subst par_comm) back
+      apply simp
+      apply (rule introduce_guarantee)
+      by (metis `g1 = \<langle>g1'\<rangle>\<^sup>\<star>` assms(1) quintuple_def)
+    finally show "\<lbrakk>c1 \<parallel> c2\<rbrakk> \<le> \<lbrakk>g1 \<parallel> g2\<rbrakk>" .
+
+    show "r1 \<sqinter> r2 \<in> RG"
+      by (metis `r1 \<in> RG` `r2 \<in> RG` rg_meet_closed)
+    show "g1 \<parallel> g2 \<in> RG"
+      by (metis `g1 \<in> RG` `g2 \<in> RG` rg_par_closed)
+  qed
+
 end
 
 end
