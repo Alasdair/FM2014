@@ -545,19 +545,4 @@ instantiation trace :: (type) complete_lattice begin
   instance by default (transfer, auto)+
 end
 
-locale dioid_one_zerol_hom =
-  fixes hom :: "'a::dioid_one_zerol \<Rightarrow> 'b::dioid_one_zerol"
-  assumes hom_mult: "hom (x \<cdot> y) = hom x \<cdot> hom y"
-  and hom_plus: "hom (x + y) = hom x + hom y"
-  and hom_one: "hom 1 = 1"
-  and hom_zero: "hom 0 = 0"
-
-
-lemma id_hom.hom_one
-
-instantiation trace :: (type) left_omega_algebra_zerol begin
-  lift_definition omega_trace :: "'a trace \<Rightarrow> 'a trace" is omega
-    sorry
-
-
 end
