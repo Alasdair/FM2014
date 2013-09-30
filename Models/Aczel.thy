@@ -1,67 +1,14 @@
 theory Aczel
-  imports Language
+  imports Language Pointwise
 begin
 
-coinductive transitions :: "'a llist \<Rightarrow> 'a set llist \<Rightarrow> bool" where
-  tr_LNil [intro!]: "transitions LNil LNil"
-| tr_LConsI [intro!]: "t \<in> x \<Longrightarrow> transitions ts xs \<Longrightarrow> transitions (LCons t ts) (LCons x xs)"
-
-lemma tr_LConsE [dest]: "transitions (LCons t ts) (LCons x xs) \<Longrightarrow> transitions ts xs"
-  by (metis LNil_not_LCons transitions.simps ltl_LCons)
-
-lemma [elim]: "transitions (LCons t ts) (LCons x xs) \<Longrightarrow> t \<in> x"
-  by (metis LCons_inject LNil_not_LCons transitions.simps)
-
-lemma [iff]: "transitions t LNil \<longleftrightarrow> t = LNil"
-  by (metis LNil_not_LCons transitions.simps)
-
-lemma [iff]: "transitions LNil xs \<longleftrightarrow> xs = LNil"
-  by (metis LNil_not_LCons transitions.simps)
-
-lemma transitions_llength: "transitions t xs \<Longrightarrow> llength t = llength xs"
-proof -
-  assume "transitions t xs"
-  hence "(llength t, llength xs) \<in> {(llength t, llength xs)|t xs::'a set llist. transitions t xs}"
-    by auto
-  thus ?thesis
-  proof (coinduct rule: enat_equalityI)
-    case (Eqenat n m) note q = this[simplified]
-    then obtain t and xs :: "'a set llist"
-    where n_def: "n = llength t" and m_def: "m = llength xs" and transitions: "transitions t xs"
-      by blast
-    {
-      assume "t = LNil"
-      moreover hence "xs = LNil"
-        by (metis LNil_not_LCons transitions transitions.cases)
-      ultimately have ?zero
-        by (metis llength_LNil m_def n_def)
-    }
-    moreover
-    {
-      assume "xs = LNil"
-      moreover hence "t = LNil"
-        by (metis LNil_not_LCons transitions transitions.cases)
-      ultimately have ?zero
-        by (metis llength_LNil m_def n_def)
-    }
-    moreover
-    {
-      assume "\<exists>x' xs'. xs = LCons x' xs'" and "\<exists>\<sigma> t'. t = LCons \<sigma> t'"
-      from this and n_def and m_def and transitions
-      have ?eSuc
-        by (auto, rule_tac x = t' in exI, auto)
-    }
-    ultimately show ?case
-      by (cases t, simp) (cases xs, simp_all)
-  qed
-qed
+abbreviation transitions :: "'a llist \<Rightarrow> 'a set llist \<Rightarrow> bool" where
+  "transitions \<equiv> pointwise op \<in>"
 
 coinductive consistent :: "('a \<times> 'a) llist \<Rightarrow> bool" where
   EqNil [intro!]: "consistent LNil"
 | EqSingle [intro!]: "consistent (LCons \<sigma> LNil)"
 | EqPair [intro!]: "snd \<sigma> = fst \<sigma>' \<Longrightarrow> consistent (LCons \<sigma>' t) \<Longrightarrow> consistent (LCons \<sigma> (LCons \<sigma>' t))"
-
-thm consistent.coinduct
 
 lemma lnth_repeat [simp]: "lnth (repeat x) n = x"
   by (induct n) simp_all
@@ -100,25 +47,22 @@ qed
 definition Con :: "('a \<times> 'a) lan" where
   "Con = Collect consistent"
 
-abbreviation tr' :: "'a rel llist \<Rightarrow> ('a \<times> 'a) lan" where
-  "tr' xs \<equiv> {t. transitions t xs}" 
-
 definition tr :: "'a rel llist \<Rightarrow> ('a \<times> 'a) lan" where
-  "tr xs = tr' xs \<inter> Con"
+  "tr xs = pt op \<in> xs \<inter> Con"
 
 definition Tr :: "'a rel lan \<Rightarrow> ('a \<times> 'a) lan" where
   "Tr X = (\<Union>xs\<in>X. tr xs)"
 
-lemma tr'_LCons: "tr' (LCons x xs) = {LCons t ts |t ts. transitions (LCons t ts) (LCons x xs)}"
+lemma pt_elem_LCons: "pt op \<in> (LCons x xs) = {LCons t ts |t ts. transitions (LCons t ts) (LCons x xs)}"
 proof auto
   fix t
   assume "transitions t (LCons x xs)"
-  thus "\<exists>\<sigma> \<sigma>' t'. t = LCons (\<sigma>, \<sigma>') t' \<and> transitions (LCons (\<sigma>, \<sigma>') t') (LCons x xs)"
+  thus "\<exists>\<sigma> t'. t = LCons \<sigma> t' \<and> transitions (LCons \<sigma> t') (LCons x xs)"
     by (cases t) auto
 qed
 
-lemma tr'_ind: "tr' (LCons x xs) = {LCons t ts |t ts. t \<in> x \<and> ts \<in> tr' xs}"
-  by (simp add: tr'_LCons) auto
+lemma pt_elem_ind: "pt op \<in> (LCons x xs) = {LCons t ts |t ts. t \<in> x \<and> ts \<in> pt op \<in> xs}"
+  by (simp add: pt_elem_LCons) auto
 
 lemma [simp]: "{LNil} \<inter> Con = {LNil}"
   by (auto simp add: Con_def)
@@ -195,51 +139,32 @@ proof (induct n, simp_all)
   qed
 qed
 
-lemma transitions_lappend:
-  assumes "transitions t xs" and "transitions s ys"
-  shows "transitions (t \<frown> s) (xs \<frown> ys)"
-proof (cases "lfinite xs")
-  assume "lfinite xs"
-  from this and assms
-  show "transitions (t \<frown> s) (xs \<frown> ys)"
-  proof (induct xs arbitrary: t rule: lfinite_induct)
-    case Nil thus ?case by (cases t) auto
-  next
-    case (Cons x xs) thus ?case by (cases t) auto
-  qed
-next
-  assume "\<not> lfinite xs"
-  moreover hence "\<not> lfinite t" using assms
-    by (auto dest!: transitions_llength simp: lfinite_conv_llength_enat)
-  ultimately show "transitions (t \<frown> s) (xs \<frown> ys)"
-    by (metis assms(1) lappend_inf)
-qed
 
-lemma tr'_l_prod: "lfinite xs \<Longrightarrow> tr' xs \<cdot> tr' ys \<inter> Con \<subseteq> (tr' xs \<inter> Con) \<cdot> (tr' ys \<inter> Con) \<inter> Con"
+lemma tr'_l_prod: "lfinite xs \<Longrightarrow> pt op \<in> xs \<cdot> pt op \<in> ys \<inter> Con \<subseteq> (pt op \<in> xs \<inter> Con) \<cdot> (pt op \<in> ys \<inter> Con) \<inter> Con"
 proof (induct xs rule: lfinite_induct)
   case Nil show ?case by simp
 next
   case (Cons x xs)
   thus ?case
-    apply (auto simp add: tr'_ind)
+    apply (auto simp add: pt_elem_ind)
     apply (auto simp add: l_prod_def Con_def)
     by (metis consistent_lappend1 consistent_lappend2 lappend_LCons lfinite_LCons)+
 qed
 
 lemma tr_FIN: "lfinite xs \<Longrightarrow> tr xs \<subseteq> FIN"
-  by (auto dest!: transitions_llength simp add: FIN_def tr_def lfinite_conv_llength_enat)
+  by (auto dest!: pointwise_llength simp add: FIN_def tr_def lfinite_conv_llength_enat)
 
-lemma tr'_FIN: "lfinite xs \<Longrightarrow> tr' xs \<subseteq> FIN"
-  by (auto dest!: transitions_llength simp add: FIN_def lfinite_conv_llength_enat)
+lemma pt_FIN: "lfinite xs \<Longrightarrow> pt f xs \<subseteq> FIN"
+  by (auto dest!: pointwise_llength simp add: FIN_def lfinite_conv_llength_enat)
 
 lemma tr_infinite: "\<not> lfinite xs \<Longrightarrow> tr xs \<cdot> {} = tr xs"
   apply (auto simp add: l_prod_def tr_def)
-  apply (drule transitions_llength)
+  apply (drule pointwise_llength)
   by (metis lfinite_conv_llength_enat)
 
-lemma tr'_infinite: "\<not> lfinite xs \<Longrightarrow> tr' xs \<cdot> {} = tr' xs"
+lemma pt_infinite: "\<not> lfinite xs \<Longrightarrow> pt f xs \<cdot> {} = pt f xs"
   apply (auto simp add: l_prod_def tr_def)
-  apply (drule transitions_llength)
+  apply (drule pointwise_llength)
   by (metis lfinite_conv_llength_enat)
 
 lemma transitions_lappend_ltake1: "transitions t (xs \<frown> ys) \<Longrightarrow> transitions (ltake (llength xs) t) xs"
@@ -452,6 +377,15 @@ lemma [simp]: "tr LNil = {LNil}"
 
 lemma [simp]: "{LNil}\<^sup>\<omega> = UNIV"
   by (metis seq.max_element top_unique)
+
+lemma "Tr X \<inter> Tr Y \<subseteq> Tr (X\<^sup>\<dagger> \<inter> Y\<^sup>\<dagger>)"
+  apply (auto simp add: Tr_def tr_def)
+  apply (rule_tac x = "lmap (\<lambda>x. {x}) x" in bexI)
+
+lemma "Tr X \<inter> Tr Y = Tr (X \<inter> Y)"
+  apply default
+  defer
+  apply (metis Int_UNIV_left Int_lower2 Tr_union le_iff_sup le_inf_iff)
 
 no_notation l_prod (infixl "\<cdot>" 80)
 notation Groups.times_class.times (infixl "\<cdot>" 70)

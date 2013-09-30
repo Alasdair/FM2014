@@ -632,6 +632,15 @@ lemma [simp]: "is_left \<circ> \<langle>\<lambda>x. Inl (f x),\<lambda>x. Inr (g
 lemma [simp]: "is_left \<circ> \<langle>Inl \<circ> f, Inr \<circ> g\<rangle> = is_left"
   by (simp add: o_def)
 
+lemma [simp]: "is_right (\<langle>\<lambda>x. Inl (f x),\<lambda>x. Inr (g x)\<rangle> x) = is_right x"
+  by (cases x) auto
+
+lemma [simp]: "is_right \<circ> \<langle>\<lambda>x. Inl (f x),\<lambda>x. Inr (g x)\<rangle> = is_right"
+  by (simp add: o_def)
+
+lemma [simp]: "is_right \<circ> \<langle>Inl \<circ> f, Inr \<circ> g\<rangle> = is_right"
+  by (simp add: o_def)
+
 lemma lmap_override [simp]: "lmap (\<lambda>x. y) (lmap f xs) = lmap (\<lambda>x. y) xs"
   by (simp add: lmap_compose[symmetric] o_def)
 
@@ -640,8 +649,60 @@ lemma lmap_lfilter_left: "lmap \<langle>f,g\<rangle> (lfilter is_left zs) = lmap
   apply (rule lmap_lfilter_left_eq)
   by auto
 
+lemma lmap_lfilter_right: "lmap \<langle>f,g\<rangle> (lfilter is_right zs) = lmap (\<lambda>x. g x) (lmap unr (lfilter is_right zs))"
+  apply (subst lmap_compose[symmetric])
+  apply (rule lmap_lfilter_right_eq)
+  by auto
+
 lemma traj_lfilter_lefts: "\<ll> zs = lmap f xs \<Longrightarrow> lfilter is_left (traj zs) = lmap (\<lambda>x. Inl ()) xs"
   by (simp add: lefts_def traj_def lfilter_lmap lmap_lfilter_left)
+
+lemma lmap_const_llength [iff]: "lmap (\<lambda>x. c) xs = lmap (\<lambda>x. c) ys \<longleftrightarrow> llength xs = llength ys"
+proof
+  assume "lmap (\<lambda>x. c) xs = lmap (\<lambda>x. c) ys" thus "llength xs = llength ys"
+    by (metis llength_lmap)
+next
+  assume "llength xs = llength ys"
+  hence "(lmap (\<lambda>x. c) xs, lmap (\<lambda>x. c) ys) \<in> {(lmap (\<lambda>x. c) xs, lmap (\<lambda>x. c) ys) |(xs::'b llist) (ys::'c llist). llength xs = llength ys}"
+    by auto
+  thus "lmap (\<lambda>x. c) xs = lmap (\<lambda>x. c) ys"
+  proof (coinduct rule: llist_equalityI)
+    case (Eqllist q) note q = this[simplified]
+    then obtain xs :: "'b llist" and ys :: "'c llist"
+    where q_def: "q = (lmap (\<lambda>x. c) xs, lmap (\<lambda>x. c) ys)" and same_llength: "llength xs = llength ys" by blast
+    {
+      assume "xs = LNil"
+      moreover hence "ys = LNil"
+        by (metis llength_eq_0 same_llength)
+      ultimately have ?EqLNil using q_def
+        by simp
+      hence ?case by blast
+    }
+    moreover
+    {
+      fix x' xs'
+      assume xs_def: "xs = LCons x' xs'"
+      then obtain y' and ys' where ys_def: "ys = LCons y' ys'"
+        by (metis llength_eq_0 neq_LNil_conv same_llength)
+      have ?EqLCons
+        apply (rule_tac x = "lmap (\<lambda>x. c) xs'" in exI)
+        apply (rule_tac x = "lmap (\<lambda>x. c) ys'" in exI)
+        apply (rule_tac x = c in exI)+
+        apply (intro conjI)
+        apply (auto simp add: q_def xs_def ys_def)
+        by (metis eSuc_inject llength_LCons same_llength xs_def ys_def)
+      hence ?case by blast
+    }
+    ultimately show ?case
+      by (cases xs) auto
+  qed
+qed
+
+lemma traj_lfilter_lefts_var: "llength (\<ll> zs) = llength xs \<Longrightarrow> lfilter is_left (traj zs) = lmap (\<lambda>x. Inl ()) xs"
+  by (simp add: lefts_def traj_def lfilter_lmap lmap_lfilter_left)
+
+lemma traj_lfilter_rights_var: "llength (\<rr> zs) = llength ys \<Longrightarrow> lfilter is_right (traj zs) = lmap (\<lambda>x. Inr ()) ys"
+  by (simp add: rights_def traj_def lfilter_lmap lmap_lfilter_right)
 
 lemma lefts_interleave [simp]:
   assumes "\<ll> zs = lmap f xs"
@@ -656,19 +717,27 @@ proof -
   finally show ?thesis .
 qed
 
-lemma [simp]: "is_right (\<langle>\<lambda>x. Inl (f x),\<lambda>x. Inr (g x)\<rangle> x) = is_right x"
-  by (cases x) auto
+lemma [simp]: "llength (\<ll> (traj zs)) = llength (\<ll> zs)"
+  apply (simp add: traj_def)
+  by (metis interleave_only_left lfilter_left_interleave llength_lmap reinterleave traj_def traj_lfilter_lefts_var)
 
-lemma [simp]: "is_right \<circ> \<langle>\<lambda>x. Inl (f x),\<lambda>x. Inr (g x)\<rangle> = is_right"
-  by (simp add: o_def)
+lemma [simp]: "llength (\<rr> (traj zs)) = llength (\<rr> zs)"
+  apply (simp add: traj_def)
+  by (metis interleave_only_right lfilter_right_interleave llength_lmap reinterleave traj_def traj_lfilter_rights_var)
 
-lemma [simp]: "is_right \<circ> \<langle>Inl \<circ> f, Inr \<circ> g\<rangle> = is_right"
-  by (simp add: o_def)
+lemma lefts_interleave_llength [simp]:
+  assumes "llength (\<ll> (traj zs)) = llength xs"
+  shows "\<ll> (xs \<triangleright> traj zs \<triangleleft> ys) = xs"
+proof -
+  have "\<ll> (xs \<triangleright> traj zs \<triangleleft> ys) = lmap unl (xs \<triangleright> lfilter is_left (traj zs) \<triangleleft> ys)"
+    by (metis comp_apply lefts_def lfilter_left_interleave)
+  also have "... = lmap unl (xs \<triangleright> lmap (\<lambda>x. Inl ()) xs \<triangleleft> ys)" using assms
+    by (subst traj_lfilter_lefts_var[where xs = xs]) simp_all
+  also have "... = xs"
+    by (metis interleave_only_left lmap2_id unl.simps(1))
+  finally show ?thesis .
+qed    
 
-lemma lmap_lfilter_right: "lmap \<langle>f,g\<rangle> (lfilter is_right zs) = lmap (\<lambda>x. g x) (lmap unr (lfilter is_right zs))"
-  apply (subst lmap_compose[symmetric])
-  apply (rule lmap_lfilter_right_eq)
-  by auto
 
 lemma traj_lfilter_rights: "\<rr> zs = lmap f xs \<Longrightarrow> lfilter is_right (traj zs) = lmap (\<lambda>x. Inr ()) xs"
   by (simp add: rights_def traj_def lfilter_lmap lmap_lfilter_right)
@@ -685,6 +754,20 @@ proof -
     by (metis interleave_only_right lmap2_id unr.simps(1))
   finally show ?thesis .
 qed
+
+lemma rights_interleave_llength [simp]:
+  assumes "llength (\<rr> (traj zs)) = llength ys"
+  shows "\<rr> (interleave (traj zs) xs ys) = ys"
+proof -
+  have "\<rr> (interleave (traj zs) xs ys) = lmap unr (interleave (lfilter is_right (traj zs)) xs ys)"
+    by (metis comp_apply rights_def lfilter_right_interleave)
+  also have "... = lmap unr (interleave (lmap (\<lambda>x. Inr ()) ys) xs ys)" using assms
+    by (subst traj_lfilter_rights_var) simp_all
+  also have "... = ys"
+    by (metis interleave_only_right lmap2_id unr.simps(1))
+  finally show ?thesis .
+qed
+
 
 lemma lefts_def_var: "lmap unl (lfilter is_left xs) = \<ll> xs"
   by (auto simp add: lefts_def)
