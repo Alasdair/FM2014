@@ -4,12 +4,13 @@ begin
 
 class rg_algebra = weak_trioid + meet_semilattice +
   fixes I :: "'a set"
-  assumes inv_def: "r \<in> I \<longleftrightarrow>  (\<forall>x y. 1 \<le> r \<and> r \<parallel> r = r \<and> r \<cdot> r = r \<and> r\<parallel>(x\<cdot>y) \<le> (r\<parallel>x)\<cdot>(r\<parallel>y) \<and> (r\<parallel>x)\<^sup>+ = r\<parallel>x\<^sup>+)"
-(*
+  assumes inv_def: "r \<in> I \<longleftrightarrow>  (\<forall>x y. 1 \<le> r \<and> r \<parallel> r = r \<and> r\<parallel>(x\<cdot>y) \<le> (r\<parallel>x)\<cdot>(r\<parallel>y) \<and> (r\<parallel>x)\<^sup>+ = r\<parallel>x\<^sup>+)"
   and inv_meet_closed: "\<lbrakk>r \<in> I; s \<in> I\<rbrakk> \<Longrightarrow> (r \<sqinter> s) \<in> I"
-*)
 
 begin
+
+lemma "a + (a \<sqinter> b) = a"
+  by (metis (full_types) add_commute bin_glb_var leq_def order_refl)
 
 lemma inv_par_closed:
   assumes "r \<in> I" and "s \<in> I" shows "(r\<parallel>s) \<in> I"
@@ -23,11 +24,6 @@ proof (auto simp: inv_def)
     by (simp_all add: inv_def)    
   thus "r \<parallel> s \<parallel> (r \<parallel> s) = r \<parallel> s"
     by (metis par_assoc par_comml)
-
-  have "s \<cdot> s = s" and "r \<cdot> r = r" using assms
-    by (simp_all add: inv_def)
-  thus "(r \<parallel> s) \<cdot> (r \<parallel> s) = r \<parallel> s"
-    sledgehammer
 
   {
     fix x y
@@ -53,9 +49,6 @@ proof (auto simp: inv_def)
       by (metis par_assoc)
   }
 qed
-
-lemma "r \<in> I \<Longrightarrow> s \<in> I \<Longrightarrow> r \<cdot> s \<le> r \<parallel> s"
-  sorry
 
 definition guarantee_relation :: "'a \<Rightarrow> 'a \<Rightarrow> bool" ("_ guar _" [99, 99] 100) where
   "b guar g \<equiv> g \<in> I \<and> b \<le> g"

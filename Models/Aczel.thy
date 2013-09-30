@@ -167,36 +167,9 @@ lemma pt_infinite: "\<not> lfinite xs \<Longrightarrow> pt f xs \<cdot> {} = pt 
   apply (drule pointwise_llength)
   by (metis lfinite_conv_llength_enat)
 
-lemma transitions_lappend_ltake1: "transitions t (xs \<frown> ys) \<Longrightarrow> transitions (ltake (llength xs) t) xs"
-proof (cases "lfinite xs")
-  assume "lfinite xs" and "transitions t (xs \<frown> ys)"
-  thus "transitions (ltake (llength xs) t) xs"
-  proof (induct xs arbitrary: t rule: lfinite_induct)
-    case Nil show ?case by auto
-  next
-    case (Cons x xs)
-    thus ?case
-      by (cases t) auto
-  qed
-next
-  assume "\<not> lfinite xs" and "transitions t (xs \<frown> ys)"
-  thus "transitions (ltake (llength xs) t) xs"
-    by (metis lappend_inf ltake_all order_refl transitions_llength)
-qed
-
-lemma transitions_lappend_ltake2:
-  "lfinite xs \<Longrightarrow> transitions t (xs \<frown> ys) \<Longrightarrow> transitions (ldrop (llength xs) t) ys"
-proof (induct xs arbitrary: t rule: lfinite_induct)
-  case Nil thus ?case by simp
-next
-  case (Cons x xs)
-  thus ?case
-    by (cases t) auto
-qed
-
-lemma tr'_lappend: "tr' (xs \<frown> ys) = tr' xs \<cdot> tr' ys"
+lemma tr'_lappend: "pt f (xs \<frown> ys) = pt f xs \<cdot> pt f ys"
   apply (cases "lfinite xs")
-  apply (frule tr'_FIN)
+  apply (frule pt_FIN[where f = "op \<in>"])
   apply (simp add: fin_l_prod)
   defer
   apply (metis l_prod_assoc lappend_inf seq.annil tr'_infinite)

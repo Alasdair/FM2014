@@ -789,6 +789,9 @@ next
     by (metis (full_types) endo_lower_adjoint_def endo_suprema_galois)
 qed
 
+lemma endo_upper_is_mp: "endo_upper_adjoint f \<longleftrightarrow> endo_meet_preserving f"
+  sorry
+
 end
 
 end

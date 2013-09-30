@@ -62,7 +62,7 @@ lemma "guar c \<le> g \<Longrightarrow> c \<le> rely g"
 theorem parallel:
   assumes "r1, g1 \<turnstile> \<lbrace>p1\<rbrace> c1 \<lbrace>q1\<rbrace>" and "g2 \<le> r1"
   and "r2, g2 \<turnstile> \<lbrace>p2\<rbrace> c2 \<lbrace>q2\<rbrace>" and "g1 \<le> r2"
-  shows "(r1 \<inter> r2), (g1 \<union> g2) \<turnstile> \<lbrace>inf p1 p2\<rbrace> c1 \<parallel> c2 \<lbrace>inf p1 p2\<rbrace>" 
+  shows "(r1 \<sqinter> r2), (g1 \<parallel> g2) \<turnstile> \<lbrace>p1 \<sqinter> p2\<rbrace> c1 \<parallel> c2 \<lbrace>q1 \<sqinter> q2\<rbrace>" 
 proof (simp add: quintuple_def, intro conjI)
   have "rely (r1 \<inter> r2) \<parallel> (c1 \<parallel> c2) \<triangleright> inf p1 p2 \<le> rely (r1 \<inter> r2) \<parallel> (c1 \<parallel> c2) \<triangleright> p1"
     by (metis inf_le1 mod2_isor)

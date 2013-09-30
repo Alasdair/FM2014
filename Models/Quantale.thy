@@ -42,10 +42,11 @@ begin
     by (metis order_trans par_isol par_isor)
 end
 
-class weak_left_quantale = complete_boolean_algebra + dioid_one_zerol +
+class weak_left_quantale = complete_lattice + dioid_one_zerol +
   assumes sup_is_plus [simp]: "x \<squnion> y = x + y"
   and bot_is_zero [simp]: "bot = 0"
   and inf_distr: "\<Squnion>X \<cdot> y = \<Squnion>{x \<cdot> y |x. x \<in> X}"
+  and complete_dist: "x + \<Sqinter>Y = \<Sqinter>{x + y |y. y \<in> Y}"
 
 context weak_left_quantale
 begin
@@ -128,8 +129,13 @@ proof
 
   have omega_star_fuse: "x\<^sup>\<omega> + x\<^sup>\<star>\<cdot>z = (\<nu> y. z + x \<cdot> y)" unfolding omega_def
   proof (rule endo_greatest_fixpoint_fusion, auto simp add: o_def)
-    show "endo_upper_adjoint (\<lambda>y. y + x\<^sup>\<star> \<cdot> z)" using diff_galois[simplified]
-      by (simp add: endo_upper_adjoint_def endo_galois_connection_def) (rule_tac x = "\<lambda>y. y - x\<^sup>\<star> \<cdot> z" in exI, metis add_commute)
+    show "endo_upper_adjoint (\<lambda>y. y + x\<^sup>\<star> \<cdot> z)"
+      apply (simp add: endo_upper_is_mp endo_meet_preserving_def)
+      apply (subst add_comm) back
+      apply (simp only: complete_dist)
+      apply auto
+      apply (rule arg_cong) back
+      by (auto simp add: image_def)
   next
     show "(\<lambda>y. x \<cdot> y + x\<^sup>\<star> \<cdot> z) = (\<lambda>y. z + x \<cdot> (y + x\<^sup>\<star> \<cdot> z))"
       apply (rule ext)
@@ -230,15 +236,9 @@ begin
     apply (simp add: atomic_loop2)
     by auto
 
-  lemma [simp]: "(x + y) \<sqinter> z = x \<sqinter> z + y \<sqinter> z"
-    by (simp only: sup_is_plus[symmetric]) (metis inf_sup_distrib2)
-
-  lemma [simp]: "x \<sqinter> (y + z) = x \<sqinter> y + x \<sqinter> z"
-    by (simp only: sup_is_plus[symmetric]) (metis inf_sup_distrib1)
-
   lemma atomic_loop3': "\<langle>x \<sqinter> y\<rangle>\<^sup>\<infinity> \<le> \<langle>x\<rangle>\<^sup>\<infinity> \<sqinter> \<langle>y\<rangle>\<^sup>\<infinity>"
     apply (simp add: loop_def)
-    by (metis add_iso_var add_left_commute add_ub1 order_refl)
+    sorry
 
   lemma loop_coinduct: "y \<le> 1 + x \<cdot> y \<Longrightarrow> y \<le> x\<^sup>\<infinity>"
     sorry
@@ -260,6 +260,12 @@ begin
     by auto
 end
 
+no_notation
+  Transitive_Closure.trancl ("(_\<^sup>+)" [1000] 999)
+
+definition (in weak_left_quantale) trancl :: "'a \<Rightarrow> 'a" ("_\<^sup>+" [101] 100) where
+  "x\<^sup>+ \<equiv> x\<cdot>x\<^sup>\<star>"
+
 class rg_quantale = weak_left_quantale + par_dioid +
   fixes RG :: "'a set"
   assumes rg_meet_closed: "r \<in> RG \<Longrightarrow> s \<in> RG \<Longrightarrow> r \<sqinter> s \<in> RG"
@@ -269,6 +275,7 @@ class rg_quantale = weak_left_quantale + par_dioid +
   and rg_leq: "r \<in> RG \<Longrightarrow> s \<in> RG \<Longrightarrow> r \<le> r \<parallel> s"
   and rg_dist: "r \<in> RG \<Longrightarrow> r \<parallel> (x \<cdot> y) \<le> (r \<parallel> x) \<cdot> (r \<parallel> y)"
   and rg_one: "r \<in> RG \<Longrightarrow> 1 \<le> r"
+  and rg_star: "(r\<parallel>x)\<^sup>+ = r\<parallel>x\<^sup>+"
 
 lemma (in boolean_algebra) uminus_top: "- x = top - x"
   by (metis diff_eq inf_top_left)
@@ -438,6 +445,15 @@ begin
 
   lemma skip: "r \<in> RG \<Longrightarrow> g \<in> RG \<Longrightarrow> 1, top \<turnstile> \<lbrace>p\<rbrace> r \<lbrace>q\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> 1 \<lbrace>q\<rbrace>"
     by (auto simp add: quintuple_def) (metis rg_one)
+
+  lemma choice: "r, g \<turnstile> \<lbrace>p\<rbrace> x \<lbrace>q\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> y \<lbrace>q\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> x + y \<lbrace>q\<rbrace>"
+    by (simp add: quintuple_def par_distl hom_plus distrib_left add_lub)
+
+  lemma star_one_trancl: "x\<^sup>\<star> = 1 + x\<^sup>+"
+    sorry
+
+  lemma star: "1, top \<turnstile> \<lbrace>p\<rbrace> r \<lbrace>p\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> x \<lbrace>p\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> x\<^sup>\<star> \<lbrace>p\<rbrace>"
+    sorry
 
 end
 

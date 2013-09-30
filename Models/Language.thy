@@ -1384,4 +1384,7 @@ proof -
   finally show ?thesis .
 qed
 
+lemma shuffle_inf_dist: "X \<parallel> (\<Union>\<YY>) = \<Union>{X \<parallel> Y |Y. Y \<in> \<YY>}"
+  by (auto simp add: shuffle_def)
+
 end

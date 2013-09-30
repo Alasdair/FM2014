@@ -1,5 +1,5 @@
 theory Pointwise
-  imports Language
+  imports Language Quantale
 begin
 
 context fixes binop :: "'a \<Rightarrow> 'b \<Rightarrow> bool" (infixl "\<triangleleft>" 55)
@@ -221,8 +221,14 @@ fun sum_compare :: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> ('b \
 | "op \<oplus> P Q (Inl _) (Inr _) = False"
 | "op \<oplus> P Q (Inr _) (Inl _) = False"
 
+definition lzipWith :: "('a \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> 'a llist \<Rightarrow> 'b llist \<Rightarrow> 'c llist" where
+  "lzipWith f xs ys \<equiv> undefined"
+
 context order
 begin
+
+abbreviation sublist_closure :: "'a lan \<Rightarrow> 'a lan" ("_\<^sup>\<dagger>" [101] 100) where
+  "X\<^sup>\<dagger> \<equiv> Pt op \<le> X"
 
 lemma pointwise_refl [intro!]: "pointwise op \<le> x x"
   apply (coinduct rule: pointwise.coinduct[where X = "op ="])
@@ -377,8 +383,8 @@ proof
     sorry
 qed
 
-abbreviation sublist_closure :: "'a lan \<Rightarrow> 'a lan" ("_\<^sup>\<dagger>" [101] 100) where
-  "X\<^sup>\<dagger> \<equiv> Pt op \<le> X"
+lemma pointwise_trans: "pointwise op \<le> xs ys \<Longrightarrow> pointwise op \<le> ys zs \<Longrightarrow> pointwise op \<le> xs zs" 
+  sorry
 
 lemma [intro]: "pointwise (op \<le> \<oplus> op \<le>) xs ys \<Longrightarrow> pointwise op \<le> (lmap \<langle>id,id\<rangle> xs) (lmap \<langle>id,id\<rangle> ys)"
   sorry
@@ -395,8 +401,11 @@ lemma sl_closure_idem: "(X\<^sup>\<dagger>)\<^sup>\<dagger> = X\<^sup>\<dagger>"
 lemma sl_closure_mono: "X \<le> Y \<Longrightarrow> X\<^sup>\<dagger> \<le> Y\<^sup>\<dagger>"
   by (auto simp add: Pt_def)
 
-lemma sl_closure: "X \<le> X\<^sup>\<dagger>"
+lemma sl_closure [intro!]: "X \<le> X\<^sup>\<dagger>"
   by (auto simp add: Pt_def)
+
+lemma Pt_inter: "X\<^sup>\<dagger> \<inter> Y\<^sup>\<dagger> = (X\<^sup>\<dagger> \<inter> Y\<^sup>\<dagger>)\<^sup>\<dagger>"
+  by (auto simp add: Pt_def) (metis pointwise_trans)+
 
 lemma sl_closure_par: "(X\<^sup>\<dagger> \<parallel> Y\<^sup>\<dagger>) = (X \<parallel> Y)\<^sup>\<dagger>"
 proof -
@@ -450,6 +459,173 @@ proof -
       apply (metis Suc_ile_eq)
       by (metis llength_eq_0 neq_LNil_conv zero_ne_eSuc)
   qed
+qed
+
+typedef 'a pgm = "range (Pt op \<le>) :: 'a rel lan set" by auto
+
+setup_lifting type_definition_pgm
+
+find_consts name:range
+
+no_notation l_prod (infixl "\<cdot>" 80)
+notation Groups.times_class.times (infixl "\<cdot>" 70)
+
+instantiation pgm :: (type) dioid_one_zerol begin
+
+  lift_definition less_eq_pgm :: "'a pgm \<Rightarrow> 'a pgm \<Rightarrow> bool" is "op \<subseteq>"
+    by auto
+
+  lift_definition less_pgm :: "'a pgm \<Rightarrow> 'a pgm \<Rightarrow> bool" is "op \<subset>"
+    by auto
+
+  lift_definition zero_pgm :: "'a pgm" is "{}"
+    by (auto simp add: Pt_def)
+
+  lift_definition one_pgm :: "'a pgm" is "{LNil}"
+    by (auto simp add: Pt_def)
+
+  lift_definition plus_pgm :: "'a pgm \<Rightarrow> 'a pgm \<Rightarrow> 'a pgm" is union
+    by (auto simp del: Pt_union simp add: Pt_union[symmetric])
+
+  lift_definition times_pgm :: "'a pgm \<Rightarrow> 'a pgm \<Rightarrow> 'a pgm" is "\<lambda>X Y. l_prod X Y"
+    by (auto simp add: Pt_l_prod[symmetric])
+
+  instance
+  proof
+    fix x y z :: "'a pgm"
+    show "(x + y) + z = x + (y + z)"
+      by transfer auto
+    show "x + y = y + x"
+      by transfer auto
+    show "(x \<cdot> y) \<cdot> z = x \<cdot> (y \<cdot> z)"
+      by transfer (simp add: l_prod_assoc)
+    show "(x + y) \<cdot> z = x \<cdot> z + y \<cdot> z"
+      by transfer auto
+    show "x \<cdot> (y + z) = x \<cdot> y + x \<cdot> z"
+      by transfer auto
+    show "x + x = x"
+      by transfer simp
+    show "1 \<cdot> x = x"
+      by transfer auto
+    show "x \<cdot> 1 = x"
+      by transfer auto
+    show "0 + x = x"
+      by transfer simp
+    show "0 \<cdot> x = 0"
+      by transfer simp
+    show "x \<le> y \<longleftrightarrow> x + y = y"
+      by transfer auto
+    show "x < y \<longleftrightarrow> x \<le> y \<and> x \<noteq> y"
+      by transfer auto
+  qed
+
+end
+
+instantiation pgm :: (type) lattice begin
+
+  lift_definition sup_pgm :: "'a pgm \<Rightarrow> 'a pgm \<Rightarrow> 'a pgm" is union
+    by (auto simp del: Pt_union simp add: Pt_union[symmetric])
+
+  lift_definition inf_pgm :: "'a pgm \<Rightarrow> 'a pgm \<Rightarrow> 'a pgm" is inter
+    by (auto, subst Pt_inter, auto)
+
+  instance by default (transfer, fast)+
+
+end
+
+lemma Pt_continuous: "Pt f (\<Union>X) = \<Union>Pt f ` X"
+  by (auto simp add: Pt_def)
+
+lemma (in order) Pt_Inter: "(\<Inter>Pt op \<le> ` X)\<^sup>\<dagger> = \<Inter>Pt op \<le> ` X"
+  apply (auto simp add: Pt_def)
+  apply (rename_tac xs ys zs)
+  apply (erule_tac x = ys in ballE)
+  apply (erule exE)
+  apply (erule conjE)
+  apply (rename_tac xs')
+  apply (rule_tac x = xs' in exI)
+  apply auto
+  by (metis pointwise_trans)
+
+lemma [dest!]: "set_rel cr_pgm A x \<Longrightarrow> A \<subseteq> range sublist_closure"
+  by (auto simp add: cr_pgm_def set_rel_def Rep_pgm)
+
+instantiation pgm :: (type) complete_lattice begin
+
+  lift_definition top_pgm :: "'a pgm" is UNIV
+    by auto
+
+  lift_definition bot_pgm :: "'a pgm" is "{}"
+    by (auto simp: Pt_def)
+
+  lift_definition Sup_pgm :: "'a pgm set \<Rightarrow> 'a pgm" is Union
+    apply (auto simp add: image_def)
+    apply (rename_tac X)
+    apply (subgoal_tac "\<exists>Y. X = Pt op \<le> ` Y")
+    apply (erule exE)
+    apply (erule ssubst)
+    apply (rule_tac x = "\<Union>Y" in exI)
+    apply (simp add: Pt_continuous)
+    apply (auto simp add: image_def)
+    by blast
+
+  lift_definition Inf_pgm :: "'a pgm set \<Rightarrow> 'a pgm" is "\<lambda>X. Inter X"
+    apply (auto simp add: image_def)
+    apply (rename_tac X)
+    apply (subgoal_tac "\<exists>Y. X = Pt op \<le> ` Y")
+    apply (erule exE)
+    apply (erule ssubst)
+    apply (subst Pt_Inter[symmetric])
+    apply (rule_tac x = "(\<Inter>sublist_closure ` Y)" in exI)
+    apply (auto simp add: image_def)
+    by blast
+
+  instance by default (transfer, (simp add: image_def, blast | fast))+
+
+end
+
+no_notation shuffle (infixl "\<parallel>" 75)
+
+instantiation pgm :: (type) par_dioid begin
+
+  lift_definition par_pgm :: "'a pgm \<Rightarrow> 'a pgm \<Rightarrow> 'a pgm" is shuffle
+    by (auto simp add: image_def sl_closure_par)
+
+  instance
+  proof
+    fix x y z :: "'a pgm"
+    show "(x \<parallel> y) \<parallel> z = x \<parallel> (y \<parallel> z)"
+      by transfer (simp add: shuffle_assoc)
+    show "x \<parallel> y = y \<parallel> x"
+      by transfer (simp add: shuffle_comm)
+    show "x \<parallel> (y + z) = x \<parallel> y + x \<parallel> z"
+      by transfer (simp add: par.distrib_left)
+    show "1 \<parallel> x = x"
+      by transfer simp
+    show "0 \<parallel> x = 0"
+      by transfer simp
+  qed
+
+end
+
+lemma [dest!]: "Domainp (set_rel cr_pgm) X \<Longrightarrow> X \<subseteq> range sublist_closure"
+  by (auto simp add: set_rel_def cr_pgm_def Rep_pgm)
+
+instance pgm :: (type) weak_left_quantale
+proof
+  fix x y :: "'a pgm" and X Y :: "'a pgm set"
+  show "x \<squnion> y = x + y"
+    by transfer simp
+  show "(bot::'a pgm) = 0"
+    by transfer simp
+  have "\<Squnion>X \<cdot> y = \<Squnion>((\<lambda>x. x \<cdot> y) ` X)"
+    by transfer (auto simp add: l_prod_inf_distr)
+  thus "\<Squnion>X \<cdot> y = \<Squnion>{x \<cdot> y |x. x \<in> X}"
+    by (auto intro!: arg_cong[where f = "Sup"] simp add: image_def)
+  have "x + \<Sqinter>Y = \<Sqinter>(op + x ` Y)"
+    by transfer blast
+  thus "x + \<Sqinter>Y = \<Sqinter>{x + y |y. y \<in> Y}"
+    by (auto intro!: arg_cong[where f = "Inf"] simp add: image_def)
 qed
 
 end
