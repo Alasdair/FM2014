@@ -2,53 +2,27 @@ theory RelyGuarantee
   imports WeakTrioid HoareLogic
 begin
 
+declare mult_onel [simp]
+  and mult_oner [simp]
+  and par_unitl [simp]
+  and par_unitr [simp]
+
 class rg_algebra = weak_trioid + meet_semilattice +
   fixes I :: "'a set"
-  assumes inv_def: "r \<in> I \<longleftrightarrow>  (\<forall>x y. 1 \<le> r \<and> r \<parallel> r = r \<and> r\<parallel>(x\<cdot>y) \<le> (r\<parallel>x)\<cdot>(r\<parallel>y) \<and> (r\<parallel>x)\<^sup>+ = r\<parallel>x\<^sup>+)"
+  assumes inv1: "r \<in> I \<Longrightarrow> r \<parallel> r \<le> r"
+  and inv2: "r \<in> I \<Longrightarrow> s \<in> I \<Longrightarrow> r \<le> r \<parallel> s"
+  and inv3: "r \<in> I \<Longrightarrow> r\<parallel>(x\<cdot>y) = (r\<parallel>x)\<cdot>(r\<parallel>y)"
+  (* and inv4: "r \<in> I \<Longrightarrow> r\<parallel>x\<^sup>+ \<le> (r\<parallel>x)\<^sup>+" *)
+  and inv_unit: "1 \<in> I"
   and inv_meet_closed: "\<lbrakk>r \<in> I; s \<in> I\<rbrakk> \<Longrightarrow> (r \<sqinter> s) \<in> I"
+  and inv_par_closed: "\<lbrakk>r \<in> I; s \<in> I\<rbrakk> \<Longrightarrow> (r \<parallel> s) \<in> I"
 
 begin
 
-lemma "a + (a \<sqinter> b) = a"
-  by (metis (full_types) add_commute bin_glb_var leq_def order_refl)
-
-lemma inv_par_closed:
-  assumes "r \<in> I" and "s \<in> I" shows "(r\<parallel>s) \<in> I"
-proof (auto simp: inv_def)
-  have "1 \<le> r" and "1 \<le> s" using assms
-    by (simp_all add: inv_def)
-  thus "1 \<le> r \<parallel> s"
-    by (metis par_double_iso par_unitl)
-
-  have "r \<parallel> r = r" and "s \<parallel> s = s" using assms
-    by (simp_all add: inv_def)    
-  thus "r \<parallel> s \<parallel> (r \<parallel> s) = r \<parallel> s"
-    by (metis par_assoc par_comml)
-
-  {
-    fix x y
-    have r_dist: "\<And>x y. r \<parallel> (x \<cdot> y) \<le> (r \<parallel> x) \<cdot> (r \<parallel> y)"
-    and s_dist: "\<And>x y. s \<parallel> (x \<cdot> y) \<le> (s \<parallel> x) \<cdot> (s \<parallel> y)"
-      using assms by (simp_all add: inv_def)
-    have "(r \<parallel> s) \<parallel> (x \<cdot> y) = r \<parallel> (s \<parallel> (x \<cdot> y))"
-      by (metis par_assoc)
-    also have "... \<le>  r \<parallel> ((s \<parallel> x) \<cdot> (s \<parallel> y))"
-      by (metis par_isor s_dist)
-    also have "... \<le> (r \<parallel> (s \<parallel> x) \<cdot> (r \<parallel> (s \<parallel> y)))"
-      by (metis r_dist)
-    also have "... = (r \<parallel> s \<parallel> x) \<cdot> (r \<parallel> s \<parallel> y)"
-      by (metis par_comm par_comml)
-    finally show "(r \<parallel> s) \<parallel> (x \<cdot> y) \<le> (r \<parallel> s \<parallel> x) \<cdot> (r \<parallel> s \<parallel> y)" .
-  }
-
-  {
-    fix x
-    have "\<And>x. (r \<parallel> x)\<^sup>+ = r \<parallel> x\<^sup>+" and "\<And>x. (s \<parallel> x)\<^sup>+ = s \<parallel> x\<^sup>+" using assms
-      by (simp_all add: inv_def)
-    thus "(r \<parallel> s \<parallel> x)\<^sup>+ = r \<parallel> s \<parallel> x\<^sup>+"
-      by (metis par_assoc)
-  }
-qed
+lemma "r \<in> I \<Longrightarrow> r \<parallel> r \<le> r" oops
+lemma "r \<in> I \<Longrightarrow> s \<in> I \<Longrightarrow> r \<le> r \<parallel> s" oops
+lemma "r \<in> I \<Longrightarrow> r\<parallel>(x\<cdot>y) = (r\<parallel>x)\<cdot>(r\<parallel>y)" oops
+lemma "r \<in> I \<Longrightarrow> r\<parallel>x\<^sup>+ \<le> (r\<parallel>x)\<^sup>+" oops
 
 definition guarantee_relation :: "'a \<Rightarrow> 'a \<Rightarrow> bool" ("_ guar _" [99, 99] 100) where
   "b guar g \<equiv> g \<in> I \<and> b \<le> g"
@@ -56,17 +30,16 @@ definition guarantee_relation :: "'a \<Rightarrow> 'a \<Rightarrow> bool" ("_ gu
 definition jones_quintuples :: "'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" ("\<lbrace>_,_\<rbrace>_\<lbrace>_,_\<rbrace>") where
   "\<lbrace>a, r\<rbrace> b \<lbrace>c, g\<rbrace> \<equiv> \<lbrace>a\<rbrace> r\<parallel>b \<lbrace>c\<rbrace> \<and> r \<in> I \<and> b guar g"
 
-lemma inv_unit: "1 \<in> I"
-  by (metis eq_refl inv_def par_unitl)
+declare mult_onel [simp]
+  and mult_oner [simp]
+  and par_unitl [simp]
+  and par_unitr [simp]
 
-lemma inv_idem_mult: "r \<in> I \<Longrightarrow> r\<cdot>r = r"
-  by (metis inv_def join_plus_equiv leq_def_join mult_oner par_unitr star_one star_trancl star_unfoldl_eq)
+lemma inv_idem_mult [simp]: "r \<in> I \<Longrightarrow> r\<cdot>r = r"
+  using inv3[where x = 1 and y = 1 and r = r, simplified] ..
 
 lemma inv_idem_par : "r \<in> I \<Longrightarrow> r \<parallel> r = r"
-  by (metis inv_def)
-
-lemma inv_exchange: "r \<in> I \<Longrightarrow> r\<parallel>(x\<cdot>y) = (r\<parallel>x)\<cdot>(r\<parallel>y)"
-  nitpick oops
+  by (metis eq_iff inv1 inv2)
 
 lemma guar_par: "\<lbrakk>b guar g; b' guar g'\<rbrakk> \<Longrightarrow> (b \<parallel> b') guar (g \<parallel> g')"
   by (metis par_comm par_isol inv_par_closed guarantee_relation_def order_trans)
