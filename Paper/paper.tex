@@ -6,8 +6,15 @@
 \usepackage{multicol}
 \usepackage{bussproofs}
 \usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+
+\usetikzlibrary{arrows,shapes,calc}
 
 \begin{document}
+
+\tikzstyle{elem} = [circle]
+\tikzstyle{line} = [draw,thick, -latex']
 
 \title{Algebraic Principles for Concurrency Verification Tools}
 
@@ -25,6 +32,12 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Introduction}
+
+\cite{hoare_concurrent_2011}
+\cite{kozen_completeness_1994}
+\cite{kozen_kleene_1997}
+\cite{armstrong_kleene_2013}
+\cite{nipkow_isabelle/hol:_2002}
 
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -71,6 +84,50 @@ $r, g \vdash \{p\}x\{q\} \longleftrightarrow p(r\|x)\le q \land x \le g$
 \end{prooftree}
 
 \newpage
+\begin{figure}
+\centering
+\begin{subfigure}{0.24\textwidth}
+\begin{tikzpicture}[x=1.5cm,y=1.5cm,auto]
+  \node (center) {};
+  \node [elem] (r1) at (90:1) {$r_1$};
+  \node (190:0cm) [elem] (one) at (200:1) {$1$};
+  \node [elem] (r2) at (20:1) {$r_2$};
+  \node [elem] (zero) at (-90:1) {$0$};
+
+  \path [line] (r1) -- (r2);
+  \path [line] (r1) -- (one);
+  \path [line] (r1) -- (zero);
+  \path [line] (r2) -- (one);
+  \path [line] (r2) -- (zero);
+  \path [line] (one) -- (zero);
+\end{tikzpicture}
+\end{subfigure}
+\begin{subfigure}{0.24\textwidth}
+\begin{align*}
+r_1 \| r_1 &= r_2\\
+r_1 \| r_2 &= r_2\\
+r_2 \| r_1 &= r_2\\
+r_2 \| r_2 &= r_2
+\end{align*}
+\end{subfigure}
+\begin{subfigure}{0.24\textwidth}
+\begin{align*}
+r_1r_1 &= r_1\\
+r_1r_2 &= r_2\\
+r_2r_1 &= r_1\\
+r_2r_2 &= r_2
+\end{align*}
+\end{subfigure}
+\begin{subfigure}{0.24\textwidth}
+\begin{align*}
+r_1^\star &= r_1\\
+r_2^\star &= r_2
+\end{align*}
+\end{subfigure}
+\caption{4 element counterexample for $r \in I \implies r\|r \le r$}
+\end{figure}
+
+\newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Language Model}
 
@@ -82,5 +139,7 @@ $r, g \vdash \{p\}x\{q\} \longleftrightarrow p(r\|x)\le q \land x \le g$
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusion}
 
+\bibliography{paper}{}
+\bibliographystyle{plain}
 
 \end{document}
