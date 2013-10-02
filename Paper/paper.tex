@@ -11,6 +11,8 @@
 
 \usetikzlibrary{arrows,shapes,calc}
 
+\newtheorem{lem}{Lemma}
+
 \begin{document}
 
 \tikzstyle{elem} = [circle]
@@ -84,13 +86,42 @@ $r, g \vdash \{p\}x\{q\} \longleftrightarrow p(r\|x)\le q \land x \le g$
 \end{prooftree}
 
 \newpage
-\begin{figure}
+\section{Algebra for Rely/Guarantee}
+
+Define a rely/guarantee algebra as a structure
+$(K,RG,+,\sqcap,\cdot,\|,^\star,0,1)$, where $(K,+,\sqcap)$ is a
+lattice, $(K,+,\cdot,\|,0,1)$ is a weak trioid and
+$(K,+,\cdot,^\star,0,1)$ is a Kleene algebra. $RG$ is a distinguished
+subset of relys/guarantees which satisfy the following axioms
+\begin{align}
+r\|r &\le r, \label{rg1}\\
+r &\le r\|r', \label{rg2}\\
+r\|xy &= (r\|x)(r\|y), \label{rg3}\\
+r\|x^+ &\le (r\|x)^+ \label{rg4}.
+\end{align}
+By convention, we use $r$ and $g$ to refer to elements of $RG$, and
+$x,y,z$ for arbitrary elements of $K$. Some elementary consequences of these rules are as follows
+\begin{align*}
+1 &\le r,\\
+r^\star = rr &= r = r\|r,\\
+r\|x^+ &= (r\|x)^+.
+\end{align*}
+
+Axioms (\ref{rg1}), (\ref{rg2}) and (\ref{rg3}) are independent. To
+show this, we use Isabelle's \emph{Nitpick} counterexample generator
+to construct models which violate each of these axioms, yet satisfy
+all others. The models thus constructed for (\ref{rg1}) and
+(\ref{rg3}) are shown in figures \ref{fig:rg1} and \ref{fig:rg3}
+respectively. The model constructed for (\ref{rg2}) is just the two
+element rely/guarantee algebra with $0$ and $1$.
+
+\begin{figure}[H]
 \centering
 \begin{subfigure}{0.24\textwidth}
 \begin{tikzpicture}[x=1.5cm,y=1.5cm,auto]
   \node (center) {};
   \node [elem] (r1) at (90:1) {$r_1$};
-  \node (190:0cm) [elem] (one) at (200:1) {$1$};
+  \node [elem] (one) at (200:1) {$1$};
   \node [elem] (r2) at (20:1) {$r_2$};
   \node [elem] (zero) at (-90:1) {$0$};
 
@@ -104,16 +135,16 @@ $r, g \vdash \{p\}x\{q\} \longleftrightarrow p(r\|x)\le q \land x \le g$
 \end{subfigure}
 \begin{subfigure}{0.24\textwidth}
 \begin{align*}
-r_1 \| r_1 &= r_2\\
-r_1 \| r_2 &= r_2\\
-r_2 \| r_1 &= r_2\\
-r_2 \| r_2 &= r_2
+r_1 \| r_1 &= r_1\\
+r_1 \| r_2 &= r_1\\
+r_2 \| r_1 &= r_1\\
+r_2 \| r_2 &= r_1
 \end{align*}
 \end{subfigure}
 \begin{subfigure}{0.24\textwidth}
 \begin{align*}
 r_1r_1 &= r_1\\
-r_1r_2 &= r_2\\
+r_1r_2 &= r_1\\
 r_2r_1 &= r_1\\
 r_2r_2 &= r_2
 \end{align*}
@@ -124,7 +155,44 @@ r_1^\star &= r_1\\
 r_2^\star &= r_2
 \end{align*}
 \end{subfigure}
-\caption{4 element counterexample for $r \in I \implies r\|r \le r$}
+\caption{4 element counterexample for $r \in RG \implies r\|r \le r$}
+\label{fig:rg1}
+\end{figure}
+
+Axiom (\ref{rg4}) can be derived from (\ref{rg3}) in all finite
+models. This is because any finite $K$ is a weak left quantale with
+respect to both sequential and parallel composition. In a quantale,
+fixpoint fusion laws can be used to prove that
+\begin{align*}
+r\|x^+ = r\|(\mu y.\; x + xy) = \mu y.\; r\|x + r\|xy = (r\|x)^+.
+\end{align*}
+Thus it is impossible to construct a model which demonstrates
+that (\ref{rg4}) is independent from (\ref{rg1}) -- (\ref{rg2}).
+
+\begin{figure}
+\centering
+\begin{subfigure}{0.24\textwidth}
+\begin{tikzpicture}[x=1.5cm,y=1.5cm,auto]
+  \node (center) {};
+  \node [elem] (r1) at (90:1) {$r_1$};
+  \node [elem] (one) at (0:1) {$1$};
+  \node [elem] (zero) at (-90:1) {$0$};
+
+  \path [line] (r1) -- (one);
+  \path [line] (r1) -- (zero);
+  \path [line] (r1) -- (zero);
+  \path [line] (one) -- (zero);
+\end{tikzpicture}
+\end{subfigure}
+\begin{subfigure}{0.24\textwidth}
+\begin{align*}
+r_1 \| r_1 &= r_1\\
+r_1 r_1 &= r_1\\
+r_1^\star &= r_1
+\end{align*}
+\end{subfigure}
+\caption{3 element counterexample for $r \in RG \implies r\|xy = (r\|x)(r\|y)$}
+\label{fig:rg3}
 \end{figure}
 
 \newpage
