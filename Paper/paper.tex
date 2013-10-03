@@ -11,12 +11,22 @@
 
 \usetikzlibrary{arrows,shapes,calc}
 
+\DeclareFontFamily{U}{wncy}{}
+\DeclareFontShape{U}{wncy}{m}{n}{<->wncyss10}{}
+\DeclareSymbolFont{mcy}{U}{wncy}{m}{n}
+\DeclareMathSymbol{\sh}{\mathord}{mcy}{"78} 
+\DeclareMathOperator{\sha}{\sh}
+\DeclareMathOperator{\tr}{Tr}
+
+\newcommand{\udagger}{\text{$\rotatebox[origin=c]{180}{$\dagger$}$}}
+
 \newtheorem{lem}{Lemma}
 
 \begin{document}
 
 \tikzstyle{elem} = [circle]
 \tikzstyle{line} = [draw,thick, -latex']
+\tikzstyle{rel} = [draw,thin,dashed, -latex']
 
 \title{Algebraic Principles for Concurrency Verification Tools}
 
@@ -41,52 +51,89 @@
 \cite{armstrong_kleene_2013}
 \cite{nipkow_isabelle/hol:_2002}
 
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+related work?
+
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Kleene Algebra}
+\label{sec:KA}
 
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Rely/Guarantee}
-
-
-$r, g \vdash \{p\}x\{q\} \longleftrightarrow p(r\|x)\le q \land x \le g$
-
-\begin{prooftree}
-\LeftLabel{Weakening}
-\AxiomC{$r' \le r$}
-\AxiomC{$g \le g'$}
-\AxiomC{$p \le p'$}
-\AxiomC{$r', g' \vdash \{p'\}x\{q'\}$}
-\AxiomC{$q' \le q$}
-\QuinaryInfC{$r, g \vdash \{p\}x\{q\}$}
-\end{prooftree}
-
-\begin{prooftree}
-\LeftLabel{Sequential}
-\AxiomC{$r, g \vdash \{p\}x\{q\}$}
-\AxiomC{$r, g \vdash \{q\}y\{s\}$}
-\BinaryInfC{$r, g \vdash \{q\}xy\{s\}$}
-\end{prooftree}
-
-\begin{prooftree}
-\LeftLabel{Parallel}
-\AxiomC{$r_1, g_2 \vdash \{p_1\}x\{q_1\}$}
-\AxiomC{$g_1 \le r_2$}
-\AxiomC{$r_1, g_2 \vdash \{p_2\}y\{q_2\}$}
-\AxiomC{$g_2 \le r_1$}
-\QuaternaryInfC{$r_1 \sqcap r_2, g_1 \| g_2 \vdash \{p_1 \sqcap q_2\}x\|y\{q_1 \sqcap q_2\}$}
-\end{prooftree}
-
-\begin{prooftree}
-\LeftLabel{Choice}
-\AxiomC{$r, g \vdash \{p\}x\{q\}$}
-\AxiomC{$r, g \vdash \{p\}y\{q\}$}
-\BinaryInfC{$r, g \vdash \{p\}x + y\{q\}$}
-\end{prooftree}
-
-\newpage
 \section{Algebra for Rely/Guarantee}
+\label{sec:RG}
 
 Define a rely/guarantee algebra as a structure
 $(K,RG,+,\sqcap,\cdot,\|,^\star,0,1)$, where $(K,+,\sqcap)$ is a
@@ -108,10 +155,11 @@ r\|x^+ &= (r\|x)^+.
 \end{align*}
 
 Axioms (\ref{rg1}), (\ref{rg2}) and (\ref{rg3}) are independent. To
-show this, we use Isabelle's \emph{Nitpick} counterexample generator
+show this, we use Isabelle's
+\emph{Nitpick}~\cite{blanchette_nitpick:_2010} counterexample generator
 to construct models which violate each of these axioms, yet satisfy
 all others. The models thus constructed for (\ref{rg1}) and
-(\ref{rg3}) are shown in figures \ref{fig:rg1} and \ref{fig:rg3}
+(\ref{rg3}) are shown in Figures \ref{fig:rg1} and \ref{fig:rg3}
 respectively. The model constructed for (\ref{rg2}) is just the two
 element rely/guarantee algebra with $0$ and $1$.
 
@@ -162,11 +210,11 @@ r_2^\star &= r_2
 Axiom (\ref{rg4}) can be derived from (\ref{rg3}) in all finite
 models. This is because any finite $K$ is a weak left quantale with
 respect to both sequential and parallel composition. In a quantale,
-fixpoint fusion laws can be used to prove that
+fixpoint fusion and induction laws can be used to prove that
 \begin{align*}
-r\|x^+ = r\|(\mu y.\; x + xy) = \mu y.\; r\|x + r\|xy = (r\|x)^+.
+r\|x^+ = r\|(\mu y.\; x + xy) = \mu y.\; r\|x + r\|xy \le (r\|x)^+.
 \end{align*}
-Thus it is impossible to construct a model which demonstrates
+Thus it is impossible to construct a finite model demonstrating
 that (\ref{rg4}) is independent from (\ref{rg1}) -- (\ref{rg2}).
 
 \begin{figure}
@@ -195,9 +243,216 @@ r_1^\star &= r_1
 \label{fig:rg3}
 \end{figure}
 
+Jones quintuples can be encodeded in this setting as
+\begin{align}
+r, g \vdash \{p\} c \{q\} \iff p(r\|c) \le q \land c \le g.
+\end{align}
+Using this encoding we can derive all the standard rules for
+rely/guarantee, shown in Figure \ref{fig:rgrules}.
+
+We can expand our rely/guarantee algebras to have residuals
+axiomatised by Galois connections for both parallel and sequential
+composition, i.e.
+\begin{align}
+xy \le z &\iff y \le x \rightarrow z, \label{res1}\\
+xy \le z &\iff x \le z \leftarrow y, \label{res2}\\
+x\|y \le z &\iff y \le x/z \label{res3}.
+\end{align}
+For sequential composition, (\ref{res1}) and (\ref{res2}) essentially
+provide a link between weakest-precondition style semantics and hoare
+logic. As mentioned in Section \ref{sec:KA}, the triple $\{p\} c
+\{q\}$ can be encoded as $pc \le q$, while $q \leftarrow c$ represents
+$wlp(c,q)$. Equation (\ref{res2}) can thus be written as $\{p\} c
+\{q\} \iff p \le wlp(c,q)$. The parallel residual $x/z$ can be
+understood similarly as follows; it is the weakest program such that
+when placed in parallel with $x$, the composition behaves as $z$.
+
+By using residuals quintuples can be encoded in the following
+equivalent way,
+\begin{align}
+r, g \vdash \{p\} c \{q\} \iff c \le r/(p \rightarrow q) \sqcap g \label{refine}.
+\end{align}
+This encoding allows us to think in terms of program
+refinement, as $r/(p \rightarrow q) \sqcap g$ defines the weakest
+program that when placed in parallel with interference from $r$, and
+guaranteeing interference at most $g$, goes from $p$ to $q$.
+
+\begin{figure}[tbh]
+\centering
+\begin{prooftree}
+\RightLabel{Skip}
+\AxiomC{$pr \le p$}
+\UnaryInfC{$r, g \vdash \{p\}1\{p\}$}
+\end{prooftree}
+
+\begin{prooftree}
+\RightLabel{Weakening}
+\AxiomC{$r' \le r$}
+\AxiomC{$g \le g'$}
+\AxiomC{$p \le p'$}
+\AxiomC{$r', g' \vdash \{p'\}x\{q'\}$}
+\AxiomC{$q' \le q$}
+\QuinaryInfC{$r, g \vdash \{p\}x\{q\}$}
+\end{prooftree}
+
+\begin{prooftree}
+\RightLabel{Sequential}
+\AxiomC{$r, g \vdash \{p\}x\{q\}$}
+\AxiomC{$r, g \vdash \{q\}y\{s\}$}
+\BinaryInfC{$r, g \vdash \{q\}xy\{s\}$}
+\end{prooftree}
+
+\begin{prooftree}
+\RightLabel{Parallel}
+\AxiomC{$r_1, g_2 \vdash \{p_1\}x\{q_1\}$}
+\AxiomC{$g_1 \le r_2$}
+\AxiomC{$r_1, g_2 \vdash \{p_2\}y\{q_2\}$}
+\AxiomC{$g_2 \le r_1$}
+\QuaternaryInfC{$r_1 \sqcap r_2, g_1 \| g_2 \vdash \{p_1 \sqcap q_2\}x\|y\{q_1 \sqcap q_2\}$}
+\end{prooftree}
+
+\begin{prooftree}
+\RightLabel{Choice}
+\AxiomC{$r, g \vdash \{p\}x\{q\}$}
+\AxiomC{$r, g \vdash \{p\}y\{q\}$}
+\BinaryInfC{$r, g \vdash \{p\}x + y\{q\}$}
+\end{prooftree}
+
+\begin{prooftree}
+\RightLabel{Star}
+\AxiomC{$pr \le p$}
+\AxiomC{$r, g \vdash \{p\}x\{p\}$}
+\BinaryInfC{$r, g \vdash \{p\}x^\star\{p\}$}
+\end{prooftree}
+\caption{Rely/guarantee inference rules}
+\label{fig:rgrules}
+\end{figure}
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
+
+x
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Language Model}
+\section{Concurrent Kleene Algebra with Tests}
+
+\newpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Finite Language Model}
+
+In this section, we construct a finite language model satisfying the
+axioms in Section \ref{sec:RG}. Restricting our attention to finite
+languages means that we do not need to concern ourselves with
+termination side-conditions.
+
+The shuffle product $\sha$ on a pair of finite words is defined inductively as
+\begin{align*}
+\epsilon \sha s &= \{s\},\\
+s \sha \epsilon &= \{s\},\\
+as \sha bt &= a(s \sha bt) \cup b(as \sha t).
+\end{align*}
+Shuffle is associative, commutative, and distributes over arbitrary
+joins.
+
+\begin{lem}
+$(\mathcal{P}((\Sigma\times\Sigma)^*), \cup, \cdot, \sha, \emptyset, \{\epsilon\})$ is a weak trioid.
+\end{lem}
+
+Our alphabet comprises relations ($R,S,T,\dots$) over a state space
+$\Sigma$. An example of a word in
+$(\{\sigma_1,\sigma_2,\sigma_3\}^2)^*$ is shown below. This word only
+has a single valid \emph{trace}, which is
+$\sigma_1\rightarrow\sigma_1\rightarrow\sigma_2\rightarrow\sigma_3\rightarrow\sigma_2$.
+We define an operator $\tr(X)$ which returns all the traces in a language
+$X$.
+
+\begin{center}
+\begin{tikzpicture}[x=1cm,auto]
+  \node (center) {};
+  \node [elem] (s12) {$\sigma_2$};
+  \node [elem, above of=s12] (s11) {$\sigma_1$};
+  \node [elem, below of=s12] (s13) {$\sigma_3$};
+  \node [right of=s13, node distance=0.75cm] (r1) {};
+  \node [below of=r1, node distance=0.5cm] (t4) {R};
+
+  \node [elem, right of=s12, node distance=1.5cm] (s22) {$\sigma_2$};
+  \node [elem, above of=s22] (s21) {$\sigma_1$};
+  \node [elem, below of=s22] (s23) {$\sigma_3$};
+  \node [right of=s23, node distance=0.75cm] (r2) {};
+  \node [below of=r2, node distance=0.5cm] (t4) {S};
+
+  \node [elem, right of=s22, node distance=1.5cm] (s32) {$\sigma_2$};
+  \node [elem, above of=s32] (s31) {$\sigma_1$};
+  \node [elem, below of=s32] (s33) {$\sigma_3$};
+  \node [right of=s33, node distance=0.75cm] (r3) {};
+  \node [below of=r3, node distance=0.5cm] (t4) {T};
+
+  \node [elem, right of=s32, node distance=1.5cm] (s42) {$\sigma_2$};
+  \node [elem, above of=s42] (s41) {$\sigma_1$};
+  \node [elem, below of=s42] (s43) {$\sigma_3$};
+  \node [right of=s43, node distance=0.75cm] (r4) {};
+  \node [below of=r4, node distance=0.5cm] (t4) {U};
+
+  \node [elem, right of=s42, node distance=1.5cm] (s52) {$\sigma_2$};
+  \node [elem, above of=s52] (s51) {$\sigma_1$};
+  \node [elem, below of=s52] (s53) {$\sigma_3$};
+
+  \path [line] (s11) -- (s21);
+  \path [line] (s21) -- (s32);
+  \path [line] (s32) -- (s43);
+  \path [line] (s43) -- (s52);
+
+  \path [rel] (s11) -- (s22);
+  \path [rel] (s12) -- (s22);
+  \path [rel] (s23) -- (s32);
+  \path [rel] (s32) -- (s42);
+  \path [rel] (s42) -- (s51);
+  \path [rel] (s41) -- (s52);
+\end{tikzpicture}
+\end{center}
+
+Following~\cite{brookes_full_1993} and~\cite{dingel_refinement_2002},
+we inductively generate the stutter/mumble language $w^\dagger$ for a
+word $w$ in a language over $\Sigma^2$ as follows. Assume $R,S,T \in
+\Sigma^2$ and $u,v,w \in (\Sigma^2)^*$. First, $Iw \in
+w^\dagger$. Secondly, if $uRv \in x^\dagger$ then $uIRv \in
+x^\dagger$ and $uRIv \in x^\dagger$ (\emph{stuttering}). Thirdly, if
+$uRSv \in w^\dagger$ then $u(R;S)v \in w^\dagger$
+(\emph{mumbling}). The stutter/mumble closure of a language is
+defined by lifting this operation to languages in the obvious way.
+
+Next, we define the following language for a word $w = R_0R_1\dots
+R_n$. The language $w^\udagger$ contains all strings $S_0S_1\dots S_n$
+such that for all $m \le n$, $S_m \subseteq R_m$. Again this operation
+is lifted to languages in the same way as before. Both these closure
+operators are combined then into a single closure operator,
+$X^\ddagger$, which satisfies the properties
+\begin{align*}
+(X^\ddagger \sha Y)^\ddagger &= (X \sha Y)^\ddagger,\\
+(X^\ddagger Y)^\ddagger = (&XY)^\ddagger = (XY^\ddagger)^\ddagger,\\
+(X \cup Y)^\ddagger &= (X^\ddagger \cup Y^\ddagger),\\
+(X^\ddagger \cap Y^\ddagger)^\ddagger &= (X^\ddagger \cap Y^\ddagger),\\
+\tr(X^\ddagger) &\subseteq X^\ddagger.
+\end{align*}
+For all binary operators $\bullet$, we can therefore define
+$\bullet_\ddagger$ as $\lambda X Y. (X^\ddagger\bullet
+Y^\ddagger)^\ddagger$ and show that
+$(\mathcal{P}((\Sigma^2)^*)^\ddagger,\cup_\ddagger,\cdot_\ddagger,\sha_\ddagger,\emptyset,{\epsilon}^\ddagger)$
+is a weak trioid.
 
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
