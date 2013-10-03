@@ -17,6 +17,7 @@
 \DeclareMathSymbol{\sh}{\mathord}{mcy}{"78} 
 \DeclareMathOperator{\sha}{\sh}
 \DeclareMathOperator{\tr}{Tr}
+\DeclareMathOperator{\fin}{finite}
 
 \newcommand{\udagger}{\text{$\rotatebox[origin=c]{180}{$\dagger$}$}}
 
@@ -359,17 +360,27 @@ axioms in Section \ref{sec:RG}. Restricting our attention to finite
 languages means that we do not need to concern ourselves with
 termination side-conditions.
 
-The shuffle product $\sha$ on a pair of finite words is defined inductively as
+As usual, the product of two languages X and Y over an alphabet
+$\Sigma$ is defined as $XY = \{x\frown y.\; x \in X \land y \in Y\}$.
+The language product is associative, and distributes over arbitrary
+joins from both the left and the right. The shuffle $\sha$ on a pair
+of finite words is defined inductively as
 \begin{align*}
 \epsilon \sha s &= \{s\},\\
 s \sha \epsilon &= \{s\},\\
-as \sha bt &= a(s \sha bt) \cup b(as \sha t).
+as \sha bt &= a(s \sha bt) \cup b(as \sha t),
 \end{align*}
-Shuffle is associative, commutative, and distributes over arbitrary
-joins.
+which is then lifted to languages X and Y as the shuffle product,
+\begin{align*}
+X \sha Y = \bigcup\{xs \sha ys.\; x \in X \land x \in Y\}.
+\end{align*}
+The shuffle product is associative, commutative, and distributes over
+arbitrary joins. Both products share the same unit, $\{\epsilon\}$ and
+zero, $\emptyset$. Therefore, $(\mathcal{P}(\Sigma)^*), \cup, \cdot,
+\sha, \emptyset, \{\epsilon\})$ forms a weak trioid.
 
 \begin{lem}
-$(\mathcal{P}((\Sigma\times\Sigma)^*), \cup, \cdot, \sha, \emptyset, \{\epsilon\})$ is a weak trioid.
+$(\mathcal{P}(\Sigma)^*), \cup, \cdot, \sha, \emptyset, \{\epsilon\})$ is a weak trioid.
 \end{lem}
 
 Our alphabet comprises relations ($R,S,T,\dots$) over a state space
@@ -453,6 +464,57 @@ $\bullet_\ddagger$ as $\lambda X Y. (X^\ddagger\bullet
 Y^\ddagger)^\ddagger$ and show that
 $(\mathcal{P}((\Sigma^2)^*)^\ddagger,\cup_\ddagger,\cdot_\ddagger,\sha_\ddagger,\emptyset,{\epsilon}^\ddagger)$
 is a weak trioid.
+
+\begin{center}
+\begin{tikzpicture}[x=1cm,auto]
+  \node [elem] (s12) {$\sigma_2$};
+  \node [elem, above of=s12] (s11) {$\sigma_1$};
+  \node [elem, below of=s12] (s13) {$\sigma_3$};
+  \node [right of=s13, node distance=0.75cm] (r1) {};
+  \node [below of=r1, node distance=0.5cm] (t4) {R};
+
+  \node [elem, right of=s12, node distance=1.5cm] (i2) {$\sigma_2$};
+  \node [elem, above of=i2] (i1) {$\sigma_1$};
+  \node [elem, below of=i2] (i3) {$\sigma_3$};
+  \node [right of=i3, node distance=0.75cm] (ri) {};
+  \node [below of=ri, node distance=0.5cm] (ti) {V};
+
+  \node [elem, right of=i2, node distance=1.5cm] (s22) {$\sigma_2$};
+  \node [elem, above of=s22] (s21) {$\sigma_1$};
+  \node [elem, below of=s22] (s23) {$\sigma_3$};
+  \node [right of=s23, node distance=0.75cm] (r2) {};
+  \node [below of=r2, node distance=0.5cm] (t4) {S};
+
+  \node [elem, right of=s22, node distance=1.5cm] (s32) {$\sigma_2$};
+  \node [elem, above of=s32] (s31) {$\sigma_1$};
+  \node [elem, below of=s32] (s33) {$\sigma_3$};
+  \node [right of=s33, node distance=0.75cm] (r3) {};
+  \node [below of=r3, node distance=0.5cm] (t4) {T};
+
+  \node [elem, right of=s32, node distance=1.5cm] (s42) {$\sigma_2$};
+  \node [elem, above of=s42] (s41) {$\sigma_1$};
+  \node [elem, below of=s42] (s43) {$\sigma_3$};
+  \node [right of=s43, node distance=0.75cm] (r4) {};
+  \node [below of=r4, node distance=0.5cm] (t4) {U};
+
+  \node [elem, right of=s42, node distance=1.5cm] (s52) {$\sigma_2$};
+  \node [elem, above of=s52] (s51) {$\sigma_1$};
+  \node [elem, below of=s52] (s53) {$\sigma_3$};
+
+  \path [rel] (s11) -- (i1);
+  \path [rel] (s21) -- (s32);
+  \path [line] (s32) -- (s43);
+  \path [line] (s43) -- (s52);
+  \path [line] (i2) -- (s23);
+
+  \path [rel] (s11) -- (i2);
+  \path [line] (s12) -- (i2);
+  \path [line] (s23) -- (s32);
+  \path [line] (s32) -- (s42);
+  \path [line] (s42) -- (s51);
+  \path [rel] (s41) -- (s52);
+\end{tikzpicture}
+\end{center}
 
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
