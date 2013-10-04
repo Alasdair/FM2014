@@ -2,6 +2,51 @@ theory Language
   imports "$AFP/Kleene_Algebra/Kleene_Algebra" LazySumList Fixpoint Omega_Algebra
 begin
 
+(* Old coinduction princples from old version of coinductive packages. Newer coinduction principles
+   for lazy lists are too awkard to use, most because they lack the nice case_conclusion names for
+   subgoals. *)
+
+lemma llist_equalityI
+  [consumes 1, case_names Eqllist, case_conclusion Eqllist EqLNil EqLCons]:
+  assumes r: "(l1, l2) \<in> r"
+    and step: "\<And>q. q \<in> r \<Longrightarrow>
+      q = (LNil, LNil) \<or>
+        (\<exists>l1 l2 a b.
+          q = (LCons a l1, LCons b l2) \<and> a = b \<and>
+            ((l1, l2) \<in> r \<or> l1 = l2))"
+      (is "\<And>q. _ \<Longrightarrow> ?EqLNil q \<or> ?EqLCons q")
+  shows "l1 = l2"
+  using r
+  by (coinduct rule: llist.strong_coinduct) (auto dest: step)
+  
+lemma llist_fun_equalityI
+  [case_names LNil LCons, case_conclusion LCons EqLNil EqLCons]:
+  assumes fun_LNil: "f LNil = g LNil"
+    and fun_LCons: "\<And>x l.
+      (f (LCons x l), g (LCons x l)) = (LNil, LNil) \<or>
+        (\<exists>l1 l2 a b.
+          (f (LCons x l), g (LCons x l)) = (LCons a l1, LCons b l2) \<and>
+            a = b \<and> ((l1, l2) \<in> {(f u, g u) | u. True} \<or> l1 = l2))"
+      (is "\<And>x l. ?fun_LCons x l")
+  shows "f l = g l"
+proof -
+  have "(f l, g l) \<in> {(f l, g l) | l. True}" by blast
+  then show ?thesis
+  proof (coinduct rule: llist_equalityI)
+    case (Eqllist q)
+    then obtain l where q: "q = (f l, g l)" by blast
+    show ?case
+    proof (cases l)
+      case LNil
+      with fun_LNil and q have "q = (g LNil, g LNil)" by simp
+      then show ?thesis by (cases "g LNil") simp_all
+    next
+      case (LCons x l')
+      with `?fun_LCons x l'` q LCons show ?thesis by blast
+    qed
+  qed
+qed
+
 section {* Potentially infinite languages with shuffle product *}
 
 notation lappend (infixl "\<frown>" 75)
@@ -89,8 +134,7 @@ lemma tshuffle_words_assoc:
   apply simp
   defer
   apply (rule_tac x = "lmap rbr2 xa" in exI)
-  apply simp
-  by (simp add: lmap_compose[symmetric] o_def del: lmap_compose)+
+  by simp
 
 subsection {* Typed shuffle product *}
 
@@ -156,11 +200,18 @@ text {* The @{term traj} function takes an @{typ "('a + 'b) llist"} and returns 
 lemma [simp]: "(case x of () \<Rightarrow> y) = y"
   by (metis (full_types) unit.cases unit.exhaust)
 
+find_consts name:llist_corec
+
+find_consts name:unfold
+
+find_theorems llist_unfold
+
 definition interleave :: "(unit + unit) llist \<Rightarrow> 'a llist \<Rightarrow> 'b llist \<Rightarrow> ('a + 'b) llist" where
-  "interleave t l r \<equiv> llist_corec (t, l, r)
-                        (\<lambda>(t, l, r). llist_case None
-                          (\<lambda>t ts. Some (case t of (Inl ()) \<Rightarrow> (Inl (lhd l), (ts, ltl l, r))
-                                                | (Inr ()) \<Rightarrow> (Inr (lhd r), (ts, l, ltl r)))) t)"
+  "interleave t l r \<equiv> llist_unfold
+     (\<lambda>(t, l, r). t = LNil)
+     (\<lambda>(t, l, r). case (lhd t) of (Inl ()) \<Rightarrow> Inl (lhd l) | (Inr ()) \<Rightarrow> Inr (lhd r))
+     (\<lambda>(t, l, r). case (lhd t) of (Inl ()) \<Rightarrow> (ltl t, ltl l, r) | (Inr ()) \<Rightarrow> (ltl t, l, ltl r))
+     (t, l, r)"
 
 text {* The @{term interleave} function takes a trajectory (as returned by @{term traj}) and combines two lists by picking elements according
 to the trajectory. *}
@@ -168,12 +219,12 @@ to the trajectory. *}
 abbreviation interleave' ("_ \<triangleright> _ \<triangleleft> _" [55,55,55] 55) where "xs \<triangleright> t \<triangleleft> ys \<equiv> interleave t xs ys"
 
 lemma interleave_LCons [simp]: "\<ll> (LCons z zs) \<triangleright> traj (LCons z zs) \<triangleleft> \<rr> (LCons z zs) = LCons z (\<ll> zs \<triangleright> traj zs \<triangleleft> \<rr> zs)"
-  by (cases z, simp) (subst interleave_def, subst llist_corec, simp add: traj_def interleave_def[symmetric])+
+  by (cases z) (simp_all add: traj_def interleave_def)
 
 lemma reinterleave: "\<ll> zs \<triangleright> traj zs \<triangleleft> \<rr> zs = zs"
 proof (coinduct zs rule: llist_fun_equalityI)
   case LNil show ?case
-    by (simp add: interleave_def traj_def llist_corec)
+    by (auto simp add: traj_def interleave_def)
 next
   case (LCons z zs)
   have ?EqLCons
@@ -195,7 +246,7 @@ lemma traj_equality: "traj xs = traj ys \<Longrightarrow> \<ll> xs = \<ll> ys \<
   by (metis reinterleave)
 
 lemma traj_LNil [simp]: "xs \<triangleright> LNil \<triangleleft> ys = LNil"
-  by (simp add: interleave_def llist_corec)
+  by (simp add: interleave_def)
 
 lemma interleave_only_left: "interleave (lmap (\<lambda>x. Inl ()) xs) xs ys = lmap Inl xs"
 proof (coinduct xs rule: llist_fun_equalityI)
@@ -206,7 +257,7 @@ next
   proof (intro exI conjI)
     show "(interleave (lmap (\<lambda>x. Inl ()) (LCons x xs)) (LCons x xs) ys, lmap Inl (LCons x xs))
         = (LCons (Inl x) (interleave (lmap (\<lambda>x. Inl ()) xs) xs ys), LCons (Inl x) (lmap Inl xs))"
-      by (subst interleave_def, subst llist_corec, simp add: interleave_def[symmetric])
+      by (simp add: interleave_def)
     show "(interleave (lmap (\<lambda>x. Inl ()) xs) xs ys, lmap Inl xs) \<in> {(interleave (lmap (\<lambda>x. Inl ()) u) u ys, lmap Inl u) |u. True}
         \<or> interleave (lmap (\<lambda>x. Inl ()) xs) xs ys = lmap Inl xs"
       by auto
@@ -223,7 +274,7 @@ next
   proof (intro exI conjI)
     show "(interleave (lmap (\<lambda>x. Inr ()) (LCons y ys)) xs (LCons y ys), lmap Inr (LCons y ys))
         = (LCons (Inr y) (interleave (lmap (\<lambda>x. Inr ()) ys) xs ys), LCons (Inr y) (lmap Inr ys))"
-      by (subst interleave_def, subst llist_corec, simp add: interleave_def[symmetric])
+      by (simp add: interleave_def)
     show "(interleave (lmap (\<lambda>x. Inr ()) ys) xs ys, lmap Inr ys) \<in> {(interleave (lmap (\<lambda>x. Inr ()) u) xs u, lmap Inr u)|u. True}
         \<or> interleave (lmap (\<lambda>x. Inr ()) ys) xs ys = lmap Inr ys"
       by auto
@@ -258,11 +309,7 @@ proof (induct ys arbitrary: xs' t ys' rule: lfinite_induct)
   proof (cases t, simp_all)
     fix t :: "unit + unit" and ts :: "(unit + unit) llist"
     have "xs' \<triangleright> LCons (Inr (unr t)) (ltakeWhile is_right ts) \<triangleleft> ys' = LCons x zs \<longrightarrow> is_right x"
-        apply (subst interleave_def)
-        apply (subst llist_corec)
-        apply simp
-        apply (subst interleave_def[symmetric])
-        by (metis is_right.simps(1))
+      by (simp add: interleave_def)
     thus "is_right t \<longrightarrow> xs' \<triangleright> LCons t (ltakeWhile is_right ts) \<triangleleft> ys' = LCons x zs \<longrightarrow> is_right x"
       by (metis is_left.simps(1) not_is_left sum.exhaust unr.simps(1))
   qed
@@ -278,13 +325,7 @@ next
     hence ih: "\<And>t xs' ys'. xs' \<triangleright> ltakeWhile is_right t \<triangleleft> ys' = ys \<frown> LCons x zs \<Longrightarrow> is_right x"
       by auto
     show "xs' \<triangleright> ltakeWhile is_right (LCons t ts) \<triangleleft> ys' = LCons y ys \<frown> LCons x zs \<longrightarrow> is_right x"
-      apply (cases t)
-      apply simp
-      apply (subst interleave_def)
-      apply (subst llist_corec)
-      apply simp
-      apply (subst interleave_def[symmetric])
-      by (auto intro: ih)
+      by (cases t) (auto intro: ih simp add: interleave_def)
   qed
 qed
 
@@ -301,6 +342,8 @@ proof -
   thus ?thesis
     by (metis `xs = llist_of xs'`)
 qed
+
+find_theorems llist_unfold LCons
 
 lemma lfilter_left_traj1:
   assumes "ldropWhile is_right t \<noteq> LNil"
@@ -327,11 +370,13 @@ proof -
     have "?lhs = lfilter is_left (xs \<triangleright> LCons (Inr ()) (llist_of (replicate n (Inr ())) \<frown> ldropWhile is_right t) \<triangleleft> ys)"
       by simp
     also have "... = lfilter is_left (xs \<triangleright> llist_of (replicate n (Inr ())) \<frown> ldropWhile is_right t \<triangleleft> ltl ys)"
-      by (subst interleave_def, subst llist_corec, simp add: interleave_def[symmetric])      
+      apply (subst interleave_def)
+      apply (subst llist.unfold(2))
+      by (simp_all add: interleave_def[symmetric])   
     also have "... = lfilter is_left (xs \<triangleright> ldropWhile is_right t \<triangleleft> ldrop (enat n) (ltl ys))"
       by (simp add: Suc)
     also have "... = lfilter is_left (xs \<triangleright> ldropWhile is_right t \<triangleleft> ldrop (enat (Suc n)) ys)"
-      by (metis eSuc_enat ldrop_eSuc_ltl)
+      by (metis eSuc_enat ldrop_ltl)
     finally show ?case .
   qed
   also have "... = lfilter is_left (xs \<triangleright> ldropWhile is_right t \<triangleleft> ldrop (llength (ltakeWhile is_right t)) ys)"
@@ -365,7 +410,10 @@ proof -
   have "?lhs = LCons (lhd (ldropWhile is_right t)) (ltl (ldropWhile is_right t))"
     by (metis assms lhd_LCons_ltl)
   also have "... = ?rhs"
-    by (rule arg_cong) (metis (hide_lams, mono_tags) assms is_right.simps(1) lhd_ldropWhile sum.exhaust unit.exhaust)
+    apply (rule arg_cong) back
+    using assms
+    apply auto
+    by (metis (full_types) is_left.simps(2) lhd_ldropWhile not_is_right obj_sumE unit.exhaust)
   finally show ?thesis .
 qed
 
@@ -389,14 +437,13 @@ proof -
           apply (simp add: all_right)
           apply (subgoal_tac "lfilter is_left (ltakeWhile is_right t) = LNil")
           apply simp
-          apply (simp add: lfilter_empty_conv)
+          apply simp
           by (metis lset_ltakeWhileD)
         show "xs' \<triangleright> lfilter is_left t \<triangleleft> ys' = LNil"
           apply (subst lappend_ltakeWhile_ldropWhile[symmetric, of t is_right])
           apply (simp add: all_right)
           apply (subgoal_tac "lfilter is_left (ltakeWhile is_right t) = LNil")
-          apply simp
-          apply (simp add: lfilter_empty_conv)
+          apply simp_all
           by (metis lset_ltakeWhileD)
       qed
     }
@@ -415,15 +462,11 @@ proof -
           show "xs' \<triangleright> lfilter is_left t \<triangleleft> ys = LCons (Inl (lhd xs')) (ltl xs' \<triangleright> lfilter is_left (ltl (ldropWhile is_right t)) \<triangleleft> ys)"
             apply (subst lfilter_left_traj2[OF not_all_right])
             apply (subst ldropWhile_right_LCons)
-            apply (subst interleave_def)
-            apply (subst llist_corec)
-            by (simp add: interleave_def[symmetric])
+            by (simp add: interleave_def)
           show "xs' \<triangleright> lfilter is_left t \<triangleleft> ys' = LCons (Inl (lhd xs')) (ltl xs' \<triangleright> lfilter is_left (ltl (ldropWhile is_right t)) \<triangleleft> ys')"
             apply (subst lfilter_left_traj2[OF not_all_right])
             apply (subst ldropWhile_right_LCons)
-            apply (subst interleave_def)
-            apply (subst llist_corec)
-            by (simp add: interleave_def[symmetric])
+            by (simp add: interleave_def)
         qed
         have "(ltl xs' \<triangleright> lfilter is_left (ltl (ldropWhile is_right t)) \<triangleleft> ys, ltl xs' \<triangleright> lfilter is_left (ltl (ldropWhile is_right t)) \<triangleleft> ys')
             \<in> {(xs' \<triangleright> lfilter is_left t \<triangleleft> ys, xs' \<triangleright> lfilter is_left t \<triangleleft> ys') |xs' t ys ys'. xs' \<in> ltls xs}"
@@ -436,12 +479,12 @@ proof -
       qed auto
     }
     ultimately show ?case
-      by auto
+      by fast
   qed
 qed
 
 lemma ldrop_ltls: "ys' \<in> ltls ys \<Longrightarrow> ldrop (enat n) ys' \<in> ltls ys"
-  by (induct n, auto, metis ldropn_Suc ltl_ldropn ltls.simps)
+  by (induct n, auto, metis ldrop_eSuc_ltl ltl_ldropn ltls.intros(2))
 
 lemma lfilter_left_interleave: "lfilter is_left (interleave t xs ys) = interleave (lfilter is_left t) xs ys"
 proof -
@@ -460,11 +503,10 @@ proof -
     {
       assume all_right: "ldropWhile is_right t = LNil"
       have ?EqLNil
-      proof (auto simp add: q_def)
+      proof (auto simp only: q_def)
         show "lfilter is_left (xs' \<triangleright> t \<triangleleft> ys') = LNil"
           apply (subst lappend_ltakeWhile_ldropWhile[symmetric, of t is_right])
           apply (simp add: all_right)
-          apply (simp add: lfilter_empty_conv)
           apply auto
           apply (drule split_llist)
           apply auto
@@ -494,7 +536,8 @@ proof -
             apply (subst lfilter_left_traj1[OF not_all_right])
             apply (subst ldropWhile_right_LCons)
             apply (subst interleave_def)
-            apply (subst llist_corec)
+            apply (subst llist.unfold(2))
+            apply simp_all
             by (simp add: interleave_def[symmetric])
           show "interleave (lfilter is_left t) xs' ys'
               = LCons (Inl (lhd xs')) (ltl xs' \<triangleright> lfilter is_left (ltl (ldropWhile is_right t)) \<triangleleft> ldrop (llength (ltakeWhile is_right t)) ys')"
@@ -508,15 +551,15 @@ proof -
             apply (subgoal_tac "\<exists>z zs. ldropWhile is_right t = LCons (Inl z) zs")
             apply auto
             apply (subst interleave_def)
-            apply (subst llist_corec)
-            apply simp
+            apply (subst llist.unfold(2))
+            apply simp_all         
             apply (simp only: interleave_def[symmetric])
             apply (rule sum_list_cases)
             apply (insert not_all_right)
             apply simp
             apply simp
             apply simp
-            by (metis LNil_not_LCons is_right.simps(1) lhd_LCons lhd_ldropWhile)
+            by (metis Inr_not_Inl ldropWhile_right_LCons lhd_LCons)
         qed
         have "(lfilter is_left (ltl xs' \<triangleright> ltl (ldropWhile is_right t) \<triangleleft> ldrop (llength (ltakeWhile is_right t)) ys'),
                ltl xs' \<triangleright> lfilter is_left (ltl (ldropWhile is_right t)) \<triangleleft> ldrop (llength (ltakeWhile is_right t)) ys')
@@ -537,7 +580,7 @@ proof -
       qed auto
     }
     ultimately show ?case
-      by auto
+      by fast
   qed
 qed
 
@@ -570,7 +613,7 @@ proof -
         have ?EqLCons
         proof (intro exI conjI)
           show "q = (LCons (Inr (lhd xs')) (ys' \<triangleright> lmap swap t' \<triangleleft> ltl xs'), LCons (Inr (lhd xs')) (lmap swap (ltl xs' \<triangleright> t' \<triangleleft> ys')))"
-            by (simp add: q_def t_def, intro conjI) (subst interleave_def, subst llist_corec, simp add: interleave_def[symmetric])+
+            by (simp add: q_def t_def, intro conjI) (subst interleave_def, subst llist.unfold(2), simp_all add: interleave_def[symmetric])+
           show "(ys' \<triangleright> lmap swap t' \<triangleleft> ltl xs', lmap swap (ltl xs' \<triangleright> t' \<triangleleft> ys')) \<in> {(ys' \<triangleright> lmap swap t \<triangleleft> xs', lmap swap (xs' \<triangleright> t \<triangleleft> ys'))|xs' ys' t. xs' \<in> ltls xs \<and> ys' \<in> ltls ys}
               \<or> ys' \<triangleright> lmap swap t' \<triangleleft> ltl xs' = lmap swap (ltl xs' \<triangleright> t' \<triangleleft> ys')"
             apply (intro disjI1)
@@ -584,7 +627,7 @@ proof -
         have ?EqLCons
         proof (intro exI conjI)
           show "q = (LCons (Inl (lhd ys')) (ltl ys' \<triangleright> lmap swap t' \<triangleleft> xs'), LCons (Inl (lhd ys')) (lmap swap (xs' \<triangleright> t' \<triangleleft> ltl ys')))"
-            by (simp add: q_def t_def, intro conjI) (subst interleave_def, subst llist_corec, simp add: interleave_def[symmetric])+
+            by (simp add: q_def t_def, intro conjI) (subst interleave_def, subst llist.unfold(2), simp_all add: interleave_def[symmetric])+
           show "(ltl ys' \<triangleright> lmap swap t' \<triangleleft> xs', lmap swap (xs' \<triangleright> t' \<triangleleft> ltl ys')) \<in> {(ys' \<triangleright> lmap swap t \<triangleleft> xs', lmap swap (xs' \<triangleright> t \<triangleleft> ys'))|xs' ys' t. xs' \<in> ltls xs \<and> ys' \<in> ltls ys}
               \<or> ltl ys' \<triangleright> lmap swap t' \<triangleleft> xs' = lmap swap (xs' \<triangleright> t' \<triangleleft> ltl ys')"
             apply (intro disjI1)
@@ -611,7 +654,7 @@ lemma [simp]: "swap \<circ> swap = id"
 lemma lfilter_right_interleave: "lfilter is_right (xs \<triangleright> t \<triangleleft> ys) = xs \<triangleright> lfilter is_right t \<triangleleft> ys" (is "?lhs = ?rhs")
 proof -
   have "?lhs = lmap swap (lfilter is_left (lmap swap (xs \<triangleright> t \<triangleleft> ys)))"
-    by (simp add: lfilter_lmap lmap_compose[symmetric] lmap_id del: lmap_compose)
+    by (simp add: lfilter_lmap)
   also have "... = lmap swap (lfilter is_left (ys \<triangleright> lmap swap t \<triangleleft> xs))"
     by (simp add: interleave_swap[symmetric])
   also have "... = lmap swap (ys \<triangleright> lfilter is_left (lmap swap t) \<triangleleft> xs)"
@@ -619,7 +662,7 @@ proof -
   also have "... = xs \<triangleright> lmap swap (lfilter is_left (lmap swap t)) \<triangleleft> ys"
     by (simp add: interleave_swap[symmetric])
   also have "... = ?rhs"
-    by (simp add: lfilter_lmap lmap_compose[symmetric] lmap_id del: lmap_compose)
+    by (simp add: lfilter_lmap)
   finally show ?thesis .
 qed
 
@@ -642,17 +685,13 @@ lemma [simp]: "is_right \<circ> \<langle>Inl \<circ> f, Inr \<circ> g\<rangle> =
   by (simp add: o_def)
 
 lemma lmap_override [simp]: "lmap (\<lambda>x. y) (lmap f xs) = lmap (\<lambda>x. y) xs"
-  by (simp add: lmap_compose[symmetric] o_def)
+  by (simp add: o_def)
 
 lemma lmap_lfilter_left: "lmap \<langle>f,g\<rangle> (lfilter is_left zs) = lmap (\<lambda>x. f x) (lmap unl (lfilter is_left zs))"
-  apply (subst lmap_compose[symmetric])
-  apply (rule lmap_lfilter_left_eq)
-  by auto
+  by (auto intro: lmap_lfilter_left_eq)
 
 lemma lmap_lfilter_right: "lmap \<langle>f,g\<rangle> (lfilter is_right zs) = lmap (\<lambda>x. g x) (lmap unr (lfilter is_right zs))"
-  apply (subst lmap_compose[symmetric])
-  apply (rule lmap_lfilter_right_eq)
-  by auto
+  by (auto intro: lmap_lfilter_right_eq)
 
 lemma traj_lfilter_lefts: "\<ll> zs = lmap f xs \<Longrightarrow> lfilter is_left (traj zs) = lmap (\<lambda>x. Inl ()) xs"
   by (simp add: lefts_def traj_def lfilter_lmap lmap_lfilter_left)
@@ -799,14 +838,14 @@ proof -
         apply (cases v)
         apply simp_all
         apply (subst interleave_def)
-        apply (subst llist_corec)
-        apply simp
+        apply (subst llist.unfold(2))
+        apply simp_all
         apply (subst interleave_def[symmetric])
         apply (auto simp add: traj_def)
         apply (metis ltls.intros(2) xs_tl ys_tl)
         apply (subst interleave_def)
-        apply (subst llist_corec)
-        apply simp
+        apply (subst llist.unfold(2))
+        apply simp_all
         apply (subst interleave_def[symmetric])
         apply (auto simp add: traj_def)
         by (metis ltls.intros(2) xs_tl ys_tl)
@@ -816,7 +855,7 @@ proof -
       apply (cases t)
       by auto
   qed
-qed   
+qed
 
 lemma [simp]: "unl (\<langle>Inl \<circ> f,Inr \<circ> g\<rangle> (Inl x)) = f x"
   by simp
@@ -849,7 +888,7 @@ lemma lmap_interleave: "\<ll> zs = lmap f xs \<Longrightarrow> \<rr> zs = lmap g
   apply (rotate_tac 2)
   apply (erule ssubst)
   apply (subst interleave_only_left)
-  apply (simp add: lmap_compose[symmetric] del: lmap_compose)
+  apply simp
   apply (metis traj_lfilter_lefts)
   apply (simp (no_asm) add: rights_def)
   apply (simp add: lfilter_lmap)
@@ -861,36 +900,20 @@ lemma lmap_interleave: "\<ll> zs = lmap f xs \<Longrightarrow> \<rr> zs = lmap g
   apply (rotate_tac 2)
   apply (erule ssubst)
   apply (subst interleave_only_right)
-  apply (simp add: lmap_compose[symmetric] del: lmap_compose)
+  apply simp
   apply (metis traj_lfilter_rights)
   apply (simp add: traj_def)
-  apply (simp add: lmap_compose[symmetric] del: lmap_compose)
+  apply simp
   by (simp add: traj_def [symmetric])
 
 lemma [simp]: "\<ll> zs = lmap f xs \<Longrightarrow> \<rr> zs = lmap g ys \<Longrightarrow> lmap \<langle>Inl \<circ> f,Inr \<circ> g\<rangle> (interleave (traj zs) xs ys) = zs"
   by (subst reinterleave[symmetric, where t = zs], simp add: lmap_interleave)
 
-lemma [simp]: "is_left \<circ> \<langle>\<lambda>x. Inl (f x),\<lambda>x. Inr (g x)\<rangle> = is_left"
-proof -
-  {
-    fix x :: "'a + 'b"
-    have "(is_left \<circ> \<langle>\<lambda>x. Inl (f x),\<lambda>x. Inr (g x)\<rangle>) x = is_left x"
-      by (cases x) auto
-  }
-  thus ?thesis by auto
-qed
-
 lemma [simp]: "is_left (\<langle>Inl \<circ> f,Inr \<circ> g\<rangle> x) = is_left x"
   by (cases x) auto
 
-lemma [simp]: "is_left \<circ> \<langle>Inl \<circ> f,Inr \<circ> g\<rangle> = is_left"
-  by (subst o_def) simp
-
 lemma [simp]: "is_right (\<langle>Inl \<circ> f,Inr \<circ> g\<rangle> x) = is_right x"
   by (cases x) auto
-
-lemma [simp]: "is_right \<circ> \<langle>Inl \<circ> f,Inr \<circ> g\<rangle> = is_right"
-  by (subst o_def) simp
 
 lemma tshuffle_words_map:
   fixes f :: "'a \<Rightarrow> 'b"
@@ -904,11 +927,11 @@ proof (auto simp add: tshuffle_words_def image_def)
 next
   fix zs
   show "\<ll> (lmap \<langle>Inl \<circ> f,Inr \<circ> g\<rangle> zs) = lmap f (\<ll> zs)"
-    apply (simp add: lefts_def lfilter_lmap lmap_compose[symmetric] del: lmap_compose)
+    apply (simp add: lefts_def lfilter_lmap)
     apply (rule lmap_lfilter_eq)
     by (metis is_right.simps(1) not_is_left o_eq_dest_lhs sum.simps(5) sumE unl.simps(1))
   show "\<rr> (lmap \<langle>Inl \<circ> f,Inr \<circ> g\<rangle> zs) = lmap g (\<rr> zs)"
-    apply (simp add: rights_def lfilter_lmap lmap_compose[symmetric] del: lmap_compose)
+    apply (simp add: rights_def lfilter_lmap)
     apply (rule lmap_lfilter_eq)
     by (metis comp_apply is_left.simps(1) not_is_left sum.simps(6) sumE unr.simps(1))
 qed
@@ -940,7 +963,7 @@ proof -
   {
     fix xs :: "(('a + 'a) + 'a) llist"
     have "(lmap \<langle>id,id\<rangle> \<circ> lmap \<langle>Inl \<circ> \<langle>id,id\<rangle>, Inr\<rangle>) xs = lmap \<langle>\<langle>id,id\<rangle>,id\<rangle> xs"
-      by (subst o_def) (simp add: lmap_compose[symmetric])
+      by (subst o_def) simp
   }
   thus ?thesis by auto
 qed
@@ -950,7 +973,7 @@ proof -
   {
     fix xs :: "('a + ('a + 'a)) llist"
     have "(lmap \<langle>id,id\<rangle> \<circ> lmap \<langle>Inl, Inr \<circ> \<langle>id,id\<rangle>\<rangle>) xs = lmap \<langle>id,\<langle>id,id\<rangle>\<rangle> xs"
-      by (subst o_def) (simp add: lmap_compose[symmetric])
+      by (subst o_def) simp
   }
   thus ?thesis by auto
 qed
@@ -1028,8 +1051,8 @@ proof -
       apply (rule_tac x = "lmap (\<lambda>x. z) (ltl ys')" in exI)
       apply (rule_tac x = z in exI)+
       apply (auto simp add: q_def)
-      apply (metis (full_types) inf_xs' lfinite.simps lhd_LCons_ltl lmap_LCons)
-      apply (metis (full_types) inf_ys' lfinite.simps lhd_LCons_ltl lmap_LCons)
+      apply (metis Pair_inject inf_xs' lfinite_code(1) lfinite_lmap lhd_lmap llist.collapse ltl_lmap prod.exhaust q_def)
+      apply (metis Pair_inject inf_ys' lfinite_code(1) lfinite_lmap lhd_lmap llist.collapse ltl_lmap prod.exhaust q_def)
       apply (rule_tac x = "ltl xs'" in exI)
       apply auto
       apply (rule_tac x = "ltl ys'" in exI)
@@ -1052,10 +1075,10 @@ proof (auto simp add: FIN_def)
 qed
 
 lemma interleave_left: "xs \<triangleright> LCons (Inl ()) ts \<triangleleft> ys = LCons (Inl (lhd xs)) (ltl xs \<triangleright> ts \<triangleleft> ys)"
-  by (simp add: llist_corec interleave_def)
+  by (auto simp add: interleave_def)
 
 lemma interleave_right: "xs \<triangleright> LCons (Inr ()) ts \<triangleleft> ys = LCons (Inr (lhd ys)) (xs \<triangleright> ts \<triangleleft> ltl ys)"
-  by (simp add: llist_corec interleave_def)
+  by (auto simp add: interleave_def)
 
 lemma lfinite_lefts: "lfinite xs \<Longrightarrow> lfinite (\<ll> xs)"
   by (simp add: lefts_def)
@@ -1067,7 +1090,7 @@ lemma lfinite_traj': "lfinite zs \<Longrightarrow> zs = xs \<triangleright> t \<
 proof (induct zs arbitrary: t xs ys rule: lfinite_induct)
   fix t and xs :: "'a llist" and ys :: "'b llist"
   case Nil thus ?case
-    by (auto intro: sum_list_cases simp add: interleave_def llist_corec)
+    by (auto intro: sum_list_cases simp add: interleave_def)
 next
   fix t xs ys
   case (Cons z zs)
@@ -1082,17 +1105,13 @@ lemma shuffle_dist: "X \<parallel> (Y \<union> Z) = X \<parallel> Y \<union> X \
   by (simp only: shuffle_def Union_Un_distrib[symmetric]) (rule arg_cong, fast)
 
 lemma lfilter_right_left: "lfilter is_right x = LNil \<Longrightarrow> lfilter is_left x = x"
-  by (auto simp add: lfilter_empty_conv)  (metis (full_types) lfilter_K_True lfilter_cong)
+  by auto
 
 lemma lfilter_left_right: "lfilter is_left x = LNil \<Longrightarrow> lfilter is_right x = x"
-  by (auto simp add: lfilter_empty_conv)  (metis (full_types) lfilter_K_True lfilter_cong)
+  by auto
 
 lemma lmap2_id_var: "(\<And>x. x \<in> lset xs \<Longrightarrow> f (g x) = x) \<Longrightarrow> lmap f (lmap g xs) = xs"
-  apply (subst lmap_compose[symmetric])
-  apply (subst id_apply[symmetric, of xs]) back
-  apply (subst lmap_id[symmetric])
-  apply (rule lmap_eq)
-  by (simp add: o_def)
+  by simp
 
 lemma [simp]: "lmap \<langle>id,id\<rangle> (lmap Inl xs) = xs"
   by (metis all_lefts id_def lefts_def_var lefts_mapl lmap.id lmap_lfilter_left)
@@ -1100,37 +1119,27 @@ lemma [simp]: "lmap \<langle>id,id\<rangle> (lmap Inl xs) = xs"
 lemma [simp]: "lmap \<langle>id,id\<rangle> (lmap Inr xs) = xs"
   by (metis all_rights id_def lmap.id lmap_lfilter_right rights_def_var rights_mapr)
 
+find_theorems (140) "lmap _ _ = _"
+
 lemma tshuffle_LNil [simp]: "xs \<sha> LNil = {lmap Inl xs}"
   apply (simp add: tshuffle_words_def)
-  apply (auto simp add: lefts_def rights_def)
-  apply (subst lfilter_right_left)
-  apply assumption
+  apply (auto simp add: lefts_def rights_def o_def)
   apply (rule sym)
-  apply (rule lmap2_id_var)
-  apply (simp only: lfilter_empty_conv)
-  apply (metis (full_types) is_left.simps(2) not_is_left sumE unl.simps(1))
-  apply (metis all_lefts lefts_def_var lefts_mapl)  
-  apply (subst lfilter_lmap)
-  apply (subgoal_tac "lfilter (is_right \<circ> Inl) xs = LNil")
-  apply simp
-  apply (subst lfilter_empty_conv)
-  by auto
+  apply (rule lmap2_id_var[where f = id, simplified])
+  apply (rename_tac xs x)
+  apply (erule_tac x = x in ballE)
+  apply (metis is_left.simps(2) swap.cases unl.simps(1))
+  by metis
 
 lemma tshuffle_LNil_sym [simp]: "LNil \<sha> ys = {lmap Inr ys}"
   apply (simp add: tshuffle_words_def)
   apply (auto simp add: lefts_def rights_def)
-  apply (subst lfilter_left_right)
-  apply assumption
   apply (rule sym)
-  apply (rule lmap2_id_var)
-  apply (simp only: lfilter_empty_conv)
-  apply (metis (full_types) is_right.simps(2) not_is_left sumE unr.simps(1))
-  apply (subst lfilter_lmap)
-  apply (subgoal_tac "lfilter (is_left \<circ> Inr) ys = LNil")
-  apply simp
-  apply (subst lfilter_empty_conv)
+  apply (rule lmap2_id_var[where f = id, simplified])
+  apply (rename_tac xs x)
+  apply (erule_tac x = x in ballE)
   apply auto
-  by (metis lmap2_id unr.simps(1))
+  by (metis is_left.simps(1) not_is_right obj_sumE unr.simps(1))
 
 lemma shuffle_one: "X \<parallel> {LNil} = X"
   by (auto simp add: shuffle_def)
@@ -1157,7 +1166,7 @@ interpretation seq!: dioid_one_zerol "op \<union>" "op \<cdot>" "{LNil}" "{}" "o
   apply (metis l_prod_distr)
   apply (metis l_prod_one(1))
   apply (metis l_prod_one(2))
-  apply (metis par.add.left_neutral)
+  apply simp
   apply (metis l_prod_zero)
   apply (metis par.add_idem')
   by (metis l_prod_distl)
@@ -1258,7 +1267,7 @@ proof -
     by auto
   thus ?thesis
   proof(coinduct rule: enat_equalityI)
-    case (Eqenat n m)
+    case (Eq_enat n m)
     from this[simplified] obtain xs :: "('a + 'b) llist"
     where [simp]: "n = llength xs"
     and [simp]: "m = llength (lfilter is_left xs) + llength (lfilter is_right xs)"
@@ -1290,7 +1299,7 @@ proof (auto simp add: tshuffle_words_def image_def)
     case LNil
     from this and zsl
     have False
-      by (metis LNil_not_LCons rights_LNil zsr)
+      by (subgoal_tac "\<ll> zs = LNil") auto
     thus ?goal by blast
   next
     case (LConsl z' zs')

@@ -14,16 +14,16 @@ coinductive pointwise :: "'a llist \<Rightarrow> 'b llist \<Rightarrow> bool" wh
 (* Basic rules for pointwise *)
 
 lemma pointwise_LConsE [dest]: "pointwise (LCons x xs) (LCons y ys) \<Longrightarrow> pointwise xs ys"
-  by (metis LNil_not_LCons pointwise.simps ltl_LCons)
+  by (metis ltl_simps(2) neq_LNil_conv pointwise.cases)
 
 lemma [elim]: "pointwise (LCons x xs) (LCons y ys) \<Longrightarrow> x \<triangleleft> y"
-  by (metis LCons_inject LNil_not_LCons pointwise.simps)
+  by (metis lhd_LCons llist.distinct(1) pointwise.simps)
 
 lemma [iff]: "pointwise xs LNil \<longleftrightarrow> xs = LNil"
-  by (metis LNil_not_LCons pointwise.simps)
+  by (metis Pointwise.pointwise.simps llist.distinct(1))
 
 lemma [iff]: "pointwise LNil xs \<longleftrightarrow> xs = LNil"
-  by (metis LNil_not_LCons pointwise.simps)
+  by (metis Pointwise.pointwise.simps llist.distinct(1))
 
 (* Two pointwise equivalent lists must have the same length *)
 
@@ -34,14 +34,14 @@ proof -
     by auto
   thus ?thesis
   proof (coinduct rule: enat_equalityI)
-    case (Eqenat n m) note q = this[simplified]
+    case (Eq_enat n m) note q = this[simplified]
     then obtain xs :: "'a llist" and ys :: "'b llist"
     where n_def: "n = llength xs" and m_def: "m = llength ys" and pointwise: "pointwise xs ys"
       by blast
     {
       assume "xs = LNil"
       moreover hence "ys = LNil"
-        by (metis LNil_not_LCons pointwise pointwise.cases)
+        by (metis `\<And>xs. local.pointwise LNil xs = (xs = LNil)` pointwise)
       ultimately have ?zero
         by (metis llength_LNil m_def n_def)
     }
@@ -49,7 +49,7 @@ proof -
     {
       assume "ys = LNil"
       moreover hence "xs = LNil"
-        by (metis LNil_not_LCons pointwise pointwise.cases)
+        by (metis `\<And>xs. local.pointwise xs LNil = (xs = LNil)` pointwise)
       ultimately have ?zero
         by (metis llength_LNil m_def n_def)
     }
@@ -233,7 +233,7 @@ abbreviation sublist_closure :: "'a lan \<Rightarrow> 'a lan" ("_\<^sup>\<dagger
 lemma pointwise_refl [intro!]: "pointwise op \<le> x x"
   apply (coinduct rule: pointwise.coinduct[where X = "op ="])
   apply auto
-  by (metis llist_cases order_refl)
+  by (metis neq_LNil_conv order_refl)
 
 lemma [simp]: "traj LNil = LNil"
   by (metis traj_LNil traj_interleave)
@@ -315,8 +315,8 @@ proof -
             apply (subgoal_tac "ys = LCons (lhd ys) (ltl ys)")
             apply (metis pointwise_LConsE)
             apply (subst lhd_LCons_ltl)
-            apply (metis LNil_not_LCons pointwise.simps)
-            apply simp
+            apply (metis `ys \<noteq> LNil`)
+            apply metis
             apply (simp add: zs_LCons zr)
             apply (simp add: ws_LCons wr)
             by (rule zr_wr)
@@ -350,7 +350,7 @@ proof -
             apply (subgoal_tac "xs = LCons (lhd xs) (ltl xs)")
             apply (metis pointwise_LConsE)
             apply (subst lhd_LCons_ltl)
-            apply (metis LNil_not_LCons pointwise.simps)
+            apply (metis `xs \<noteq> LNil`)
             apply simp
             using pt_ys
             apply (simp add: zs_LCons zl)
@@ -533,10 +533,10 @@ instantiation pgm :: (type) lattice begin
 
 end
 
-lemma Pt_continuous: "Pt f (\<Union>X) = \<Union>Pt f ` X"
+lemma Pt_continuous: "Pt f (\<Union>X) = \<Union>(Pt f ` X)"
   by (auto simp add: Pt_def)
 
-lemma (in order) Pt_Inter: "(\<Inter>Pt op \<le> ` X)\<^sup>\<dagger> = \<Inter>Pt op \<le> ` X"
+lemma (in order) Pt_Inter: "\<Inter>(Pt op \<le> ` X)\<^sup>\<dagger> = \<Inter>(Pt op \<le> ` X)"
   apply (auto simp add: Pt_def)
   apply (rename_tac xs ys zs)
   apply (erule_tac x = ys in ballE)
@@ -576,7 +576,7 @@ instantiation pgm :: (type) complete_lattice begin
     apply (erule exE)
     apply (erule ssubst)
     apply (subst Pt_Inter[symmetric])
-    apply (rule_tac x = "(\<Inter>sublist_closure ` Y)" in exI)
+    apply (rule_tac x = "\<Inter>(sublist_closure ` Y)" in exI)
     apply (auto simp add: image_def)
     by blast
 

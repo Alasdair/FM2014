@@ -40,14 +40,17 @@ definition lefts :: "('a + 'b) llist \<Rightarrow> 'a llist" ("\<ll>") where
 definition rights :: "('a + 'b) llist \<Rightarrow> 'b llist" ("\<rr>") where
   "rights = lmap unr \<circ> lfilter is_right"
 
+lemma [dest!]: "xs \<noteq> LNil \<Longrightarrow> \<exists>y ys. xs = LCons y ys"
+  by (metis llist.exhaust)
+
 lemma all_rights [simp]: "lfilter is_right (lmap Inr xs) = lmap Inr xs"
-  by (coinduct xs rule: llist_fun_equalityI) auto
+  by (coinduct xs rule: llist_fun_coinduct) auto
 
 lemma all_lefts [simp]: "lfilter is_left (lmap Inl xs) = lmap Inl xs"
-  by (coinduct xs rule: llist_fun_equalityI) auto
+  by (coinduct xs rule: llist_fun_coinduct) auto
 
 lemma lmap2_id: "(\<And>x. f (g x) = x) \<Longrightarrow> lmap f (lmap g xs) = xs"
-  by (coinduct xs rule: llist_fun_equalityI) auto
+  by (coinduct xs rule: llist_fun_coinduct) auto
 
 lemma rights_mapr [simp]: "\<rr> (lmap Inr xs) = xs"
   by (auto simp add: rights_def, rule lmap2_id, simp)
@@ -106,10 +109,11 @@ lemma rights_append: "lfinite xs \<Longrightarrow> \<rr> (lappend xs ys) = lappe
   apply (auto simp add: rights_def)
   by (metis lmap_lappend_distrib)
 
+declare in_lset_conv_lnth[iff]
+declare lfinite_conv_llength_enat[iff]
+
 lemma lnth_in_lset: "\<not> lfinite xs \<Longrightarrow> lnth xs n \<in> lset xs"
-  apply (simp add: lset_def image_def)
-  apply (rule_tac x = n in exI)
-  by (metis enat_iless lfinite_conv_llength_enat neq_iff)
+  by auto
 
 lemma fair_ltakel: "fair xs \<Longrightarrow> lfinite (ltakeWhile is_left xs)"
   apply (subst lfinite_ltakeWhile)
@@ -117,7 +121,7 @@ lemma fair_ltakel: "fair xs \<Longrightarrow> lfinite (ltakeWhile is_left xs)"
   apply (auto simp add: fair_def)
   apply (rule_tac x = "lnth xs n" in bexI)
   apply assumption
-  by (metis lnth_in_lset)
+  by (metis llength_eq_infty_conv_lfinite lnth_in_lset)
 
 lemma fair_ltaker: "fair xs \<Longrightarrow> lfinite (ltakeWhile is_right xs)"
   apply (subst lfinite_ltakeWhile)
@@ -125,10 +129,10 @@ lemma fair_ltaker: "fair xs \<Longrightarrow> lfinite (ltakeWhile is_right xs)"
   apply (auto simp add: fair_def)
   apply (rule_tac x = "lnth xs na" in bexI)
   apply assumption
-  by (metis lnth_in_lset)
+  by (metis llength_eq_infty_conv_lfinite lnth_in_lset)
 
 lemma lefts_Nil: "lfinite xs \<Longrightarrow> \<forall>x\<in>lset xs. is_right x \<Longrightarrow> \<ll> xs = LNil"
-  by (auto simp add: lefts_def) (metis lfilter_empty_conv not_is_right)
+  by (auto simp add: lefts_def)
 
 lemma lefts_ltaker: "fair xs \<Longrightarrow> \<ll> (ltakeWhile is_right xs) = LNil"
   apply (rule lefts_Nil)
@@ -145,7 +149,7 @@ proof -
   also have "... = lappend LNil (\<ll> (ldropWhile is_right xs))"
     by (metis lefts_ltaker xs_fair)
   also have "... = ?rhs"
-    by (metis lappend_LNil1)
+    by (metis lappend_code(1))
   finally show ?thesis .
 qed
 
@@ -187,14 +191,16 @@ lemma unl_swap [simp]: "unl \<circ> swap = unr"
 lemma [simp]: "\<langle>id,id\<rangle> (swap x) = \<langle>id,id\<rangle> x"
   by (cases x) auto
 
+declare lmap.compositionality[simp]
+
 lemma [simp]: "\<rr> (lmap swap xs) = \<ll> xs"
-  by (simp add: rights_def lfilter_lmap lmap_compose[symmetric] lefts_def del: lmap_compose)
+  by (simp add: rights_def lfilter_lmap lefts_def)
 
 lemma [simp]: "\<ll> (lmap swap xs) = \<rr> xs"
-  by (simp add: rights_def lfilter_lmap lmap_compose[symmetric] lefts_def del: lmap_compose)
+  by (simp add: rights_def lfilter_lmap lefts_def)
 
 lemma [simp]: "lmap \<langle>id,id\<rangle> (lmap swap xs) = lmap \<langle>id,id\<rangle> xs"
-  by (subst lmap_compose[symmetric]) (simp add: o_def)
+  by (simp add: o_def)
 
 fun rbr1 :: "'a + ('b + 'c) \<Rightarrow> ('a + 'b) + 'c" where
   "rbr1 (Inl x) = Inl (Inl x)"
@@ -256,52 +262,32 @@ lemma [simp]: "is_left (unl x) \<and> is_left x \<Longrightarrow> unl (rbr2 x) =
   apply auto
   by (metis is_left.simps(2) rbr2.simps(3) sum.exhaust unl.simps(1))
 
-lemma lmap_eq: "(\<And>x. x \<in> lset xs \<Longrightarrow> f x = g x) \<Longrightarrow> lmap f xs = lmap g xs"
-  apply (coinduct rule: llist_equalityI)
-  apply auto
-  apply (metis lhd_LCons_ltl lmap_cong lmap_eq_LCons_conv)
-  by (metis lhd_LCons_ltl lmap_cong lmap_eq_LNil_conv)
-
-lemma lmap_lfilter_eq: "(\<And>x. P x \<Longrightarrow> f x = g x) \<Longrightarrow> lmap f (lfilter P xs) = lmap g (lfilter P xs)"
-  by (rule lmap_eq) simp
+lemma lmap_lfilter_eq [intro]: "(\<And>x. P x \<Longrightarrow> f x = g x) \<Longrightarrow> lmap f (lfilter P xs) = lmap g (lfilter P xs)"
+  by (rule llist.map_cong0) simp
 
 lemma lmap_lfilter_left_eq: "(\<And>x. f (Inl x) = g (Inl x)) \<Longrightarrow> lmap f (lfilter is_left xs) = lmap g (lfilter is_left xs)"
-  apply (rule lmap_lfilter_eq)
-  by (metis (full_types) is_left.simps(2) swap.cases)
+  by (rule lmap_lfilter_eq) (metis (full_types) is_left.simps(2) swap.cases)
 
 lemma lmap_lfilter_right_eq: "(\<And>x. f (Inr x) = g (Inr x)) \<Longrightarrow> lmap f (lfilter is_right xs) = lmap g (lfilter is_right xs)"
-  apply (rule lmap_lfilter_eq)
-  by (metis (full_types) is_right.simps(2) swap.cases)
+  by (rule lmap_lfilter_eq) (metis (full_types) is_right.simps(2) swap.cases)
 
 lemma [simp]: "\<ll> (\<ll> (lmap rbr1 xs)) = \<ll> xs"
-  apply (simp add: lefts_def lfilter_lmap lmap_compose[symmetric] lfilter_lfilter o_def del: lmap_compose)
-  apply (rule lmap_lfilter_eq)
-  by simp
+  by (auto simp add: lefts_def lfilter_lmap  lfilter_lfilter o_def)
 
 lemma [simp]: "\<rr> (\<ll> (lmap rbr1 xs)) = \<ll> (\<rr> xs)"
-  apply (simp add: rights_def lefts_def lfilter_lmap lmap_compose[symmetric] lfilter_lfilter o_def del: lmap_compose)
-  apply (rule lmap_lfilter_eq)
-  by simp
+  by (auto simp add: rights_def lefts_def lfilter_lmap lfilter_lfilter o_def)
 
 lemma [simp]: "\<rr> (lmap rbr1 xs) = \<rr> (\<rr> xs)"
-  apply (simp add: rights_def lfilter_lmap lmap_compose[symmetric] lfilter_lfilter o_def del: lmap_compose)
-  apply (rule lmap_lfilter_eq)
-  by simp
+  by (auto simp add: rights_def lfilter_lmap  lfilter_lfilter o_def)
 
 lemma [simp]: "\<rr> (\<rr> (lmap rbr2 xs)) = \<rr> xs"
-  apply (simp add: rights_def lfilter_lmap lmap_compose[symmetric] lfilter_lfilter o_def del: lmap_compose)
-  apply (rule lmap_lfilter_eq)
-  by simp
+  by (auto simp add: rights_def lfilter_lmap  lfilter_lfilter o_def)
 
 lemma [simp]: "\<ll> (\<rr> (lmap rbr2 xs)) = \<rr> (\<ll> xs)"
-  apply (simp add: rights_def lefts_def lfilter_lmap lmap_compose[symmetric] lfilter_lfilter o_def del: lmap_compose)
-  apply (rule lmap_lfilter_eq)
-  by simp
+  by (auto simp add: rights_def lefts_def lfilter_lmap lfilter_lfilter o_def)
 
 lemma [simp]: "\<ll> (lmap rbr2 xs) = \<ll> (\<ll> xs)"
-  apply (simp add: lefts_def lfilter_lmap lmap_compose[symmetric] lfilter_lfilter o_def del: lmap_compose)
-  apply (rule lmap_lfilter_eq)
-  by simp
+  by (auto simp add: lefts_def lfilter_lmap lfilter_lfilter o_def)
 
 lemma [simp]: "\<langle>id,\<langle>id,id\<rangle>\<rangle> (rbr2 x) = \<langle>\<langle>id,id\<rangle>,id\<rangle> x"
   by (rule sum3_cases2) auto
@@ -310,13 +296,10 @@ lemma [simp]: "\<langle>\<langle>id,id\<rangle>,id\<rangle> (rbr1 x) = \<langle>
   by (rule sum3_cases1) auto
 
 lemma lfilter_ltakeWhile [simp]: "lfilter P (ltakeWhile (Not \<circ> P) xs) = LNil"
-  apply (simp add: lfilter_empty_conv)
-  apply auto
-  apply (drule lset_ltakeWhileD)
-  by blast
+  by auto (metis (full_types) in_lset_conv_lnth lset_ltakeWhileD)
 
 lemma lset_ex_lnth: "(\<exists>x\<in>lset xs. P x) \<Longrightarrow> \<exists>n. P (lnth xs n)"
-  by (auto simp add: lset_def)
+  by auto
 
 lemma infinite_lfilter: "\<not> lfinite (lfilter P xs) \<Longrightarrow> \<exists>n. P (lnth xs n)"
 proof -
@@ -333,15 +316,11 @@ proof -
     hence "\<not> lfinite (lfilter P (ldropWhile (Not \<circ> P) xs))"
       by (simp only: lfilter_ltakeWhile, simp)
     hence "P (lhd (ldropWhile (Not \<circ> P) xs))"
-      by (metis comp_apply lfinite.simps lfinite_lfilterI lhd_ldropWhile)
+      by (metis (lifting, no_types) `\<not> lfinite (lfilter P xs)` lappend_code(1) lappend_ltakeWhile_ldropWhile ldropWhile_eq_LNil_iff lfilter_LNil lfinite_LNil lfinite_ltl lhd_lfilter ltakeWhile_eq_LNil_iff ltl_ldropWhile_lfilter ltl_simps(1))
     hence "\<exists>x\<in>lset xs. P x"
       apply (rule_tac x = "lhd (ldropWhile (Not \<circ> P) xs)" in bexI)
-      apply auto
-      apply (auto simp add: lset_def image_def)
-      apply (rule_tac x = n in exI)
-      apply (intro conjI)
-      apply (metis `\<not> lfinite (lfilter P xs)` ldropn_all lfinite.simps lfinite_ldropn lfinite_lfilterI not_le)
-      by (metis `\<not> lfinite (lfilter P (ldropWhile (Not \<circ> P) xs))` lappend_ltakeWhile_ldropWhile ldrop.simps(1) ldropWhile_eq_ldrop lfinite_LNil lfinite_conv_llength_enat lfinite_lfilterI lhd_ldropn lstrict_prefix_lappend_conv lstrict_prefix_llength_less n_def)
+      apply simp
+      by (metis `\<not> lfinite (lfilter P (ldropWhile (Not \<circ> P) xs))` in_lset_ldropWhileD lfinite.simps lfinite_lfilterI lhd_in_lset lhd_lfilter)
     hence "\<exists>n. P (lnth xs n)"
       by (rule lset_ex_lnth)
   }
