@@ -27,6 +27,8 @@ lemma llist_fun_equalityI
         (\<exists>l1 l2 a b.
           (f (LCons x l), g (LCons x l)) = (LCons a l1, LCons b l2) \<and>
             a = b \<and> ((l1, l2) \<in> {(f u, g u) | u. True} \<or> l1 = l2))"
+
+
       (is "\<And>x l. ?fun_LCons x l")
   shows "f l = g l"
 proof -

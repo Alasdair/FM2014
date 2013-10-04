@@ -14,7 +14,7 @@
 \DeclareFontFamily{U}{wncy}{}
 \DeclareFontShape{U}{wncy}{m}{n}{<->wncyss10}{}
 \DeclareSymbolFont{mcy}{U}{wncy}{m}{n}
-\DeclareMathSymbol{\sh}{\mathord}{mcy}{"78} 
+\DeclareMathSymbol{\sh}{\mathord}{mcy}{"78}
 \DeclareMathOperator{\sha}{\sh}
 \DeclareMathOperator{\tr}{Tr}
 \DeclareMathOperator{\fin}{finite}
@@ -31,18 +31,21 @@
 
 \title{Algebraic Principles for Concurrency Verification Tools}
 
-\author{Alasdair Armstrong \and Victor B.~F.~Gomes \and Georg Struth}
+\author{Alasdair Armstrong \and Victor B.~F.~Gomes\thanks{Sponsored by CNPq, Brazil} \and Georg Struth}
 
 \institute{Department of Computer Science, University of Sheffield, UK\\
 \email{$\{$a.armstrong,v.gomes,g.struth$\}$@dcs.shef.ac.uk}}
 
 \maketitle
 
-\begin{abstract}
-We investigate the laws required for the derivation of the
-rely/guarantee and owicki-gries inference rules in a minimalistic
-algebraic setting based on Kleene algebra...
-\end{abstract}
+We investigate equational laws for the derivation of rely-guarantee
+style, Owicki-Gries style and separation logic style inference and
+refinement rules in the minimalistic setting of semirings. The
+algebraic level is linked with concrete programming models based on
+languages and execution traces. The approach has been implemented in
+Isabelle/HOL where the link between algebras and models supports
+reasoning about both the control and data flow of concurrent
+programs. This is illustrated by simple program verification examples.
 
 \pagestyle{plain}
 
@@ -126,8 +129,6 @@ x
 x
 
 x
-
-related work?
 
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
