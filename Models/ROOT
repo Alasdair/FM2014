@@ -1,0 +1,4 @@
+session TACAS = HOL +
+  theories
+    "$AFP/Kleene_Algebra/Kleene_Algebra"
+    "$AFP/Coinductive/Coinductive"
