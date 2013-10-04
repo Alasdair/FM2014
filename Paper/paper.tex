@@ -39,6 +39,9 @@
 \maketitle
 
 \begin{abstract}
+We investigate the laws required for the derivation of the
+rely/guarantee and owicki-gries inference rules in a minimalistic
+algebraic setting based on Kleene algebra...
 \end{abstract}
 
 \pagestyle{plain}
@@ -130,6 +133,40 @@ related work?
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Kleene Algebra}
 \label{sec:KA}
+
+A \emph{dioid} or \emph{idempotent semiring} is an structure
+$(D,+,\cdot,0,1)$ such that $(D,+,0)$ is a join semilattice with zero,
+$(D,\cdot,1)$ is a monoid, $+$ distributes over $\cdot$ from both the
+right and left, and $0$ is a right and left annihilator for
+$\cdot$. The natural partial order $\le$ is defined as $x \le y $ iff
+$x + y = y$.
+
+A Kleene algebra extends a dioid with a star operation satisfying the
+following laws.
+\begin{align*}
+  1 + xx^* &\le x^* &\qquad z + xy \le y &\implies x^*z \le y\\
+  1 + x^*x &\le x^* &\qquad z + yx \le y &\implies zx^* \le y
+\end{align*}
+
+In the context of programs, one typically thinks of $\cdot$ as being
+sequential composition, $+$ as non-deterministic choice, $0$ as the
+abortive action, $1$ as skip and $1$ as finite iteration. For
+concurrent software, it is natural to extend the notion of a dioid to
+that of a \emph{trioid} with operators for both sequential and
+parallel composition. One can also axiomatise a parallel star
+operation, but this seems to be a less useful operation. A
+dioid or trioid is \emph{weak} if it does not satisfy $x0 = 0$.
+
+Formally, a trioid is a structure $(D,+,\cdot,\|,0,1)$, such that
+both $(D,+,\cdot,0,1)$ and $(D,+,\|,0,1)$ are dioids. Previous work in
+this area has focused on identifying laws linking the sequential and
+parallel composition operators, notably, the exchange law
+\begin{align*}
+  (a \| b) \cdot (c \| d) \le (a \cdot d) \| (b \cdot c).
+\end{align*}
+The exchange law is appealing as it provides a way to derive many
+properties of parallel composition from a single law. For example, one
+can show that $\|$ must be commutative, that $x \cdot y \le x \| y$
 
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
