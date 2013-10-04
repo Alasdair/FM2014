@@ -338,4 +338,7 @@ proof -
     by metis
 qed
 
+declare in_lset_conv_lnth[iff del]
+declare lfinite_conv_llength_enat[iff del]
+
 end
