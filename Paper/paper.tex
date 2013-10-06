@@ -6,8 +6,6 @@
 \usepackage{multicol}
 \usepackage{bussproofs}
 \usepackage{float}
-\usepackage{caption}
-\usepackage{subcaption}
 
 \usetikzlibrary{arrows,shapes,calc}
 
@@ -40,7 +38,7 @@
 
 \begin{abstract}
 We investigate the laws required for the derivation of the
-rely/guarantee and owicki-gries inference rules in a minimalistic
+rely-guarantee and owicki-gries inference rules in a minimalistic
 algebraic setting based on Kleene algebra...
 \end{abstract}
 
@@ -170,10 +168,10 @@ can show that $\|$ must be commutative, that $x \cdot y \le x \| y$
 
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Algebra for Rely/Guarantee}
+\section{Algebra for Rely-Guarantee}
 \label{sec:RG}
 
-Define a rely/guarantee algebra as a structure
+Define a rely-guarantee algebra as a structure
 $(K,RG,+,\sqcap,\cdot,\|,^\star,0,1)$, where $(K,+,\sqcap)$ is a
 lattice, $(K,+,\cdot,\|,0,1)$ is a weak trioid and
 $(K,+,\cdot,^\star,0,1)$ is a Kleene algebra. $RG$ is a distinguished
@@ -192,6 +190,17 @@ r^\star = rr &= r = r\|r,\\
 r\|x^+ &= (r\|x)^+.
 \end{align*}
 
+%% Could use better explanations.
+
+Axiom (\ref{rg1}) states that interference from the a rely condition
+being run twice in parallel, is no different from just the
+interference from that rely condition. Axiom (\ref{rg2}) states that
+interference from a single rely condition is less than interference
+from itself and another rely condition. Axiom (\ref{rg3}) allows a
+rely or guarantee to be split across sequential programs. Axiom
+(\ref{rg4}) is similar to Axiom (\ref{rg3}) in intent, except it deals
+with finite iteration.
+
 Axioms (\ref{rg1}), (\ref{rg2}) and (\ref{rg3}) are independent. To
 show this, we use Isabelle's
 \emph{Nitpick}~\cite{blanchette_nitpick:_2010} counterexample generator
@@ -199,11 +208,11 @@ to construct models which violate each of these axioms, yet satisfy
 all others. The models thus constructed for (\ref{rg1}) and
 (\ref{rg3}) are shown in Figures \ref{fig:rg1} and \ref{fig:rg3}
 respectively. The model constructed for (\ref{rg2}) is just the two
-element rely/guarantee algebra with $0$ and $1$.
+element rely-guarantee algebra with $0$ and $1$.
 
 \begin{figure}[H]
 \centering
-\begin{subfigure}{0.24\textwidth}
+\begin{minipage}{0.24\textwidth}
 \begin{tikzpicture}[x=1.5cm,y=1.5cm,auto]
   \node (center) {};
   \node [elem] (r1) at (90:1) {$r_1$};
@@ -218,29 +227,29 @@ element rely/guarantee algebra with $0$ and $1$.
   \path [line] (r2) -- (zero);
   \path [line] (one) -- (zero);
 \end{tikzpicture}
-\end{subfigure}
-\begin{subfigure}{0.24\textwidth}
+\end{minipage}
+\begin{minipage}{0.24\textwidth}
 \begin{align*}
 r_1 \| r_1 &= r_1\\
 r_1 \| r_2 &= r_1\\
 r_2 \| r_1 &= r_1\\
 r_2 \| r_2 &= r_1
 \end{align*}
-\end{subfigure}
-\begin{subfigure}{0.24\textwidth}
+\end{minipage}
+\begin{minipage}{0.24\textwidth}
 \begin{align*}
 r_1r_1 &= r_1\\
 r_1r_2 &= r_1\\
 r_2r_1 &= r_1\\
 r_2r_2 &= r_2
 \end{align*}
-\end{subfigure}
-\begin{subfigure}{0.24\textwidth}
+\end{minipage}
+\begin{minipage}{0.24\textwidth}
 \begin{align*}
 r_1^\star &= r_1\\
 r_2^\star &= r_2
 \end{align*}
-\end{subfigure}
+\end{minipage}
 \caption{4 element counterexample for $r \in RG \implies r\|r \le r$}
 \label{fig:rg1}
 \end{figure}
@@ -255,9 +264,9 @@ r\|x^+ = r\|(\mu y.\; x + xy) = \mu y.\; r\|x + r\|xy \le (r\|x)^+.
 Thus it is impossible to construct a finite model demonstrating
 that (\ref{rg4}) is independent from (\ref{rg1}) -- (\ref{rg2}).
 
-\begin{figure}
+\begin{figure}[t]
 \centering
-\begin{subfigure}{0.24\textwidth}
+\begin{minipage}{0.24\textwidth}
 \begin{tikzpicture}[x=1.5cm,y=1.5cm,auto]
   \node (center) {};
   \node [elem] (r1) at (90:1) {$r_1$};
@@ -269,14 +278,14 @@ that (\ref{rg4}) is independent from (\ref{rg1}) -- (\ref{rg2}).
   \path [line] (r1) -- (zero);
   \path [line] (one) -- (zero);
 \end{tikzpicture}
-\end{subfigure}
-\begin{subfigure}{0.24\textwidth}
+\end{minipage}
+\begin{minipage}{0.24\textwidth}
 \begin{align*}
 r_1 \| r_1 &= r_1\\
 r_1 r_1 &= r_1\\
 r_1^\star &= r_1
 \end{align*}
-\end{subfigure}
+\end{minipage}
 \caption{3 element counterexample for $r \in RG \implies r\|xy = (r\|x)(r\|y)$}
 \label{fig:rg3}
 \end{figure}
@@ -286,9 +295,9 @@ Jones quintuples can be encodeded in this setting as
 r, g \vdash \{p\} c \{q\} \iff p(r\|c) \le q \land c \le g.
 \end{align}
 Using this encoding we can derive all the standard rules for
-rely/guarantee, shown in Figure \ref{fig:rgrules}.
+rely-guarantee, shown in Figure \ref{fig:rgrules}.
 
-We can expand our rely/guarantee algebras to have residuals
+We can expand our rely-guarantee algebras to have residuals
 axiomatised by Galois connections for both parallel and sequential
 composition, i.e.
 \begin{align}
@@ -362,7 +371,7 @@ guaranteeing interference at most $g$, goes from $p$ to $q$.
 \AxiomC{$r, g \vdash \{p\}x\{p\}$}
 \BinaryInfC{$r, g \vdash \{p\}x^\star\{p\}$}
 \end{prooftree}
-\caption{Rely/guarantee inference rules}
+\caption{Rely-guarantee inference rules}
 \label{fig:rgrules}
 \end{figure}
 x
