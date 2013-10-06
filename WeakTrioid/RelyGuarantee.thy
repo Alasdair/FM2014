@@ -2,27 +2,27 @@ theory RelyGuarantee
   imports WeakTrioid HoareLogic
 begin
 
-declare mult_onel [simp]
-  and mult_oner [simp]
-  and par_unitl [simp]
-  and par_unitr [simp]
-
 class rg_algebra = weak_trioid + meet_semilattice +
   fixes I :: "'a set"
   assumes inv1: "r \<in> I \<Longrightarrow> r \<parallel> r \<le> r"
   and inv2: "r \<in> I \<Longrightarrow> s \<in> I \<Longrightarrow> r \<le> r \<parallel> s"
   and inv3: "r \<in> I \<Longrightarrow> r\<parallel>(x\<cdot>y) = (r\<parallel>x)\<cdot>(r\<parallel>y)"
-  (* and inv4: "r \<in> I \<Longrightarrow> r\<parallel>x\<^sup>+ \<le> (r\<parallel>x)\<^sup>+" *)
+  and inv4: "r \<in> I \<Longrightarrow> r\<parallel>x\<^sup>+ \<le> (r\<parallel>x)\<^sup>+"
   and inv_unit: "1 \<in> I"
   and inv_meet_closed: "\<lbrakk>r \<in> I; s \<in> I\<rbrakk> \<Longrightarrow> (r \<sqinter> s) \<in> I"
   and inv_par_closed: "\<lbrakk>r \<in> I; s \<in> I\<rbrakk> \<Longrightarrow> (r \<parallel> s) \<in> I"
 
 begin
 
+declare mult_onel [simp]
+  and mult_oner [simp]
+  and par_unitl [simp]
+  and par_unitr [simp]
+
 lemma "r \<in> I \<Longrightarrow> r \<parallel> r \<le> r" oops
 lemma "r \<in> I \<Longrightarrow> s \<in> I \<Longrightarrow> r \<le> r \<parallel> s" oops
 lemma "r \<in> I \<Longrightarrow> r\<parallel>(x\<cdot>y) = (r\<parallel>x)\<cdot>(r\<parallel>y)" oops
-lemma "r \<in> I \<Longrightarrow> r\<parallel>x\<^sup>+ \<le> (r\<parallel>x)\<^sup>+" oops
+lemma "r \<in> I \<Longrightarrow> r\<parallel>x\<^sup>+ \<le> (r\<parallel>x)\<^sup>+" nitpick [timeout = 300] oops
 
 definition guarantee_relation :: "'a \<Rightarrow> 'a \<Rightarrow> bool" ("_ guar _" [99, 99] 100) where
   "b guar g \<equiv> g \<in> I \<and> b \<le> g"

@@ -37,7 +37,8 @@ lemma comp_antitony: "(\<forall>x z w. \<lbrace>x\<rbrace>y\<lbrace>w\<rbrace> \
   by (smt antitony composition_rule)
 
 lemma choice: "\<lbrace>x\<rbrace>y+y'\<lbrace>z\<rbrace> = (\<lbrace>x\<rbrace>y\<lbrace>z\<rbrace> \<and> \<lbrace>x\<rbrace>y'\<lbrace>z\<rbrace>)"
-  by (simp, smt add_assoc add_comm add_idem leq_def mult_distl)
+  apply simp
+  by (metis (full_types) add_lub mult_distl)
 
 (* Failure needs the mult_annil axiom *)
 lemma failure: "\<lbrace>x\<rbrace>0\<lbrace>z\<rbrace>"
