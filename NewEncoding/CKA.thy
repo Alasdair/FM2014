@@ -104,7 +104,7 @@ class ckat = cka +
   and test_par_closed:  "\<lbrakk>p \<in> B; q \<in> B\<rbrakk> \<Longrightarrow> (p \<parallel> q) \<in> B"
 begin
 
-  lemma
+  lemma everything_preserves_tests:
     assumes test_one_closed: "1 \<in> B"
     and p_test: "p \<in> B"
     shows "p\<cdot>x = x\<cdot>p"
@@ -117,7 +117,10 @@ begin
       by (metis mult_onel mult_oner par_comm)
     also have "... = x\<cdot>p"
       by (metis p_test par_unitl par_unitr test_exchanger test_one_closed)
+    finally show ?thesis .
   qed
+
+  lemma "p\<cdot>x \<le> x\<cdot>q"
 
 lemma "p \<in> B \<Longrightarrow> p\<parallel>p = p"
   by (metis test_eq test_idem)
