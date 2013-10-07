@@ -6,6 +6,7 @@
 \usepackage{multicol}
 \usepackage{bussproofs}
 \usepackage{float}
+\usepackage{centernot}
 
 \usetikzlibrary{arrows,shapes,calc}
 
@@ -16,6 +17,8 @@
 \DeclareMathOperator{\sha}{\sh}
 \DeclareMathOperator{\tr}{Tr}
 \DeclareMathOperator{\fin}{finite}
+\DeclareMathOperator{\rely}{rely}
+\DeclareMathOperator{\guar}{guar}
 
 \newcommand{\udagger}{\text{$\rotatebox[origin=c]{180}{$\dagger$}$}}
 
@@ -134,42 +137,64 @@ related work?
 
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Kleene Algebra}
+\section{Semirings and Kleene Algebra}
 \label{sec:KA}
 
-A \emph{dioid} or \emph{idempotent semiring} is an structure
-$(D,+,\cdot,0,1)$ such that $(D,+,0)$ is a join semilattice with zero,
-$(D,\cdot,1)$ is a monoid, $+$ distributes over $\cdot$ from both the
-right and left, and $0$ is a right and left annihilator for
-$\cdot$. The natural partial order $\le$ is defined as $x \le y $ iff
-$x + y = y$.
-
-A Kleene algebra extends a dioid with a star operation satisfying the
-following laws.
+A \emph{semiring} is an structure
+$(D,+,\cdot,0,1)$ satisfying the following laws,
 \begin{align*}
-  1 + xx^* &\le x^* &\qquad z + xy \le y &\implies x^*z \le y\\
-  1 + x^*x &\le x^* &\qquad z + yx \le y &\implies zx^* \le y
+  x(y + z) &= xy + xz, &\qquad (x + y)z &= xz + yz,\\
+  (x + y) + z &= x + (y + z), &\qquad (xy)z &= x(yz),\\
+  x + y &= y + x, &\qquad 0 + x &= x,\\
+  1x &= x, &\qquad x1 &= x,\\
+  0x &= 0, &\qquad x0 &= 0.
+\end{align*}
+A semiring is \emph{idempotent} if $x + x = x$, and \emph{weak} if $x0
+= 0$ does not hold. The natural partial order $\le$ is defined as $x
+\le y $ iff $x + y = y$. Idempotent semirings are also called
+\emph{dioids}. In the context of programs, one typically thinks of
+$\cdot$ as being sequential composition, $+$ as non-deterministic
+choice, $0$ as the abortive action and $1$ as skip. For concurrent
+software, it is natural to extend the notion of a dioid to that of a
+\emph{trioid} with operators for both sequential and parallel
+composition. Formally, a trioid is a structure $(D,+,\cdot,\|,0,1)$
+where $(D,+,\cdot,0,1)$ is a dioid and,
+\begin{align*}
+  x\|(y + z) &= x\|y + x\|z, &\qquad x\|y &= y\|x,\\
+  (x\|y)\|z &= x\|(y\|z), &\qquad x\|1 &= x,\\
+  0\|x &= x.
 \end{align*}
 
-In the context of programs, one typically thinks of $\cdot$ as being
-sequential composition, $+$ as non-deterministic choice, $0$ as the
-abortive action, $1$ as skip and $1$ as finite iteration. For
-concurrent software, it is natural to extend the notion of a dioid to
-that of a \emph{trioid} with operators for both sequential and
-parallel composition. One can also axiomatise a parallel star
-operation, but this seems to be a less useful operation. A
-dioid or trioid is \emph{weak} if it does not satisfy $x0 = 0$.
-
-Formally, a trioid is a structure $(D,+,\cdot,\|,0,1)$, such that
-both $(D,+,\cdot,0,1)$ and $(D,+,\|,0,1)$ are dioids. Previous work in
-this area has focused on identifying laws linking the sequential and
-parallel composition operators, notably, the exchange law
+In a trioid there are no laws governing the interaction between
+sequential and parallel composition. One law which has been considered
+in previous papers is the \emph{exchange} law
 \begin{align*}
-  (a \| b) \cdot (c \| d) \le (a \cdot d) \| (b \cdot c).
+  (w \| x) \cdot (y \| z) \le (w \cdot z) \| (x \cdot y).
 \end{align*}
-The exchange law is appealing as it provides a way to derive many
-properties of parallel composition from a single law. For example, one
-can show that $\|$ must be commutative, that $x \cdot y \le x \| y$
+
+The exchange law is initially appealing as it provides a way to derive
+many properties of parallel composition from a single law. For example
+one can show that $\|$ must be commutative, or that $x\cdot y \le
+x\|y$. However, there are many interesting models which do not satisfy
+this law. First, one could consider fair parallel composition
+$x\parallel_f y$ in a model with infinite, or non-terminating
+programs. In this model, $x \cdot y \not\leq x \parallel_f y$, in the
+case where $x$ is non-terminating. A second example would be
+predicate-transformer style models for separation logic, where $\|$ is
+interpreted as separating conjunction. In such models, $\|$ and
+$\cdot$ have different units, which, in the presence of the exchange
+law implies that $\cdot$ is equal to $\|$.
+
+A Kleene algebra expands a dioid with a star operation satisfying the laws
+\begin{align*}
+  1 + xx^* &\le x^*, &\qquad z + xy \le y &\implies x^*z \le y,\\
+  1 + x^*x &\le x^*, &\qquad z + yx \le y &\implies zx^* \le y.
+\end{align*}
+
+For programs, the star represents finite iteration. One can similarly
+axiomatise a parallel star operation, but in practice this seems to be
+a less useful operation, although one could see it as an operator that
+spawns an arbitrary but finite number of processes.
 
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -180,7 +205,7 @@ Define a rely-guarantee algebra as a structure
 $(K,RG,+,\sqcap,\cdot,\|,^\star,0,1)$, where $(K,+,\sqcap)$ is a
 lattice, $(K,+,\cdot,\|,0,1)$ is a weak trioid and
 $(K,+,\cdot,^\star,0,1)$ is a Kleene algebra. $RG$ is a distinguished
-subset of relys/guarantees which satisfy the following axioms
+subset of relys and guarantees which satisfy the following axioms
 \begin{align}
 r\|r &\le r, \label{rg1}\\
 r &\le r\|r', \label{rg2}\\
@@ -198,7 +223,7 @@ r\|x^+ &= (r\|x)^+.
 %% Could use better explanations.
 
 Axiom (\ref{rg1}) states that interference from the a rely condition
-being run twice in parallel, is no different from just the
+being run twice in parallel is no different from just the
 interference from that rely condition. Axiom (\ref{rg2}) states that
 interference from a single rely condition is less than interference
 from itself and another rely condition. Axiom (\ref{rg3}) allows a
@@ -260,14 +285,10 @@ r_2^\star &= r_2
 \end{figure}
 
 Axiom (\ref{rg4}) can be derived from (\ref{rg3}) in all finite
-models. This is because any finite $K$ is a weak left quantale with
-respect to both sequential and parallel composition. In a quantale,
-fixpoint fusion and induction laws can be used to prove that
-\begin{align*}
-r\|x^+ = r\|(\mu y.\; x + xy) = \mu y.\; r\|x + r\|xy \le (r\|x)^+.
-\end{align*}
-Thus it is impossible to construct a finite model demonstrating
-that (\ref{rg4}) is independent from (\ref{rg1}) -- (\ref{rg2}).
+models. This is because any finite $K$ is complete, and in a complete
+setting fixpoint laws can be used to show $r\|x^+ \le (r\|x)^+$. Thus
+it is impossible to construct a finite model demonstrating that
+(\ref{rg4}) is independent from (\ref{rg1}) -- (\ref{rg2}).
 
 \begin{figure}[t]
 \centering
@@ -299,8 +320,8 @@ Jones quintuples can be encodeded in this setting as
 \begin{align}
 r, g \vdash \{p\} c \{q\} \iff p(r\|c) \le q \land c \le g.
 \end{align}
-Using this encoding we can derive all the standard rules for
-rely-guarantee, shown in Figure \ref{fig:rgrules}.
+With this encoding we can derive the standard rely-guarantee inference rules, as
+shown in Figure \ref{fig:rgrules}.
 
 We can expand our rely-guarantee algebras to have residuals
 axiomatised by Galois connections for both parallel and sequential
@@ -379,47 +400,118 @@ guaranteeing interference at most $g$, goes from $p$ to $q$.
 \caption{Rely-guarantee inference rules}
 \label{fig:rgrules}
 \end{figure}
-x
 
-x
+% Or should this be weak?
 
-x
+While this setting is adequate for deriving the standard inference
+rules, the equality is too strong to capture many interesting
+statements about concurrent programs. Consider the statement,
+$x = y \implies x\|z = y\|z$,
+which holds in our algebra and can be read as follows; if $x$ and $y$ are
+equal, then they must be equal under all possible interference from
+any arbitrary $z$. This would seem to preclude any reasoning about
+interference in a fine-grained way, but we can work around this by
+using an \emph{interior operator}. In a rely-guarantee algebra an
+interior operator is any function $f : K \to K$ which satisfies
+\begin{align*}
+f(f(x)) &= f(x) \tag{$f$ is idempotent}\\
+x \le y \implies f(x) &\le f(y) \tag{$f$ is isotone}\\
+f(x) &\le x \tag{$f$ is coextensive}
+\end{align*}
 
-x
+We extend our rely-guarantee algebra to
+$(K,RG,+,\cdot,\|,^\star,[\--],0,1)$ by adding a single interior
+operator $[\--]$, which additionally satisfies
+\begin{align}
+[xy] &= [x][y], \label{rgimult}\\
+[x + y] &= [x] + [y],\\
+[x \sqcap y] &= [x] \sqcap [y],\\
+[x^\star] &= [x]^\star,\\
+[0] &= 0 \label{rgi0}
+\end{align}
+Intuitively $[x]$ can be thought of as the \emph{execution} of a
+program $x$. While $x$ contains all information about what the process
+or program \emph{could} do, $[x]$ only contains information about what
+it \emph{actually} does. Note that (\ref{rgimult}) -- (\ref{rgi0}) do
+not mention parallel composition, such that in general $[x] = [y]
+\centernot\implies [x\|z] = [y\|z]$. We amend our jones-quintuples to
+involve this operator as shown below.
+\begin{align*}
+r,g \vdash \{p\} c \{q\} \iff p[r\|c] \le q \land c \le g.
+\end{align*}
+All the rules in Figure \ref{fig:rgrules} can be derived with this
+encoding, and moreover their proofs remain the same, mutatis
+mutandis.
 
-x
-
-x
-
-x
-
-x
-
-x
-
-x
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Concurrent Kleene Algebra with Tests}
+\section{Algebra for Owicki-Gries}
+\label{sec:OG}
+
+This algebra is really unsound!
+
+$px = xp$ is provable!
+
+Following in the style of Kozen's \emph{Kleene algebra with tests}
+(KAT), we extend a concurrent Kleene algebra in the same way, yielding
+\emph{concurrent Kleene algebra with tests} (CKAT). In this setting we
+can encode hoare triples not as $\{x\}y\{z\} \iff xy \le z$, as in
+Section \ref{sec:RG}, but instead as
+\begin{align*}
+\{p\}x\{q\} \iff px \le xq,
+\end{align*}
+where $p$ and $q$ are KAT-style tests, and not just arbitrary
+processes/programs.
+
+Formally, a concurrent Kleene algebra with tests is a structure
+\begin{align*}
+(K,B,+,\cdot,\|,\overline{\phantom{x}},\phantom{|}^\star,0,1),
+\end{align*}
+where $(K,+,\cdot,\|,\phantom{|}^\star,0,1)$ is a concurrent Kleene
+algebra and $(B,+,\cdot,\overline{\phantom{x}})$ is a Boolean subalgebra such that
+\begin{align*}
+(p\|q)(x\|y) &= px\|qy,\\ % THESE RULES MAKE NO SENSE!
+(x\|y)(p\|q) &= xp\|yq,\\
+p\|q &= pq,\\
+pp &= p,\\
+p &\le 1.
+\end{align*}
+Just as in KAT, negation is only defined for elements of the boolean
+subalgebra.
+
+\newpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Algebra for Separation Logic}
+
 
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Finite Language Model}
+\label{sec:Model}
 
 In this section, we construct a finite language model satisfying the
 axioms in Section \ref{sec:RG}. Restricting our attention to finite
-languages means that we do not need to concern ourselves with
-termination side-conditions.
+languages means we do not need to concern ourselves with non-algebraic
+termination side-conditions, nor do we need to worry about additional
+restrictions on parallel composition, e.g. fairness. However, all the
+results in this section can easily be adapted to potentially
+infinite languages, and our Isabelle/HOL formalisation includes these more
+general definitions by using coinductively defined lazy lists to
+represent words, and having a weakly-fair shuffle operator for such
+infinite languages.
 
 As usual, the product of two languages X and Y over an alphabet
 $\Sigma$ is defined as $XY = \{x\frown y.\; x \in X \land y \in Y\}$.
 The language product is associative, and distributes over arbitrary
-joins from both the left and the right. The shuffle $\sha$ on a pair
+joins from both the left and the right, i.e.
+\begin{align*}
+X(\bigcup Y) = \bigcup\{XZ.\; Z \in Y\} \qquad \text{and} \qquad (\bigcup Y)X = \bigcup\{ZX.\; Z \in Y\}.
+\end{align*}
+The shuffle $\sha$ on a pair
 of finite words is defined inductively as
 \begin{align*}
-\epsilon \sha s &= \{s\},\\
-s \sha \epsilon &= \{s\},\\
-as \sha bt &= a(s \sha bt) \cup b(as \sha t),
+\epsilon \sha s = \{s\}, \qquad s \sha \epsilon = \{s\},\\
+as \sha bt = a(s \sha bt) \cup b(as \sha t),
 \end{align*}
 which is then lifted to languages X and Y as the shuffle product,
 \begin{align*}
@@ -427,20 +519,40 @@ X \sha Y = \bigcup\{xs \sha ys.\; x \in X \land x \in Y\}.
 \end{align*}
 The shuffle product is associative, commutative, and distributes over
 arbitrary joins. Both products share the same unit, $\{\epsilon\}$ and
-zero, $\emptyset$. Therefore, $(\mathcal{P}(\Sigma)^*), \cup, \cdot,
-\sha, \emptyset, \{\epsilon\})$ forms a weak trioid.
+zero, $\emptyset$. Proving properties of shuffle is suprisingly
+tricky (especially if one considers infinite words). For a in-depth
+treatment of the shuffle product see~\cite{shufflethings}. The
+above properties are enough to show that $(\mathcal{P}(\Sigma)^*),
+\cup, \cdot,\sha, \emptyset, \{\epsilon\})$ forms a weak trioid.
 
-\begin{lem}
-$(\mathcal{P}(\Sigma)^*), \cup, \cdot, \sha, \emptyset, \{\epsilon\})$ is a weak trioid.
-\end{lem}
+The rely-guarantee elements in this model are sets containing all the
+words which can be built from some set of actions in $\Sigma$. We can
+consider a function $\rely : \mathcal{P}(\Sigma) \to
+\mathcal{P}(\Sigma)^*$ which takes a set of actions and returns all
+the words that can be built from them. This function is an upper
+adjoint for $\guar$, the function which returns all the letters in a
+language.
+\begin{align*}
+\guar(X) \le Y \iff X \le \rely(Y)
+\end{align*}
 
-Our alphabet comprises relations ($R,S,T,\dots$) over a state space
-$\Sigma$. An example of a word in
-$(\{\sigma_1,\sigma_2,\sigma_3\}^2)^*$ is shown below. This word only
-has a single valid \emph{trace}, which is
-$\sigma_1\rightarrow\sigma_1\rightarrow\sigma_2\rightarrow\sigma_3\rightarrow\sigma_2$.
-We define an operator $\tr(X)$ which returns all the traces in a language
-$X$.
+Properties (\ref{rg1}) and (\ref{rg2}) from Section \ref{sec:RG} can
+mostly be derived from basic properties of $\rely$. Namely,
+\begin{align*}
+\rely(X \cup Y) &= \rely(X) \| \rely(Y),\\
+\qquad \rely(X \cap Y) &= \rely(X) \cap \rely(Y).
+\end{align*}
+The proofs of (\ref{rg3}) and (\ref{rg4}) are somewhat more involved,
+but ultimately rather mechanical, so we do not show them here. We
+define the set $RG$ of rely-guarantee elements as the range of the
+$\rely$ function and therefore are able to show that $(\mathcal{P}(\Sigma)^*), RG, \cup,
+\cdot,\sha, \emptyset, \{\epsilon\})$ is a rely-guarantee algebra.
+
+To make our model more concrete we consider an alphabet comprising
+relations ($R,S,T,\dots$) over a state space $\Sigma$. A single
+relation represents a single atomic action of a program. Assuming
+$\Sigma = \{\sigma_1,\sigma_2,\sigma_3\}$, an example of a word in
+$(\Sigma^2)^*$ is shown below.
 
 \begin{center}
 \begin{tikzpicture}[x=1cm,auto]
@@ -487,34 +599,18 @@ $X$.
 \end{tikzpicture}
 \end{center}
 
-Following~\cite{brookes_full_1993} and~\cite{dingel_refinement_2002},
-we inductively generate the stutter/mumble language $w^\dagger$ for a
-word $w$ in a language over $\Sigma^2$ as follows. Assume $R,S,T \in
-\Sigma^2$ and $u,v,w \in (\Sigma^2)^*$. First, $Iw \in
-w^\dagger$. Secondly, if $uRv \in x^\dagger$ then $uIRv \in
-x^\dagger$ and $uRIv \in x^\dagger$ (\emph{stuttering}). Thirdly, if
-$uRSv \in w^\dagger$ then $u(R;S)v \in w^\dagger$
-(\emph{mumbling}). The stutter/mumble closure of a language is
-defined by lifting this operation to languages in the obvious way.
+This word only has a single valid \emph{trace}, which is
+$\sigma_1\rightarrow\sigma_1\rightarrow\sigma_2\rightarrow\sigma_3\rightarrow\sigma_2$.
+Such state transition traces are commonly called \emph{Aczel
+  traces}~\cite{Aczel}. Note that unlike much of the literature involving
+Aczel-style traces for concurrency, we omit any kind of process or
+environment labelling from our transitions. We define an operator
+$\tr(X)$ which returns all such traces in a language $X$. $\tr$ is
+both idempotent and isotone.
 
-Next, we define the following language for a word $w = R_0R_1\dots
-R_n$. The language $w^\udagger$ contains all strings $S_0S_1\dots S_n$
-such that for all $m \le n$, $S_m \subseteq R_m$. Again this operation
-is lifted to languages in the same way as before. Both these closure
-operators are combined then into a single closure operator,
-$X^\ddagger$, which satisfies the properties
-\begin{align*}
-(X^\ddagger \sha Y)^\ddagger &= (X \sha Y)^\ddagger,\\
-(X^\ddagger Y)^\ddagger = (&XY)^\ddagger = (XY^\ddagger)^\ddagger,\\
-(X \cup Y)^\ddagger &= (X^\ddagger \cup Y^\ddagger),\\
-(X^\ddagger \cap Y^\ddagger)^\ddagger &= (X^\ddagger \cap Y^\ddagger),\\
-\tr(X^\ddagger) &\subseteq X^\ddagger.
-\end{align*}
-For all binary operators $\bullet$, we can therefore define
-$\bullet_\ddagger$ as $\lambda X Y. (X^\ddagger\bullet
-Y^\ddagger)^\ddagger$ and show that
-$(\mathcal{P}((\Sigma^2)^*)^\ddagger,\cup_\ddagger,\cdot_\ddagger,\sha_\ddagger,\emptyset,{\epsilon}^\ddagger)$
-is a weak trioid.
+Note that we cannot use the shuffle operator on directly traces. For
+example, imagine we shuffled the single transition $\sigma_2 \to
+\sigma_3$ into the above word, we could end up with a word as below.
 
 \begin{center}
 \begin{tikzpicture}[x=1cm,auto]
@@ -566,6 +662,113 @@ is a weak trioid.
   \path [rel] (s41) -- (s52);
 \end{tikzpicture}
 \end{center}
+
+By performing this shuffle action, we no longer have a trace from
+$\sigma_1$ to $\sigma_2$, but instead two traces from $\sigma_2$ to
+$\sigma_2$ and $\sigma_3$. This subtle interplay between shuffle and
+$\tr$ mimics how Aczel-traces are typically generated from an
+operational semantics in much existing rely-guarantee literature. This
+operational approach is not desireable from an algebraic perspective
+though, as we would rather see programs as mathematical objects in
+their own right---a more denotational approach.
+
+Following~\cite{brookes_full_1993} and~\cite{dingel_refinement_2002},
+we inductively generate the stutter/mumble language $w^\dagger$ for a
+word $w$ in a language over $\Sigma^2$ as follows: Assume $R,S,T \in
+\Sigma^2$ and $u,v,w \in (\Sigma^2)^*$. First, $Iw \in
+w^\dagger$. Secondly, if $uRv \in x^\dagger$ then $uIRv \in
+x^\dagger$ and $uRIv \in x^\dagger$ (\emph{stuttering}). Thirdly, if
+$uRSv \in w^\dagger$ then $u(R;S)v \in w^\dagger$
+(\emph{mumbling}). The stutter/mumble closure of a language is
+thus defined by lifting this operation to languages.
+\begin{align*}
+X^\dagger = \bigcup\{x^\dagger.\; x \in X\}
+\end{align*}
+
+Next, we define the following language for a word $w = R_0R_1\dots
+R_n$. The language $w^\udagger$ contains all strings $S_0S_1\dots S_n$
+such that for all $m \le n$, $S_m \subseteq R_m$. Effectively this
+gives us all the words which are less that $w$ pointwise. Again this
+operation is lifted to languages in the same way as before. We define
+the set of \emph{$smp$-closed} languages by combining both these
+closure operators into a single closure operator, $X^\ddagger$, which
+satisfies the properties
+\begin{align}
+(X^\ddagger \sha Y)^\ddagger &= (X \sha Y)^\ddagger,\\
+(X^\ddagger Y)^\ddagger = (&XY)^\ddagger = (XY^\ddagger)^\ddagger,\\
+(X \cup Y)^\ddagger &= (X^\ddagger \cup Y^\ddagger),\\
+(X^\ddagger \cap Y^\ddagger)^\ddagger &= (X^\ddagger \cap Y^\ddagger),\\
+\tr(X^\ddagger) &\subseteq X^\ddagger. \label{trcoext}
+\end{align}
+These five properties essentially allow us to `lift' all our operators
+from above to act on $smp$-closed languages in such a way that they
+still form a weak trioid. Henceforth, we will assume all our languages are
+$smp$-closed, and all operators have been appropriately lifted.
+
+Equation (\ref{trcoext}) shows that $\tr$ is now an interior operator
+on the set of $smp$-closed languages.
+
+We now consider how tests are represented in this model, we define
+$\langle R\rangle$ as the singleton language containing just the
+relation $R$. Tests are defined as traces of the form $\langle
+R\rangle^\ddagger$ where $R \subseteq I$. We denote the set of all
+tests as $B$, and let it be ranged over by $P,Q,S$. From the
+definition of $smp$-closure $\langle I\rangle^\ddagger =
+\{\epsilon\}^\ddagger$, thus the greatest test is $1$, while the least
+test is $\langle \emptyset\rangle^\ddagger$, $0$. As such our tests
+form a boolean algebra between $1$ and $0$, much they would in
+Kozen's Kleene algebra with tests.
+
+\begin{center}
+\begin{tikzpicture}[x=1cm,auto]
+  \node (center) {};
+  \node [elem] (s12) {$\sigma_2$};
+  \node [elem, above of=s12] (s11) {$\sigma_1$};
+  \node [elem, below of=s12] (s13) {$\sigma_3$};
+  \node [right of=s13, node distance=0.75cm] (r1) {};
+  \node [below of=r1, node distance=0.5cm] (t4) {$R$};
+
+  \node [elem, right of=s12, node distance=1.5cm] (s22) {$\sigma_2$};
+  \node [elem, above of=s22] (s21) {$\sigma_1$};
+  \node [elem, below of=s22] (s23) {$\sigma_3$};
+  \node [right of=s23, node distance=0.75cm] (r2) {};
+  \node [below of=r2, node distance=0.5cm] (t4) {$R$};
+
+  \node [elem, right of=s22, node distance=1.5cm] (s32) {$\sigma_2$};
+  \node [elem, above of=s32] (s31) {$\sigma_1$};
+  \node [elem, below of=s32] (s33) {$\sigma_3$};
+
+  \node [elem, right of=s32, node distance=1.5cm] (s42) {$\sigma_2$};
+  \node [elem, above of=s42] (s41) {$\sigma_1$};
+  \node [elem, below of=s42] (s43) {$\sigma_3$};
+  \node [right of=s43, node distance=0.75cm] (r4) {};
+  \node [below of=r4, node distance=0.5cm] (t4) {$R$};
+
+  \node [elem, right of=s42, node distance=1.5cm] (s52) {$\sigma_2$};
+  \node [elem, above of=s52] (s51) {$\sigma_1$};
+  \node [elem, below of=s52] (s53) {$\sigma_3$};
+  \node [right of=s53, node distance=0.75cm] (r5) {};
+  \node [below of=r5, node distance=0.5cm] (t5) {$\lnot R$};
+
+  \node [elem, right of=s52, node distance=1.5cm] (s62) {$\sigma_2$};
+  \node [elem, above of=s62] (s61) {$\sigma_1$};
+  \node [elem, below of=s62] (s63) {$\sigma_3$};
+
+  \path [line] (s11) -- (s21);
+  \path [line] (s12) -- (s22);
+  \path [line] (s21) -- (s31);
+  \path [line] (s22) -- (s32);
+
+  \path [rel] (s42) -- (s52);
+  \path [rel] (s41) -- (s51);
+  \path [rel] (s53) -- (s63);
+\end{tikzpicture}
+\end{center}
+
+A key difference however is that tests only behave as tests when under
+$\tr$. This is illustrated above---$\tr(\langle R\rangle^\ddagger\langle
+R\rangle^\ddagger) = \tr(\langle R\rangle^\ddagger)$ while $\tr(\langle
+R\rangle^\ddagger\langle \lnot R\rangle^\ddagger) = 0$.
 
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

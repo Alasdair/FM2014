@@ -45,8 +45,8 @@ lemma iteration: "\<lbrace>p\<rbrace>x\<lbrace>p\<rbrace> \<Longrightarrow> \<lb
 lemma iteration2: "\<lbrace>p\<rbrace>x\<lbrace>p\<rbrace> \<Longrightarrow> \<lbrace>p\<rbrace>x\<^sup>+\<lbrace>p\<rbrace>"
   by (metis composition_rule iteration star_trancl)
 
-theorem concurrency: "\<lbrakk>x = x\<cdot>q'; \<lbrace>p\<rbrace>x\<lbrace>q\<rbrace>; \<lbrace>p'\<rbrace>x'\<lbrace>q'\<rbrace>; x' = x'\<cdot>q\<rbrakk> \<Longrightarrow> \<lbrace>p\<parallel>p'\<rbrace>x\<parallel>x'\<lbrace>q\<parallel>q'\<rbrace>"
-  by (metis hoare_triple_def mult_assoc par_comm test_exchanger test_par_closed)
+theorem concurrency: "\<lbrakk>x = x\<cdot>q'; \<lbrace>p\<rbrace>x\<lbrace>q\<rbrace>; \<lbrace>p'\<rbrace>x'\<lbrace>q'\<rbrace>; x' = x'\<cdot>q\<rbrakk> \<Longrightarrow> \<lbrace>p\<cdot>p'\<rbrace>x\<parallel>x'\<lbrace>q\<cdot>q'\<rbrace>"
+  by (metis (full_types) hoare_triple_def mult_assoc par_comm test_eq test_exchanger test_par_closed)
 
 theorem frame_rule: "\<lbrakk>r \<in> B; x\<cdot>r = x; r\<cdot>x = x; \<lbrace>p\<rbrace>x\<lbrace>q\<rbrace>\<rbrakk> \<Longrightarrow> \<lbrace>p\<parallel>r\<rbrace>x\<lbrace>q\<parallel>r\<rbrace>"
   by (unfold hoare_triple_def, metis par_comm mult_assoc test_par_closed test_eq)

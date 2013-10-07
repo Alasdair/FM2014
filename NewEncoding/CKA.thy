@@ -91,12 +91,12 @@ end
 
 class ckat = cka + 
   fixes B :: "'a set"
-  assumes test_comm: "\<lbrakk>p \<in> B; q \<in> B\<rbrakk> \<Longrightarrow> p\<cdot>q = q\<cdot>p"
-  and test_idem:     "p \<in> B \<Longrightarrow> p\<cdot>p = p"
+  assumes test_idem:     "p \<in> B \<Longrightarrow> p\<cdot>p = p"
   and test_top:      "p \<in> B \<Longrightarrow> p \<le> 1"
 
-  and test_exchangel: "\<lbrakk>p \<in> B; q \<in> B\<rbrakk> \<Longrightarrow> (p\<parallel>q)\<cdot>(x\<parallel>y) = (p\<cdot>x)\<parallel>(p\<cdot>y)" 
-  and test_exchanger: "\<lbrakk>p \<in> B; q \<in> B\<rbrakk> \<Longrightarrow> (x\<parallel>y)\<cdot>(p\<parallel>q) = (x\<cdot>p)\<parallel>(y\<cdot>q)" 
+  and test_exchangel: "\<lbrakk>p \<in> B; q \<in> B\<rbrakk> \<Longrightarrow> (p\<parallel>q)\<cdot>(x\<parallel>y) = (p\<cdot>x)\<parallel>(q\<cdot>y)" 
+  and test_exchanger: "\<lbrakk>p \<in> B; q \<in> B\<rbrakk> \<Longrightarrow> (x\<parallel>y)\<cdot>(p\<parallel>q) = (x\<cdot>p)\<parallel>(y\<cdot>q)"
+
   and test_eq:        "\<lbrakk>p \<in> B; q \<in> B\<rbrakk> \<Longrightarrow> p\<parallel>q = p\<cdot>q"
 
   and test_add_closed:  "\<lbrakk>p \<in> B; q \<in> B\<rbrakk> \<Longrightarrow> (p + q) \<in> B"
@@ -104,13 +104,34 @@ class ckat = cka +
   and test_par_closed:  "\<lbrakk>p \<in> B; q \<in> B\<rbrakk> \<Longrightarrow> (p \<parallel> q) \<in> B"
 begin
 
+  lemma
+    assumes test_one_closed: "1 \<in> B"
+    and p_test: "p \<in> B"
+    shows "p\<cdot>x = x\<cdot>p"
+  proof -
+    have "p\<cdot>x = (1\<parallel>p)\<cdot>(x\<parallel>1)"
+      by (metis par_unitl par_unitr)
+    also have "... = (1\<cdot>x)\<parallel>(p\<cdot>1)"
+      by (metis p_test test_exchangel test_one_closed)
+    also have "... = (1\<cdot>p)\<parallel>(x\<cdot>1)"
+      by (metis mult_onel mult_oner par_comm)
+    also have "... = x\<cdot>p"
+      by (metis p_test par_unitl par_unitr test_exchanger test_one_closed)
+  qed
+
+lemma "p \<in> B \<Longrightarrow> p\<parallel>p = p"
+  by (metis test_eq test_idem)
+
+lemma test_comm: "\<lbrakk>p \<in> B; q \<in> B\<rbrakk> \<Longrightarrow> p\<cdot>q = q\<cdot>p"
+  by (metis par_comm test_eq)
+
 lemma "\<lbrakk>p \<in> B; q \<in> B; p\<cdot>x = p\<cdot>x\<cdot>q\<rbrakk> \<Longrightarrow> p\<cdot>x \<le> q"
   nitpick oops
 
-lemma test_assocl: "p \<in> B \<Longrightarrow> p\<cdot>(x\<parallel>y) = (p\<cdot>x)\<parallel>(p\<cdot>y)" 
+lemma test_assocl: "p \<in> B \<Longrightarrow> p\<cdot>(x\<parallel>y) \<le> (p\<cdot>x)\<parallel>(p\<cdot>y)" 
   by (metis test_eq test_exchangel test_idem)
 
-lemma test_assocr: "p \<in> B \<Longrightarrow> (x\<parallel>y)\<cdot>p = (x\<cdot>p)\<parallel>(y\<cdot>p)"
+lemma test_assocr: "p \<in> B \<Longrightarrow> (x\<parallel>y)\<cdot>p \<le> (x\<cdot>p)\<parallel>(y\<cdot>p)"
   by (metis test_eq test_exchanger test_idem)
 
 lemma encoding_eq: "\<lbrakk>p \<in> B; q \<in> B\<rbrakk> \<Longrightarrow> p\<cdot>x = p\<cdot>x\<cdot>q \<longleftrightarrow> p\<cdot>x \<le> x\<cdot>q"
