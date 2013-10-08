@@ -17,8 +17,6 @@ class rg_algebra = weak_trioid + meet_semilattice +
   and hom_meet: "\<lbrakk>x \<sqinter> y\<rbrakk> = \<lbrakk>x\<rbrakk> \<sqinter> \<lbrakk>y\<rbrakk>"
   and hom_join [simp]: "\<lbrakk>x + y\<rbrakk> = \<lbrakk>x\<rbrakk> + \<lbrakk>y\<rbrakk>"
   and hom_mult: "\<lbrakk>x\<cdot>y\<rbrakk> = \<lbrakk>\<lbrakk>x\<rbrakk>\<cdot>\<lbrakk>y\<rbrakk>\<rbrakk>"
-  and hom_coextensive: "\<lbrakk>x\<rbrakk> \<le> x"
-  and hom_idem [simp]: "\<lbrakk>\<lbrakk>x\<rbrakk>\<rbrakk> = \<lbrakk>x\<rbrakk>"
   and hom_trancl_inductr: "\<lbrakk>z + y\<cdot>x\<rbrakk> \<le> \<lbrakk>y\<rbrakk> \<Longrightarrow> \<lbrakk>z\<cdot>x\<^sup>+\<rbrakk> \<le> \<lbrakk>y\<rbrakk>"
 
 begin
