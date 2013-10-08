@@ -222,14 +222,14 @@ r\|x^+ &= (r\|x)^+.
 
 %% Could use better explanations.
 
-Axiom (\ref{rg1}) states that interference from the a rely condition
-being run twice in parallel is no different from just the
-interference from that rely condition. Axiom (\ref{rg2}) states that
-interference from a single rely condition is less than interference
-from itself and another rely condition. Axiom (\ref{rg3}) allows a
-rely or guarantee to be split across sequential programs. Axiom
-(\ref{rg4}) is similar to Axiom (\ref{rg3}) in intent, except it deals
-with finite iteration.
+Axiom (\ref{rg1}) states that interference from a rely condition being
+run twice in parallel is no different from just the interference from
+that rely condition begin run once in parallel. Axiom (\ref{rg2})
+states that interference from a single rely condition is less than
+interference from itself and another rely condition. Axiom (\ref{rg3})
+allows a rely or guarantee to be split across sequential
+programs. Axiom (\ref{rg4}) is similar to Axiom (\ref{rg3}) in intent,
+except it deals with finite iteration.
 
 Axioms (\ref{rg1}), (\ref{rg2}) and (\ref{rg3}) are independent. To
 show this, we use Isabelle's
@@ -318,10 +318,13 @@ r_1^\star &= r_1
 
 Jones quintuples can be encodeded in this setting as
 \begin{align}
-r, g \vdash \{p\} c \{q\} \iff p(r\|c) \le q \land c \le g.
+r, g \vdash \{p\} c \{q\} \iff p(r\|c) \le q \land c \le g. \label{quin}
 \end{align}
-With this encoding we can derive the standard rely-guarantee inference rules, as
-shown in Figure \ref{fig:rgrules}.
+With this encoding we can derive the standard rely-guarantee inference
+rules, as shown in Figure \ref{fig:rgrules}. Thus equations
+(\ref{rg1}) to (\ref{rg4}), which are all necessary to derive these
+rules, somehow represent a minimal set of axioms from which these
+inference rules can be derived.
 
 We can expand our rely-guarantee algebras to have residuals
 axiomatised by Galois connections for both parallel and sequential
@@ -340,15 +343,16 @@ $wlp(c,q)$. Equation (\ref{res2}) can thus be written as $\{p\} c
 understood similarly as follows; it is the weakest program such that
 when placed in parallel with $x$, the composition behaves as $z$.
 
-By using residuals quintuples can be encoded in the following
-equivalent way,
+By using residuals quintuples can be encoded in the following way,
+which is equivalent to the encoding in Equation (\ref{quin}).
 \begin{align}
 r, g \vdash \{p\} c \{q\} \iff c \le r/(p \rightarrow q) \sqcap g \label{refine}.
 \end{align}
-This encoding allows us to think in terms of program
-refinement, as $r/(p \rightarrow q) \sqcap g$ defines the weakest
-program that when placed in parallel with interference from $r$, and
-guaranteeing interference at most $g$, goes from $p$ to $q$.
+This encoding allows us to think in terms of program refinement, as
+$r/(p \rightarrow q) \sqcap g$ defines the weakest program that when
+placed in parallel with interference from $r$, and guaranteeing
+interference at most $g$, goes from $p$ to $q$---which is essentially
+a generic specification for a concurrent program.
 
 \begin{figure}[tbh]
 \centering
@@ -403,14 +407,34 @@ guaranteeing interference at most $g$, goes from $p$ to $q$.
 
 % Or should this be weak?
 
-While this setting is adequate for deriving the standard inference
-rules, the equality is too strong to capture many interesting
-statements about concurrent programs. Consider the statement,
-$x = y \implies x\|z = y\|z$,
-which holds in our algebra and can be read as follows; if $x$ and $y$ are
-equal, then they must be equal under all possible interference from
-any arbitrary $z$. This would seem to preclude any reasoning about
-interference in a fine-grained way, but we can work around this by
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Breaking Compositionality}
+\label{sec:INT}
+
+While the algebra in section \ref{sec:RG} is adequate for deriving the
+standard inference rules, the equality is too strong to capture many
+interesting statements about concurrent programs. Consider the
+congruence rule for parallel composition, which is inherent in the
+algebraic approach:
+\begin{align*}
+x = y \implies x\|z = y\|z.
+\end{align*}
+This can be read as follows; if $x$ and $y$ are equal, then they must
+be equal under all possible interference from any arbitrary $z$. At
+first glance this might seem to preclude any reasoning about
+interference in a fine-grained way using only algebra. This is not the
+case, but breaking such inherent compositionality in just the right way to
+capture interesting properties of interference requires some extra work.
+
+The most obvious way we can acheive this is by simply expanding our
+rely-guarantee algebra with an arbitrary function $f$. And redefining our quintuples
+as,
+\begin{align*}
+r, g \vdash \{p\} c \{q\} \iff f(p(r\|c)) \le f(q) \land c \le g.
+\end{align*}
+
+
+ but we can work around this by
 using an \emph{interior operator}. In a rely-guarantee algebra an
 interior operator is any function $f : K \to K$ which satisfies
 \begin{align*}

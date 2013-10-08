@@ -92,7 +92,7 @@ lemma subdistr: "z\<cdot>x \<le> z\<cdot>(x + y)"
 end
 
 class par_dioid = idem_monoid + one +
-  fixes par :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" (infixl "\<parallel>" 70)
+  fixes par :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" (infixl "\<parallel>" 69)
   assumes par_assoc: "(x\<parallel>y)\<parallel>z = x\<parallel>(y\<parallel>z)"
   and par_comm: "x\<parallel>y = y\<parallel>x"
   and par_distl: "x\<parallel>(y+z) = x\<parallel>y+x\<parallel>z"
