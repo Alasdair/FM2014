@@ -27,10 +27,16 @@ algebras, but do not already hold in left omega algebras.
 *}
 
 class left_omega_algebra_zerol = left_kleene_algebra_zerol + omega_op +
-  assumes omega_unfold: "x\<^sup>\<omega> \<le> x \<cdot> x\<^sup>\<omega>"
+  assumes omega_unfold_eq [simp]: "x \<cdot> x\<^sup>\<omega> = x\<^sup>\<omega>"
   and omega_coinduct: "y \<le> z + x \<cdot> y \<Longrightarrow> y \<le> x\<^sup>\<omega> + x\<^sup>\<star> \<cdot> z"
-  and omega_zeror: "x\<^sup>\<star>\<cdot>0 \<le> x\<^sup>\<omega>" (* Could equivalently add omega_coinduct_var2 as an axiom *)
 begin
+
+lemma omega_unfold: "x\<cdot>x\<^sup>\<omega> \<le> x\<^sup>\<omega>"
+  by (metis omega_unfold_eq order_refl)
+
+lemma omega_zeror: "x\<^sup>\<star>\<cdot>0 \<le> x\<^sup>\<omega>"
+  apply (rule star_inductl[rule_format])
+  by (simp add: omega_unfold)
 
 text {* First we prove some variants of the coinduction axiom. *}
 
@@ -53,16 +59,6 @@ lemma  omega_coinduct_eq_var2: "y = x \<cdot> y \<Longrightarrow> y \<le> x\<^su
   by (metis eq_refl omega_coinduct_var2)
 
 text {* Next we strengthen the unfold law to an equation. *}
-
-lemma omega_unfold_eq [simp]: "x \<cdot> x\<^sup>\<omega> = x\<^sup>\<omega>"
-proof (rule antisym)
-  have "x \<cdot> x\<^sup>\<omega> \<le> x \<cdot> x \<cdot> x\<^sup>\<omega>"
-    by (metis mult.assoc mult_isol omega_unfold)
-  thus "x \<cdot> x\<^sup>\<omega> \<le> x\<^sup>\<omega>"
-    by (metis mult.assoc omega_coinduct_var2)
-  show  "x\<^sup>\<omega> \<le> x \<cdot> x\<^sup>\<omega>"
-    by (fact omega_unfold)
-qed
 
 lemma omega_unfold_var: "z + x \<cdot> x\<^sup>\<omega> \<le> x\<^sup>\<omega> + x\<^sup>\<star> \<cdot> z"
   by (metis add_lub add_ub1 omega_coinduct omega_unfold_eq)

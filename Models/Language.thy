@@ -1218,7 +1218,7 @@ qed
 interpretation seq!: left_omega_algebra_zerol "op \<union>" "op \<cdot>" "{LNil}" "{}" "op \<subseteq>" "op \<subset>" star omega
 proof
   fix X Y Z :: "'a lan"
-  show omega_unfold: "X\<^sup>\<omega> \<subseteq> X \<cdot> X\<^sup>\<omega>"
+  show omega_unfold: "X \<cdot> X\<^sup>\<omega> = X\<^sup>\<omega>"
     unfolding omega_def by (subst gfp_compute[symmetric]) (auto simp: seq.mult_isol)
 
   have omega_coinduct: "\<And>X Y Z. Y \<subseteq> X\<cdot>Y \<Longrightarrow> Y \<subseteq> X\<^sup>\<omega>"
@@ -1242,10 +1242,6 @@ proof
       apply (subst Un_commute)
       by simp
   qed
-
-  show "X\<^sup>\<star> \<cdot> {} \<subseteq> X\<^sup>\<omega>"
-    by (rule omega_coinduct, subst seq.star_unfoldl_eq[symmetric])
-       (simp only: l_prod_distr l_prod_one par.add_zerol l_prod_assoc)
 
   assume "Y \<subseteq> Z \<union> X\<cdot>Y" thus "Y \<subseteq> X\<^sup>\<omega> \<union> X\<^sup>\<star>\<cdot>Z"
     by - (simp only: omega_star_fuse, rule gfp_induct, auto, metis set_mp seq.mult_isol)
