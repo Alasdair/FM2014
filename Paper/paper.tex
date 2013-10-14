@@ -7,6 +7,7 @@
 \usepackage{bussproofs}
 \usepackage{float}
 \usepackage{centernot}
+\usepackage{marginnote}
 
 \usetikzlibrary{arrows,shapes,calc}
 
@@ -19,6 +20,7 @@
 \DeclareMathOperator{\fin}{finite}
 \DeclareMathOperator{\rely}{rely}
 \DeclareMathOperator{\guar}{guar}
+\DeclareMathOperator{\wlp}{wlp}
 
 \newcommand{\udagger}{\text{$\rotatebox[origin=c]{180}{$\dagger$}$}}
 
@@ -54,12 +56,6 @@ programs. This is illustrated by simple program verification examples.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Introduction}
-
-\cite{hoare_concurrent_2011}
-\cite{kozen_completeness_1994}
-\cite{kozen_kleene_1997}
-\cite{armstrong_kleene_2013}
-\cite{nipkow_isabelle/hol:_2002}
 
 x
 
@@ -151,14 +147,18 @@ $(D,+,\cdot,0,1)$ satisfying the following laws,
 \end{align*}
 A semiring is \emph{idempotent} if $x + x = x$, and \emph{weak} if $x0
 = 0$ does not hold. The natural partial order $\le$ is defined as $x
-\le y $ iff $x + y = y$. Idempotent semirings are also called
-\emph{dioids}. In the context of programs, one typically thinks of
-$\cdot$ as being sequential composition, $+$ as non-deterministic
-choice, $0$ as the abortive action and $1$ as skip. For concurrent
-software, it is natural to extend the notion of a dioid to that of a
-\emph{trioid} with operators for both sequential and parallel
-composition. Formally, a trioid is a structure $(D,+,\cdot,\|,0,1)$
-where $(D,+,\cdot,0,1)$ is a dioid and,
+\le y $ iff $x + y = y$. In an idempotent semiring $(D,+,0)$ therefore
+forms a join semilattice with least element $0$. Idempotent semirings
+are also called \emph{dioids}. In some contexts, it is also useful to
+add a meet operation $\sqcap$, such that $(D,+,\sqcap)$ is a lattice.
+
+In the context of programs, one typically thinks of $\cdot$ as being
+sequential composition, $+$ as non-deterministic choice, $0$ as the
+abortive action and $1$ as skip. For concurrent software, it is
+natural to extend the notion of a dioid to that of a \emph{trioid}
+with operators for both sequential and parallel composition. Formally,
+a trioid is a structure $(D,+,\cdot,\|,0,1)$ where $(D,+,\cdot,0,1)$
+is a dioid and,
 \begin{align*}
   x\|(y + z) &= x\|y + x\|z, &\qquad x\|y &= y\|x,\\
   (x\|y)\|z &= x\|(y\|z), &\qquad x\|1 &= x,\\
@@ -167,7 +167,7 @@ where $(D,+,\cdot,0,1)$ is a dioid and,
 
 In a trioid there are no laws governing the interaction between
 sequential and parallel composition. One law which has been considered
-in previous papers is the \emph{exchange} law
+in previous papers is the \emph{exchange} law~\cite{hoare_concurrent_2011,hoare_locality_2011}
 \begin{align*}
   (w \| x) \cdot (y \| z) \le (w \cdot z) \| (x \cdot y).
 \end{align*}
@@ -178,25 +178,67 @@ one can show that $\|$ must be commutative, or that $x\cdot y \le
 x\|y$. However, there are many interesting models which do not satisfy
 this law. First, one could consider fair parallel composition
 $x\parallel_f y$ in a model with infinite, or non-terminating
-programs. In this model, $x \cdot y \not\leq x \parallel_f y$, in the
+programs. In this model, $x \cdot y \not\leq x \parallel_f y$ in the
 case where $x$ is non-terminating. A second example would be
 predicate-transformer style models for separation logic, where $\|$ is
 interpreted as separating conjunction. In such models, $\|$ and
 $\cdot$ have different units, which, in the presence of the exchange
 law implies that $\cdot$ is equal to $\|$.
 
-A Kleene algebra expands a dioid with a star operation satisfying the laws
+A Kleene algebra~\cite{kozen_completeness_1994} expands a dioid with a star operation satisfying the laws
 \begin{align*}
   1 + xx^* &\le x^*, &\qquad z + xy \le y &\implies x^*z \le y,\\
   1 + x^*x &\le x^*, &\qquad z + yx \le y &\implies zx^* \le y.
 \end{align*}
 
-For programs, the star represents finite iteration. One can similarly
-axiomatise a parallel star operation, but in practice this seems to be
-a less useful operation, although one could see it as an operator that
-spawns an arbitrary but finite number of processes.
+For programs, the star represents finite iteration of a program $x$
+zero or more times. For iteration where $x$ must be executed at least
+once, we write $x^+$. One can similarly axiomatise a parallel star
+operation, but in practice this seems to be a less useful operation,
+although one could see it as an operator that spawns an arbitrary but
+finite number of processes.
 
-\newpage
+A Kleene algebra expanded with a parallel composition operator such
+that $(K,+,\cdot,\|,0,1)$ is a trioid in which the exchange law holds
+is called a \emph{concurrent Kleene algebra}~\cite{hoare_concurrent_2011}.
+
+In a (concurrent) Kleene algebra Hoare triples can be encoded \`a la
+Tarlecki as $\{x\}y\{z\} \iff xy \le z$. Assume residuals axiomatised
+by Galois connections
+\begin{align*}
+ x \le z \leftarrow y \iff xy \le z \iff y \le x \rightarrow z,
+\end{align*}
+exist, as in Pratt's \emph{action
+  algebra}~\cite{pratt_action_1990}. Then the Hoare triple
+$\{x\}y\{z\}$ is equivalent to $x \le z \leftarrow y$, where $z
+\leftarrow y$ can be seen as $\wlp(y,z)$.
+
+For sequential programs, Hoare logic can also be encoded algebraically by
+expanding a Kleene algebra with a Boolean test subalgebra. A
+\emph{Kleene algebra with tests} (KAT)~\cite{kozen_kleene_1997} is structure
+$(K,B,+,\cdot,\phantom{|}^\star,\overline{\phantom{x}},0,1)$ where
+$(K,+,\cdot,\phantom{|}^\star,0,1)$ is a Kleene algebra and
+$(B,+,\cdot,\overline{\phantom{x}},0,1)$ is a Boolean algebra such
+that $B \subseteq K$. The $\overline{\phantom{x}}$ operator is only
+defined on elements of the Boolean subalgebra. We denote arbitrary
+elements of $K$ by $x,y,z$ and tests by $p,q,r$.
+
+In KAT Hoare triples are defined in the following (equivalent) ways
+\begin{align*}
+\{p\}x\{q\} \iff px \le xq \iff px = pxq \iff px\overline{q} = 0.
+\end{align*}
+Using these encodings all the rules of Hoare logic excluding the
+assignment rule can be derived.
+
+One might be tempted to add a test subalgbra to concurrent Kleene
+algebra in the style of KAT. In such an algebra, can the Kozen-style
+encoding of hoare triples above can be used to derive Owicki-Gries
+style concurrency rules? The answer seems to be no---an algebraic
+approach imposes strong compositionality requirements (a point we will
+return to later), so it should come as no suprise that a
+non-compositional method such as Owicki-Gries cannot be so easily be
+done algebraically.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Algebra for Rely-Guarantee}
 \label{sec:RG}
@@ -466,42 +508,6 @@ r,g \vdash \{p\} c \{q\} \iff p[r\|c] \le q \land c \le g.
 All the rules in Figure \ref{fig:rgrules} can be derived with this
 encoding, and moreover their proofs remain the same, mutatis
 mutandis.
-
-\newpage
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Algebra for Owicki-Gries}
-\label{sec:OG}
-
-This algebra is really unsound!
-
-$px = xp$ is provable!
-
-Following in the style of Kozen's \emph{Kleene algebra with tests}
-(KAT), we extend a concurrent Kleene algebra in the same way, yielding
-\emph{concurrent Kleene algebra with tests} (CKAT). In this setting we
-can encode hoare triples not as $\{x\}y\{z\} \iff xy \le z$, as in
-Section \ref{sec:RG}, but instead as
-\begin{align*}
-\{p\}x\{q\} \iff px \le xq,
-\end{align*}
-where $p$ and $q$ are KAT-style tests, and not just arbitrary
-processes/programs.
-
-Formally, a concurrent Kleene algebra with tests is a structure
-\begin{align*}
-(K,B,+,\cdot,\|,\overline{\phantom{x}},\phantom{|}^\star,0,1),
-\end{align*}
-where $(K,+,\cdot,\|,\phantom{|}^\star,0,1)$ is a concurrent Kleene
-algebra and $(B,+,\cdot,\overline{\phantom{x}})$ is a Boolean subalgebra such that
-\begin{align*}
-(p\|q)(x\|y) &= px\|qy,\\ % THESE RULES MAKE NO SENSE!
-(x\|y)(p\|q) &= xp\|yq,\\
-p\|q &= pq,\\
-pp &= p,\\
-p &\le 1.
-\end{align*}
-Just as in KAT, negation is only defined for elements of the boolean
-subalgebra.
 
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
