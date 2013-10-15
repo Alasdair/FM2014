@@ -427,11 +427,20 @@ next
     hence xs'_len: "llength xs' = enat n"
       by (metis Suc.prems(1) co.enat.inject eSuc_enat llength_LCons)
 
+    have ind_shuffle: "ltl (ldropWhile is_right t) \<in> (xs' \<frown> LCons (\<sigma>, \<sigma>) ys) \<sha> \<down> (llength (\<rr> (ltakeWhile is_right (traj t)))) zs"
+      apply (auto simp add: tshuffle_words_def)
+      sorry
+
+    from Suc(1)[OF xs'_len ind_shuffle]
+    have ih: "lmap \<langle>id,id\<rangle> (xs' \<frown> LCons (\<sigma>, \<sigma>) ys \<triangleright> ltl (?DR (traj t)) \<triangleleft> \<down> (llength (\<rr> (?TR (traj t)))) zs)
+             \<in> stutter (lmap \<langle>id,id\<rangle> (xs' \<frown> ys \<triangleright> ldeleteLeft_nat n (ltl (?DR (traj t))) \<triangleleft> \<down> (llength (\<rr> (?TR (traj t)))) zs))"
+      by simp
+
     have "lmap \<langle>id,id\<rangle> (xs \<frown> LCons (\<sigma>,\<sigma>) ys \<triangleright> traj t \<triangleleft> zs) = lmap \<langle>id,id\<rangle> (xs \<frown> LCons (\<sigma>,\<sigma>) ys \<triangleright> ?TR (traj t) \<frown> ?DR (traj t) \<triangleleft> zs)"
       by (metis lappend_ltakeWhile_ldropWhile)
     also have "... = lmap \<langle>id,id\<rangle> ((LNil \<triangleright> ?TR (traj t) \<triangleleft> \<up> (llength (\<rr> (?TR (traj t)))) zs) \<frown>
                                   (xs \<frown> LCons (\<sigma>, \<sigma>) ys \<triangleright> ?DR (traj t) \<triangleleft> \<down> (llength (\<rr> (?TR (traj t)))) zs))"
-      sorry
+      by (subst interleave_append[OF Suc(3)]) simp_all
     also have "... = lmap \<langle>id,id\<rangle> ((LNil \<triangleright> ?TR (traj t) \<triangleleft> \<up> (llength (\<rr> (?TR (traj t)))) zs) \<frown>
                                   (xs \<frown> LCons (\<sigma>, \<sigma>) ys \<triangleright> LCons (Inl ()) (ltl (?DR (traj t))) \<triangleleft> \<down> (llength (\<rr> (?TR (traj t)))) zs))"
         apply (subst interleave_ldropWhile)
@@ -477,10 +486,12 @@ proof -
   next
     case (stutter ws vs \<sigma> zs')
 
+    from stutter(3)
     have zs'_interleave: "zs' = ws \<frown> LCons (\<sigma>, \<sigma>) vs \<triangleright> traj zs' \<triangleleft> ys"
-      sorry
+      by (simp add: tshuffle_words_def) (metis reinterleave)
 
     have "ws \<frown> vs \<triangleright> ldeleteLeft (llength ws) (traj zs') \<triangleleft> ys \<in> (ws \<frown> vs) \<sha> ys"
+      apply (auto simp add: tshuffle_words_def)
       sorry
 
     from this and stutter(2) obtain zs where "zs \<in> xs \<sha> ys"
@@ -488,8 +499,7 @@ proof -
       by blast
 
     moreover have "lmap \<langle>id,id\<rangle> zs' \<in> stutter (lmap \<langle>id,id\<rangle> (ws \<frown> vs \<triangleright> ldeleteLeft (llength ws) (traj zs') \<triangleleft> ys))"
-      apply (subst zs'_interleave)
-      sorry
+      by (subst zs'_interleave) (rule stutter_in_left[OF stutter(3)])
 
     ultimately show ?case
       by (metis (hide_lams, no_types) stutter_trans)
