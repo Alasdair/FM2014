@@ -305,7 +305,7 @@ proof -
     by (induct xs') (auto simp add: Nil Cons)
 qed
 
-lemma helper1: "lfinite ys \<Longrightarrow> xs' \<triangleright> ltakeWhile is_right t \<triangleleft> ys' = ys \<frown> LCons x zs \<longrightarrow> is_right x"
+lemma interleave_ltakeWhile_is_right: "lfinite ys \<Longrightarrow> xs' \<triangleright> ltakeWhile is_right t \<triangleleft> ys' = ys \<frown> LCons x zs \<longrightarrow> is_right x"
 proof (induct ys arbitrary: xs' t ys' rule: lfinite_induct)
   case Nil show ?case
   proof (cases t, simp_all)
@@ -510,7 +510,7 @@ proof -
           apply auto
           apply (drule split_llist)
           apply auto
-          by (metis helper1)
+          by (metis interleave_ltakeWhile_is_right)
         show "xs' \<triangleright> lfilter is_left t \<triangleleft> ys' = LNil"
           apply (subst lappend_ltakeWhile_ldropWhile[symmetric, of t is_right])
           apply (simp add: all_right)
@@ -583,8 +583,6 @@ proof -
       by fast
   qed
 qed
-
-hide_fact helper1
 
 lemma interleave_swap: "ys \<triangleright> lmap swap t \<triangleleft> xs = lmap swap (xs \<triangleright> t \<triangleleft> ys)"
 proof -
