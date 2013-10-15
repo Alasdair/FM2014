@@ -345,8 +345,6 @@ proof -
     by (metis `xs = llist_of xs'`)
 qed
 
-find_theorems llist_unfold LCons
-
 lemma lfilter_left_traj1:
   assumes "ldropWhile is_right t \<noteq> LNil"
   shows "lfilter is_left (xs \<triangleright> t \<triangleleft> ys) = lfilter is_left (xs \<triangleright> ldropWhile is_right t \<triangleleft> ldrop (llength (ltakeWhile is_right t)) ys)"
