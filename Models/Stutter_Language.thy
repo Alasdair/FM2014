@@ -319,6 +319,9 @@ lemma traj_llist_Case [simp]:
 lemma llength_traj [simp]: "llength (traj xs) = llength xs"
   by (simp add: traj_def)
 
+lemma lfilter_right_traj [simp]: "lfilter is_right (traj xs) = traj (lfilter is_right xs)"
+  by (auto simp add: traj_def lfilter_lmap)
+
 lemma ldeleteLeft_nat_traj [simp]: "ldeleteLeft_nat n (traj t) = traj (ldeleteLeft_nat n t)"
 proof (induct n arbitrary: t)
   case 0 show ?case by simp
@@ -917,7 +920,18 @@ proof -
       apply (auto simp add: tshuffle_words_def)
       apply (subst lefts_interleave_llength)
       apply simp_all
-      sorry
+      apply (simp add: lefts_def)
+      apply (subst lfilter_ldeleteLeft)
+      apply (erule rev_mp)
+      apply (subst lmap_unl_Inl)
+      apply simp
+      apply (rule impI)
+      apply simp
+      apply (metis (hide_lams, no_types) ldelete_llength_lappend llcp_lappend_same llcp_same_conv_length llength_lmap llist.simps(19) lmap_lappend_distrib)
+      apply (subst rights_interleave_llength)
+      apply (simp_all add: rights_def)
+      apply (cases "llength ws")
+      by simp_all
 
     from this and stutter(2) obtain zs where "zs \<in> xs \<sha> ys"
     and "lmap \<langle>id,id\<rangle> (ws \<frown> vs \<triangleright> ldeleteLeft (llength ws) (traj zs') \<triangleleft> ys) \<in> stutter (lmap \<langle>id,id\<rangle> zs)"
