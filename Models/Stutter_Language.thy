@@ -140,14 +140,19 @@ definition "llist_Case \<equiv> llist_case"
 
 primrec ldeleteLeft_nat :: "nat \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
   "ldeleteLeft_nat 0 xs = ltakeWhile is_right xs \<frown> ltl (ldropWhile is_right xs)"
-| "ldeleteLeft_nat (Suc n) xs = ltakeWhile is_right xs \<frown> llist_Case LNil(\<lambda>x' xs'. LCons x' (ldeleteLeft_nat n xs')) (ldropWhile is_right xs)"
+| "ldeleteLeft_nat (Suc n) xs = ltakeWhile is_right xs \<frown> llist_Case LNil (\<lambda>x' xs'. LCons x' (ldeleteLeft_nat n xs')) (ldropWhile is_right xs)"
 
 primrec ldeleteLeft :: "enat \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
   "ldeleteLeft (enat n) xs = ldeleteLeft_nat n xs"
 | "ldeleteLeft \<infinity> xs = xs"
 
-definition linsertLeft :: "enat \<Rightarrow> 'a \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
-  "linsertLeft n x xs = undefined"
+primrec linsertLeft_nat :: "nat \<Rightarrow> 'a \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
+  "linsertLeft_nat 0 x xs = ltakeWhile is_right xs \<frown> LCons (Inl x) (ldropWhile is_right xs)"
+| "linsertLeft_nat (Suc n) x xs = ltakeWhile is_right xs \<frown> llist_Case LNil (\<lambda>x' xs'. LCons x' (linsertLeft_nat n x xs')) (ldropWhile is_right xs)"
+
+primrec linsertLeft :: "enat \<Rightarrow> 'a \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
+  "linsertLeft (enat n) x xs = linsertLeft_nat n x xs"
+| "linsertLeft \<infinity> x xs = xs"
 
 lemma "stutter xs \<cdot> stutter ys \<subseteq> stutter (xs \<frown> ys)"
   apply (auto simp add: l_prod_def)
@@ -906,8 +911,31 @@ proof -
   hence "\<exists>zs\<in>xs \<sha> ys. lmap \<langle>id,id\<rangle> zs' \<in> stutter (lmap \<langle>id,id\<rangle> zs)"
   proof (induct xs' arbitrary: zs' rule: stutter.induct)
     case (self \<sigma> zs')
-    thus "\<exists>zs\<in>xs \<sha> ys. lmap \<langle>id,id\<rangle> zs' \<in> stutter (lmap \<langle>id,id\<rangle> zs)"
+
+    hence zs'_interleave: "zs' = LCons (\<sigma>, \<sigma>) xs \<triangleright> traj zs' \<triangleleft> ys"
+      by (auto simp add: tshuffle_words_def) (metis reinterleave)
+
+    have "\<exists>zs\<in>xs \<sha> ys. lmap \<langle>id,id\<rangle> zs' \<in> stutter (lmap \<langle>id,id\<rangle> zs)"
       sorry
+(*
+    proof (rule_tac x = "xs \<triangleright> traj (ldeleteLeft 0 zs') \<triangleleft> ys" in bexI)
+      have "lmap \<langle>id,id\<rangle> (LCons (\<sigma>, \<sigma>) xs \<triangleright> traj zs' \<triangleleft> ys) \<in> stutter (lmap \<langle>id,id\<rangle> (xs \<triangleright> traj (ldeleteLeft 0 zs') \<triangleleft> ys))"
+        apply (simp add: enat_0[symmetric])
+        apply (subst lappend_ltakeWhile_ldropWhile[symmetric, of zs' is_right])
+        apply (simp only: traj_lappend)
+        apply (cases "lfinite (ltakeWhile is_right zs')")
+        apply (subst interleave_append_llength)
+        prefer 3
+        apply (subst interleave_append_llength)
+        prefer 3
+        apply (simp only: lmap_lappend_distrib)
+        apply (rule stutter_lappend)
+        apply simp
+        apply (rule stutter_refl_var)
+        apply simp
+      sorry
+    qed
+*)
   next
     case (stutter ws vs \<sigma> zs')
 
