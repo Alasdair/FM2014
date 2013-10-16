@@ -145,21 +145,15 @@ lemma stutter_infinite [dest]: "ys \<in> stutter xs \<Longrightarrow> \<not> lfi
 lemma Stutter_l_prod [simp]: "(X \<cdot> Y)\<^sup>\<dagger> = (X\<^sup>\<dagger> \<cdot> Y\<^sup>\<dagger>)\<^sup>\<dagger>"
   sorry
 
+definition "llist_Case \<equiv> llist_case"
+
 primrec ldeleteLeft_nat :: "nat \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
   "ldeleteLeft_nat 0 xs = ltakeWhile is_right xs \<frown> ltl (ldropWhile is_right xs)"
-| "ldeleteLeft_nat (Suc n) xs = ltakeWhile is_right xs \<frown> LCons (lhd (ldropWhile is_right xs)) (ldeleteLeft_nat n (ltl (ldropWhile is_right xs)))"
-
-primrec ldeleteLeft_nat' :: "nat \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
-  "ldeleteLeft_nat' 0 xs = ltakeWhile is_right xs \<frown> llist_case (ldropWhile is_right xs) (\<lambda>x' xs'. xs') LNil"
-| "ldeleteLeft_nat' (Suc n) xs = ltakeWhile is_right xs \<frown> llist_case (ldropWhile is_right xs) (\<lambda>x' xs'. LCons x' (ldeleteLeft_nat' n xs')) LNil"
+| "ldeleteLeft_nat (Suc n) xs = ltakeWhile is_right xs \<frown> llist_Case LNil(\<lambda>x' xs'. LCons x' (ldeleteLeft_nat n xs')) (ldropWhile is_right xs)"
 
 primrec ldeleteLeft :: "enat \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
   "ldeleteLeft (enat n) xs = ldeleteLeft_nat n xs"
 | "ldeleteLeft \<infinity> xs = xs"
-
-primrec ldeleteLeft' :: "enat \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
-  "ldeleteLeft' (enat n) xs = ldeleteLeft_nat' n xs"
-| "ldeleteLeft' \<infinity> xs = xs"
 
 definition linsertLeft :: "enat \<Rightarrow> 'a \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
   "linsertLeft n x xs = undefined"
@@ -319,7 +313,49 @@ lemma [simp]: "lfilter is_right (ltl (ldropWhile is_right t)) = lfilter is_right
   apply auto
   by (metis is_right.simps(1) obj_sumE)
 
+
+lemma [simp]: "traj (LCons x xs) = LCons (\<langle>\<lambda>x. Inl (),\<lambda>x. Inr ()\<rangle> x) (traj xs)"
+  by (simp add: traj_def)
+
+lemma traj_llist_Case [simp]:
+  fixes ys :: "('a + 'b) llist"
+  shows "traj (llist_Case LNil (\<lambda>x xs. xs) ys) = llist_Case LNil (\<lambda>x xs. xs) (traj ys)"
+  by (cases ys) (simp_all add: llist_Case_def)
+lemma [simp]: "traj (llist_Case LNil (\<lambda>x xs. f xs) ys) = llist_Case LNil (\<lambda>x xs. f xs) (traj ys)"
+  by (cases ys) simp_all
+
+lemma [simp]: "traj (ldeleteLeft_nat 0 t) = ldeleteLeft_nat 0 (traj t)"
+  by simp
+
+lemma llength_ldropWhile_traj [simp]: "llength (ldropWhile is_right (traj xs)) = llength (ldropWhile is_right xs)"
+  sorry
+
+lemma ldropWhile_right_LCons [dest!]: "ldropWhile is_right t = LCons x xs \<Longrightarrow> \<exists>x'. ldropWhile is_right t = LCons (Inl x') xs"
+  sorry
+
+lemma [simp]: "traj (ldeleteLeft_nat n t) = ldeleteLeft_nat n (traj t)"
+proof (induct n arbitrary: t)
+  case 0 show ?case by simp
+next
+  case (Suc n)
+  thus ?case
+    apply auto
+    apply (rule arg_cong) back
+    apply (simp add: llist_Case_def)
+    apply (cases "ldropWhile is_right t")
+    apply (simp del: ldropWhile_eq_LNil_iff)
+    apply (metis llength_eq_0 llength_ldropWhile_traj llist.simps(4))
+    apply (drule ldropWhile_right_LCons)
+    apply (erule exE)
+    apply simp
+    sorry
+qed
+
+lemma [simp]: "ldeleteLeft n (traj t) = traj (ldeleteLeft n t)"
+  by (cases n) simp_all
+
 lemma tshuffle_left_LCons: "xs \<in> LCons y ys \<sha> zs \<Longrightarrow> ldeleteLeft_nat 0 xs \<in> ys \<sha> zs"
+  apply simp
   apply (auto simp add: tshuffle_words_def lefts_def rights_def)
   apply (subst lfilter_lappend_lfinite)
   apply (metis lappend_inf lappend_ltakeWhile_ldropWhile lefts_def_var lefts_ltake_right llist.distinct(1))
@@ -330,6 +366,9 @@ lemma tshuffle_left_LCons: "xs \<in> LCons y ys \<sha> zs \<Longrightarrow> ldel
   apply simp
   apply (subst lfilter_lappend_lfinite[symmetric])
   apply (metis lappend_inf lappend_ltakeWhile_ldropWhile lefts_def_var lefts_ltake_right llist.discI)
+  apply (cases "ldropWhile is_right xs")
+  apply simp
+  apply simp
   by (metis lappend_ltakeWhile_ldropWhile)
 
 lemma [simp]: "traj (lmap Inl xs) = lmap (\<lambda>x. Inl ()) xs"
@@ -382,12 +421,14 @@ lemma [simp]: "\<rr> (ltl (ldropWhile is_right t)) = \<rr> (ldropWhile is_right 
 lemma stutter_LCons: "ys \<in> stutter xs \<Longrightarrow> LCons x ys \<in> stutter (LCons x xs)" 
   sorry
 
-lemma [simp]: "traj (LCons x xs) = LCons (\<langle>\<lambda>x. Inl (),\<lambda>x. Inr ()\<rangle> x) (traj xs)"
-  by (simp add: traj_def)
+lemma lmap_unl_Inl: "(\<forall>x\<in>lset xs. is_left x) \<Longrightarrow> lmap unl xs = ys \<longleftrightarrow> xs = lmap Inl ys"
+  apply (auto simp del: lmap.compositionality)
+  apply (rule sym)
+  apply (rule lmap2_id_var)
+  apply auto
+  by (metis is_left.simps(2) obj_sumE unl.simps(1))
 
-lemma [simp]: "xs \<noteq> LNil \<Longrightarrow> (case lhd xs of Inl x \<Rightarrow> Inl () | Inr x \<Rightarrow> Inr ()) = lhd (traj xs)"
-  apply (cases "lhd xs")
-  apply simp_all
+lemma lset_lfilter: "x \<in> lset (lfilter P xs) \<Longrightarrow> x \<in> lset xs"
   sorry
 
 lemma stutter_in_left:
@@ -420,6 +461,9 @@ next
       from t_shuffle and zs_not_LNil have ltl_t_not_LNil: "ltl t \<noteq> LNil"
         apply (auto simp add: tshuffle_words_def rights_def lefts_def)
         by (metis (lifting) LNil_preserve lefts_def_var lefts_ltake_right lfilter_LCons lfilter_LNil llist.collapse llist.distinct(1) ltakeWhile_LCons ltakeWhile_eq_LNil_iff t_not_LNil)
+
+     have [simp]: "llist_Case LNil (\<lambda>x' xs'. xs') (ldropWhile is_right (traj t)) = ltl (ldropWhile is_right (traj t))"
+       by (simp add: llist_Case_def ltl_def)
 
       have "lmap \<langle>id,id\<rangle> (LCons (\<sigma>, \<sigma>) ys \<triangleright> traj t \<triangleleft> zs) = lmap \<langle>id,id\<rangle> (LCons (\<sigma>,\<sigma>) ys \<triangleright> ?TR (traj t) \<frown> ?DR (traj t) \<triangleleft> zs)"
         by (metis lappend_ltakeWhile_ldropWhile)
@@ -467,8 +511,6 @@ next
   next
     case (Suc n)
 
-    have "ltakeWhile is_right (traj t) \<frown> LCons (lhd (ldropWhile is_right (traj t))) (ldeleteLeft_nat n (ltl (ldropWhile is_right (traj t)))) \<in> (xs \<frown> ys) \<sha> zs"
-
     from Suc(2) have xs_lfinite: "lfinite xs"
       by (metis lfinite_conv_llength_enat)
 
@@ -484,6 +526,20 @@ next
 
     hence [simp]: "lhd (ldropWhile is_right (traj t)) = Inl ()"
       sorry
+
+    from Suc(3)
+    have "ldropWhile is_right (traj t) \<noteq> LNil"
+      apply (auto simp add: tshuffle_words_def xs_def)
+      apply (rule_tac x = "Inl ()" in bexI)
+      apply simp
+      apply (simp add: lefts_def traj_def image_def)
+      apply (rule_tac x = "Inl x'" in bexI)
+      apply simp
+      apply (rule lset_lfilter[where P = is_left])
+      apply (erule rev_mp)
+      apply (subst lmap_unl_Inl)
+      apply (metis (mono_tags) Coinductive_List.lset_lfilter mem_Collect_eq)
+      by simp
 
     from Suc(3)
     have ind_shuffle': "ltakeWhile is_right t \<frown> LCons (Inl x') (ldeleteLeft_nat n (ltl (ldropWhile is_right t))) \<in> (xs \<frown> ys) \<sha> zs"
@@ -541,29 +597,48 @@ next
       apply (simp only: lmap_lappend_distrib)
       apply (rule stutter_lappend)
       defer
-      apply (simp add: xs_def interleave_left)
+      apply (simp add: xs_def)
+      apply (simp add: llist_Case_def)
+      apply (subgoal_tac "ldropWhile is_right (traj t) = LCons (Inl ()) (ltl (ldropWhile is_right (traj t)))")
+      apply (erule ssubst)
+      apply (simp add: interleave_left)
       apply (rule stutter_LCons)
       apply (rule ih[simplified])
+      apply (subst lhd_LCons_ltl[symmetric])
+      apply (metis `ldropWhile is_right (traj t) \<noteq> LNil`)
+      apply simp
       prefer 2
-      apply (simp add: xs_def interleave_left del: ltakeWhile_eq_LNil_iff)
+      apply (simp add: xs_def del: ltakeWhile_eq_LNil_iff)
+      apply (simp add: llist_Case_def del: ltakeWhile_eq_LNil_iff)
+      apply (subgoal_tac "ldropWhile is_right (traj t) = LCons (Inl ()) (ltl (ldropWhile is_right (traj t)))")
+      apply (rotate_tac 1)
+      apply (erule ssubst)
+      apply (simp add: interleave_left del: ltakeWhile_eq_LNil_iff)
       apply (metis ih_var stutter_LCons)
+      apply (subst lhd_LCons_ltl[symmetric])
+      apply (metis `ldropWhile is_right (traj t) \<noteq> LNil`)
+      apply simp
       prefer 2
       apply simp
       apply (rule stutter_refl_var)
       apply (metis (hide_lams, no_types) llist.distinct(1) llist.sel_exhaust llist.simps(19) ltakeWhile_eq_LNil_iff reinterleave traj_LNil traj_interleave)
+      apply (simp add: llist_Case_def)
+      apply (rule arg_cong) back
+      apply (subgoal_tac "ldropWhile is_right (traj t) = LCons (Inl ()) (ltl (ldropWhile is_right (traj t)))")
+      apply (erule ssubst)
       apply simp
-      apply (rule arg_cong) back back
-      apply (induct n arbitrary: t)
-      apply simp
-      apply (simp only: ldeleteLeft_nat.simps)
-      apply auto
-      sledgehammer
+      apply (subst lhd_LCons_ltl[symmetric])
+      apply (metis `ldropWhile is_right (traj t) \<noteq> LNil`)
+      by simp
     finally show ?case
       by auto
   qed
   ultimately show ?thesis
     by simp
 qed
+
+lemma [simp]: "\<rr> (ldeleteLeft n xs) = \<rr> xs"
+  sorry
 
 lemma tshuffle_stutter: "\<Union>{lmap \<langle>id,id\<rangle> ` (xs' \<sha> ys)|xs'. xs' \<in> stutter xs} \<subseteq> (lmap \<langle>id,id\<rangle> ` (xs \<sha> ys))\<^sup>\<dagger>"
 proof -
@@ -584,8 +659,11 @@ proof -
     have zs'_interleave: "zs' = ws \<frown> LCons (\<sigma>, \<sigma>) vs \<triangleright> traj zs' \<triangleleft> ys"
       by (simp add: tshuffle_words_def) (metis reinterleave)
 
+    from stutter(3)
     have "ws \<frown> vs \<triangleright> ldeleteLeft (llength ws) (traj zs') \<triangleleft> ys \<in> (ws \<frown> vs) \<sha> ys"
       apply (auto simp add: tshuffle_words_def)
+      apply (subst lefts_interleave_llength)
+      apply simp_all
       sorry
 
     from this and stutter(2) obtain zs where "zs \<in> xs \<sha> ys"
