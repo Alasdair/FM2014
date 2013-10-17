@@ -1479,7 +1479,7 @@ proof -
     by (auto simp add: Stutter_def) (metis (full_types) imageI)
 qed
 
-lemma shuffle_stutter: "X\<^sup>\<dagger> \<parallel> Y \<subseteq> (X \<parallel> Y)\<^sup>\<dagger>"
+lemma shuffle_stutter1: "X\<^sup>\<dagger> \<parallel> Y \<subseteq> (X \<parallel> Y)\<^sup>\<dagger>"
 proof -
   have "X\<^sup>\<dagger> \<parallel> Y = \<Union>(stutter ` X) \<parallel> Y"
     by (rule arg_cong, auto simp add: Stutter_def image_def)
@@ -1498,8 +1498,104 @@ proof -
   finally show ?thesis .
 qed
 
-lemma Stutter_shuffle [simp]: "(X\<^sup>\<dagger> \<parallel> Y\<^sup>\<dagger>)\<^sup>\<dagger> = (X \<parallel> Y)\<^sup>\<dagger>"
+lemma stutter_LNil_lfinite: "ys \<in> stutter LNil \<Longrightarrow> lfinite ys"
+  by (induct ys rule: stutter.induct) auto
+
+lemma stutter_in_LNil: "stutter xs \<subseteq> (\<Union>{lmap \<langle>id,id\<rangle> ` (xs' \<sha> ys') |xs' ys'. xs' \<in> stutter xs \<and> ys' \<in> stutter LNil})\<^sup>\<dagger>"
+proof
+  fix zs
+  assume "zs \<in> stutter xs"
+  also have "... \<subseteq> {LCons (fst (lhd zs), fst (lhd zs)) zs |zs. zs \<in> stutter xs}\<^sup>\<dagger>"
+  proof
+    fix zs
+    assume "zs \<in> stutter xs"
+    thus "zs \<in> {LCons (fst (lhd zs), fst (lhd zs)) zs |zs. zs \<in> stutter xs}\<^sup>\<dagger>"
+      apply (induct zs rule: stutter.induct)
+      apply (auto simp add: Stutter_def)
+      apply (rule_tac x = "stutter (LCons (\<sigma>,\<sigma>) (LCons (\<sigma>,\<sigma>) xs))" in exI)
+      by (auto intro: stutter_refl)
+  qed
+  also have "... = {LCons (fst (lhd zs), fst (lhd zs)) zs |zs. zs \<in> stutter xs \<and> LCons (fst (lhd zs), fst (lhd zs)) LNil \<in> stutter LNil}\<^sup>\<dagger>"
+    by (metis stutter.self)
+  also have "... \<subseteq> {LCons (\<sigma>,\<sigma>) zs |\<sigma> zs. zs \<in> stutter xs \<and> LCons (\<sigma>,\<sigma>) LNil \<in> stutter LNil}\<^sup>\<dagger>"
+    by (rule Stutter_iso) blast
+  also have "... = {LCons (\<sigma>,\<sigma>) LNil \<frown> zs |\<sigma> zs. zs \<in> stutter xs \<and> LCons (\<sigma>,\<sigma>) LNil \<in> stutter LNil}\<^sup>\<dagger>"
+    by (metis lappend_code(1) lappend_code(2) stutter.self)
+  also have "... \<subseteq> {ys \<frown> zs |ys zs. zs \<in> stutter xs \<and> ys \<in> stutter LNil}\<^sup>\<dagger>"
+    by (rule Stutter_iso) blast
+  also have "... \<subseteq> (\<Union>{lmap \<langle>id,id\<rangle> ` (xs' \<sha> ys') |xs' ys'. xs' \<in> stutter xs \<and> ys' \<in> stutter LNil})\<^sup>\<dagger>"
+    apply (rule Stutter_iso)
+    apply auto
+    apply (rule_tac x = "lmap \<langle>id,id\<rangle> ` (zs \<sha> ys)" in exI)
+    apply (intro conjI)
+    apply (rule_tac x = zs in exI)
+    apply (rule_tac x = ys in exI)
+    apply (auto dest!: stutter_LNil_lfinite)
+    by (metis lfinite_lappend_shuffle tshuffle_words_comm)
+  finally show "zs \<in> (\<Union>{lmap \<langle>id,id\<rangle> ` (xs' \<sha> ys') |xs' ys'. xs' \<in> stutter xs \<and> ys' \<in> stutter LNil})\<^sup>\<dagger>" .
+qed
+
+lemma stutter_in_LNil_var: "stutter xs \<subseteq> (\<Union>{lmap \<langle>id,id\<rangle> ` (xs \<sha> ys) |ys. ys \<in> stutter LNil})\<^sup>\<dagger>"
   sorry
+
+lemma set_comp_fun_sub1: "(\<And>x. x \<in> X \<Longrightarrow> f x \<subseteq> g x) \<Longrightarrow> \<Union>{f x |x. x \<in> X} \<subseteq> \<Union>{g x |x. x \<in> X}"
+  by auto
+
+lemma LNil_Stutter: "X\<^sup>\<dagger> \<subseteq> ({LNil}\<^sup>\<dagger> \<parallel> X\<^sup>\<dagger>)\<^sup>\<dagger>"
+proof -
+  have "X\<^sup>\<dagger> = \<Union>{stutter xs |xs. xs \<in> X}"
+    by (simp add: Stutter_def)
+  also have "... \<subseteq> \<Union>{(\<Union>{lmap \<langle>id,id\<rangle> ` (xs' \<sha> ys') |xs' ys'. xs' \<in> stutter xs \<and> ys' \<in> stutter LNil})\<^sup>\<dagger> |xs. xs \<in> X}"
+    by (rule set_comp_fun_sub1) (metis stutter_in_LNil)
+  also have "... = (\<Union>{\<Union>{lmap \<langle>id,id\<rangle> ` (xs' \<sha> ys') |xs' ys'. xs' \<in> stutter xs \<and> ys' \<in> stutter LNil} |xs. xs \<in> X})\<^sup>\<dagger>"
+    by (subst Stutter_continuous, blast)
+  also have "... = (\<Union>{lmap \<langle>id,id\<rangle> ` (xs' \<sha> ys') |xs' ys' xs. xs' \<in> stutter xs \<and> ys' \<in> stutter LNil \<and>  xs \<in> X})\<^sup>\<dagger>"
+    by (rule arg_cong, blast)
+  also have "... = (\<Union>{lmap \<langle>id,id\<rangle> ` (xs' \<sha> ys') |xs' ys'. xs' \<in> X\<^sup>\<dagger> \<and> ys' \<in> {LNil}\<^sup>\<dagger>})\<^sup>\<dagger>"
+    apply (rule arg_cong) back by (simp add: Stutter_def, blast)
+  also have "... = (X\<^sup>\<dagger> \<parallel> {LNil}\<^sup>\<dagger>)\<^sup>\<dagger>"
+    by (rule arg_cong, simp add: shuffle_def)
+  finally show ?thesis
+    by (metis shuffle_comm)
+qed
+
+lemma LNil_Stutter: "X\<^sup>\<dagger> \<subseteq> ({LNil}\<^sup>\<dagger> \<parallel> X)\<^sup>\<dagger>"
+proof -
+  have "X\<^sup>\<dagger> = \<Union>{stutter xs |xs. xs \<in> X}"
+    by (simp add: Stutter_def)
+  also have "... \<subseteq> \<Union>{(\<Union>{lmap \<langle>id,id\<rangle> ` (xs' \<sha> ys') |xs' ys'. xs' \<in> stutter xs \<and> ys' \<in> stutter LNil})\<^sup>\<dagger> |xs. xs \<in> X}"
+    by (rule set_comp_fun_sub1) (metis stutter_in_LNil)
+  also have "... = \<Union>{(X \<parallel> )\<^sup>\<dagger> |xs. xs \<in> X}"
+  also have "... = (\<Union>{\<Union>{lmap \<langle>id,id\<rangle> ` (xs' \<sha> ys') |xs' ys'. xs' \<in> stutter xs \<and> ys' \<in> stutter LNil} |xs. xs \<in> X})\<^sup>\<dagger>"
+    by (subst Stutter_continuous, blast)
+  also have "... = (\<Union>{lmap \<langle>id,id\<rangle> ` (xs' \<sha> ys') |xs' ys' xs. xs' \<in> stutter xs \<and> ys' \<in> stutter LNil \<and>  xs \<in> X})\<^sup>\<dagger>"
+    by (rule arg_cong, blast)
+  also have "... = (\<Union>{lmap \<langle>id,id\<rangle> ` (xs' \<sha> ys') |xs' ys'. xs' \<in> X\<^sup>\<dagger> \<and> ys' \<in> {LNil}\<^sup>\<dagger>})\<^sup>\<dagger>"
+    apply (rule arg_cong) back by (simp add: Stutter_def, blast)
+  also have "... = (X\<^sup>\<dagger> \<parallel> {LNil}\<^sup>\<dagger>)\<^sup>\<dagger>"
+    by (rule arg_cong, simp add: shuffle_def)
+  finally show ?thesis
+    by (metis shuffle_comm)
+qed
+
+lemma Stutter_ext_var: "(X - {LNil}) \<subseteq> (X - {LNil})\<^sup>\<dagger>"
+  by (auto simp add: Stutter_def, erule_tac x = "stutter x" in allE, auto)
+
+lemma Stutter_shuffle [simp]: "(X\<^sup>\<dagger> \<parallel> Y)\<^sup>\<dagger> = (X \<parallel> Y)\<^sup>\<dagger>"
+  apply (rule antisym)
+  apply (metis (full_types) Stutter_idem Stutter_iso shuffle_comm shuffle_stutter1)
+  apply (cases "LNil \<in> X")
+  apply (subgoal_tac "X = (X - {LNil}) \<union> {LNil}")
+  apply (rotate_tac 1)
+  apply (erule ssubst)
+  apply (simp only: par.distrib_left par.distrib_right par.mult_onel shuffle_one shuffle_one[symmetric] Stutter_union Un_assoc)
+  apply (rule Un_mono)
+  apply (intro Stutter_iso par.mult_isol_var[rule_format] Stutter_ext_var conjI order_refl)
+  apply (rule Un_mono)
+  apply (intro Stutter_iso par.mult_isol_var[rule_format] Stutter_ext_var conjI)
+  apply (rule order_trans[OF Stutter_ext_var])
+  sledgehammer
+
 
 lemma [simp]: "\<langle>top\<rangle> \<cdot> X\<^sup>\<dagger> = X\<^sup>\<dagger>"
   sorry
