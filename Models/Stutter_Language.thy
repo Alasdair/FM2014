@@ -705,8 +705,8 @@ next
         apply (auto simp add: tshuffle_words_def rights_def lefts_def)
         by (metis (lifting) LNil_preserve lefts_def_var lefts_ltake_right lfilter_LCons lfilter_LNil llist.collapse llist.distinct(1) ltakeWhile_LCons ltakeWhile_eq_LNil_iff t_not_LNil)
 
-     have [simp]: "llist_Case LNil (\<lambda>x' xs'. xs') (ldropWhile is_right (traj t)) = ltl (ldropWhile is_right (traj t))"
-       by (simp add: llist_Case_def ltl_def)
+      have [simp]: "llist_Case LNil (\<lambda>x' xs'. xs') (ldropWhile is_right (traj t)) = ltl (ldropWhile is_right (traj t))"
+        by (simp add: llist_Case_def ltl_def)
 
       have "lmap \<langle>id,id\<rangle> (LCons (\<sigma>, \<sigma>) ys \<triangleright> traj t \<triangleleft> zs) = lmap \<langle>id,id\<rangle> (LCons (\<sigma>,\<sigma>) ys \<triangleright> ?TR (traj t) \<frown> ?DR (traj t) \<triangleleft> zs)"
         by (metis lappend_ltakeWhile_ldropWhile)
@@ -896,6 +896,116 @@ next
     qed
     finally show ?case
       by auto (metis (full_types) ldeleteLeft_nat.simps(2) ldeleteLeft_nat_traj ldropWhile_right_traj ltakeWhile_right_traj traj_lappend)
+  qed
+  ultimately show ?thesis
+    by simp
+qed
+
+lemma lmap_LConsl: "lmap \<langle>id,id\<rangle> (LCons (Inl x) xs) = LCons x (lmap \<langle>id,id\<rangle> xs)"
+  by auto
+
+lemma [simp]: "llength (\<ll> (ldropWhile is_right t)) = llength (\<ll> t)"
+  by (auto simp add: lefts_def)
+
+lemma [intro]: "LCons (\<sigma>, \<sigma>'') xs \<in> stutter (LCons (\<sigma>, \<sigma>') (LCons (\<sigma>', \<sigma>'') xs))"
+proof -
+  have "LCons (\<sigma>, \<sigma>) (LCons (\<sigma>, \<sigma>') (LCons (\<sigma>', \<sigma>'') xs)) \<in> stutter (LCons (\<sigma>, \<sigma>') (LCons (\<sigma>', \<sigma>'') xs))"
+    by (metis stutter.self)
+  thus "LCons (\<sigma>,\<sigma>'') xs \<in> stutter (LCons (\<sigma>, \<sigma>') (LCons (\<sigma>', \<sigma>'') xs))"
+    by (metis lappend_code(1) stutter.mumble)
+qed
+
+lemma mumble_in_left:
+  assumes "t \<in> (xs \<frown> LCons (\<sigma>, \<sigma>'') ys) \<sha> zs"
+  shows "lmap \<langle>id,id\<rangle> (xs \<frown> LCons (\<sigma>, \<sigma>'') ys \<triangleright> traj t \<triangleleft> zs) \<in> stutter (lmap \<langle>id,id\<rangle> (xs \<frown> LCons (\<sigma>,\<sigma>') (LCons (\<sigma>',\<sigma>'') ys) \<triangleright> linsertLeft (llength xs) () (traj t) \<triangleleft> zs))"
+proof (cases "llength xs")
+  assume "llength xs = \<infinity>"
+  from this and assms show ?thesis
+    by (auto intro: stutter_refl_var sumlist_cases[of t] simp add: traj_def interleave_left interleave_right)
+next
+  let ?TR = "ltakeWhile is_right"
+  let ?DR = "ldropWhile is_right"
+
+
+  fix n
+  assume "llength xs = enat n"
+  moreover hence "lmap \<langle>id,id\<rangle> (xs \<frown> LCons (\<sigma>, \<sigma>'') ys \<triangleright> traj t \<triangleleft> zs) \<in> stutter (lmap \<langle>id,id\<rangle> (xs \<frown> LCons (\<sigma>,\<sigma>') (LCons (\<sigma>',\<sigma>'') ys) \<triangleright> linsertLeft_nat n () (traj t) \<triangleleft> zs))"
+    using assms
+  proof (induct n arbitrary: xs t zs)
+    case 0 note zero = this
+    {
+      assume zs_not_LNil: "zs \<noteq> LNil"
+
+      from zero have [simp]: "xs = LNil"
+        by (metis llength_eq_0 zero_enat_def)
+      hence t_shuffle: "t \<in> LCons (\<sigma>, \<sigma>'') ys \<sha> zs"
+        by (metis zero(2) lappend_code(1))
+      from t_shuffle have t_not_LNil: "t \<noteq> LNil"
+        by (auto simp add: tshuffle_words_def)
+      from t_shuffle and zs_not_LNil have ltl_t_not_LNil: "ltl t \<noteq> LNil"
+        apply (auto simp add: tshuffle_words_def rights_def lefts_def)
+        by (metis (lifting) LNil_preserve lefts_def_var lefts_ltake_right lfilter_LCons lfilter_LNil llist.collapse llist.distinct(1) ltakeWhile_LCons ltakeWhile_eq_LNil_iff t_not_LNil)
+
+      from t_shuffle
+      have "?DR t = LCons (Inl (\<sigma>,\<sigma>'')) (ltl (?DR t))"
+        by (auto dest: lfilter_eq_LCons simp add: tshuffle_words_def lefts_def lmap_unl_Inl)
+
+      hence traj_DR: "?DR (traj t) = LCons (Inl ()) (ltl (ldropWhile is_right (traj t)))"
+        by - (drule arg_cong[where f = traj], simp)
+
+      have [intro]: "lfinite (traj (ltakeWhile is_right t))"
+        by (metis ldropWhile_eq_LNil_iff lfinite_ltakeWhile llist.distinct(1) ltakeWhile_right_traj traj_DR)
+
+      have "lmap \<langle>id,id\<rangle> (LCons (\<sigma>, \<sigma>'') ys \<triangleright> traj t \<triangleleft> zs) = lmap \<langle>id,id\<rangle> (LCons (\<sigma>,\<sigma>'') ys \<triangleright> ?TR (traj t) \<frown> ?DR (traj t) \<triangleleft> zs)"
+        by (metis lappend_ltakeWhile_ldropWhile)
+      also have "... = lmap \<langle>id,id\<rangle> ((LNil \<triangleright> ?TR (traj t) \<triangleleft> \<up> (llength (\<rr> (?TR (traj t)))) zs) \<frown>
+                                    (LCons (\<sigma>,\<sigma>'') ys \<triangleright> ?DR (traj t) \<triangleleft> \<down> (llength (\<rr> (?TR (traj t)))) zs))"
+        apply (subst intro_traj)
+        apply (subst traj_lappend)
+        apply (subst interleave_append[OF t_shuffle])
+        apply (metis intro_traj lappend_ltakeWhile_ldropWhile traj_interleave)
+        by simp
+      also have "... = lmap \<langle>id,id\<rangle> ((LNil \<triangleright> ?TR (traj t) \<triangleleft> \<up> (llength (\<rr> (?TR (traj t)))) zs) \<frown>
+                                     LCons (Inl (\<sigma>,\<sigma>'')) (ys \<triangleright> ltl (?DR (traj t)) \<triangleleft> \<down> (llength (\<rr> (?TR (traj t)))) zs))"
+        apply (subst interleave_ldropWhile)
+        apply (subst shuffle_lset[OF t_shuffle])
+        by (simp_all add: interleave_left)
+      also have "... = lmap \<langle>id,id\<rangle> (LNil \<triangleright> ?TR (traj t) \<triangleleft> \<up> (llength (\<rr> (?TR (traj t)))) zs) \<frown>
+                       LCons (\<sigma>,\<sigma>'') (lmap \<langle>id,id\<rangle> (ys \<triangleright> ltl (?DR (traj t)) \<triangleleft> \<down> (llength (\<rr> (?TR (traj t)))) zs))"
+        by (simp add: lmap_lappend_distrib)
+      also have "... \<in> stutter (lmap \<langle>id,id\<rangle> (LCons (\<sigma>, \<sigma>') (LCons (\<sigma>', \<sigma>'') ys) \<triangleright> linsertLeft_nat 0 () (traj t) \<triangleleft> zs))"
+        apply (rule mumble[where \<sigma>' = \<sigma>'])
+        apply (simp only: linsertLeft_nat.simps)
+        apply (subst interleave_append_llength)
+        prefer 3
+        apply (subst traj_DR) back
+        apply (simp only: lefts_ltake_right llength_LNil ltake_0 ldrop_0 lmap_lappend_distrib interleave_left lhd_LCons lmap_LConsl ltl_simps)
+        apply (rule stutter_refl_var)
+        apply simp
+        using t_shuffle
+        apply (auto simp add: tshuffle_words_def)
+        apply (subst llength_lefts_lappend)
+        apply auto
+        apply (subst llength_rights_lappend)
+        apply auto
+        by (metis lappend_ltakeWhile_ldropWhile lefts_LCons_lfinite_rights llength_lappend rights_append)
+      finally have ?case
+          by auto
+    }
+    moreover
+    {
+      assume zs_LNil: "zs = LNil"
+      from zero have [simp]: "xs = LNil"
+        by (metis llength_eq_0 zero_enat_def)
+      from zs_LNil and zero have ?case
+        by (auto simp add: interleave_left interleave_only_left)
+    }
+    ultimately show ?case
+      by (cases zs) simp_all
+  next
+    case (Suc n)
+    thus ?case
+      sorry
   qed
   ultimately show ?thesis
     by simp
