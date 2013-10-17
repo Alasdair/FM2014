@@ -1017,6 +1017,9 @@ qed
 lemma [simp]: "\<rr> (linsertLeft_nat n x xs) = \<rr> xs"
   by (simp add: rights_def)
 
+lemma [simp]: "\<rr> (linsertLeft n x xs) = \<rr> xs"
+  by (cases n) simp_all
+
 lemma [simp]: "lfilter is_left (traj xs) = traj (lfilter is_left xs)"
   by (auto simp add: traj_def lfilter_lmap)
 
@@ -1212,10 +1215,7 @@ next
 
       from Suc(3)
       have [simp]: "lfilter is_left (ltl (ldropWhile is_right t)) = lmap Inl (xs' \<frown> LCons (\<sigma>, \<sigma>'') ys)"
-        apply (auto simp add: tshuffle_words_def lefts_def lmap_unl_Inl xs_def)
-        apply (drule lfilter_eq_LCons)
-        apply (erule exE)
-        by (metis Not_is_left ltl_simps(2))
+        by (auto simp add: tshuffle_words_def lefts_def lmap_unl_Inl xs_def)
 
       show ?goal
         apply (simp only: linsertLeft_nat.simps)
@@ -1277,7 +1277,7 @@ proof -
     hence zs'_interleave: "zs' = LCons (\<sigma>, \<sigma>) xs \<triangleright> traj zs' \<triangleleft> ys"
       by (auto simp add: tshuffle_words_def) (metis reinterleave)
 
-    have "\<exists>zs\<in>xs \<sha> ys. lmap \<langle>id,id\<rangle> zs' \<in> stutter (lmap \<langle>id,id\<rangle> zs)"
+    show "\<exists>zs\<in>xs \<sha> ys. lmap \<langle>id,id\<rangle> zs' \<in> stutter (lmap \<langle>id,id\<rangle> zs)"
       sorry
 (*
     proof (rule_tac x = "xs \<triangleright> traj (ldeleteLeft 0 zs') \<triangleleft> ys" in bexI)
@@ -1335,19 +1335,35 @@ proof -
   next
     case (mumble ws \<sigma> \<sigma>' \<sigma>'' vs zs')
 
-    have zs'_interleave: "zs' = (ws \<frown> LCons (\<sigma>, \<sigma>'') vs) \<triangleright> traj zs' \<triangleleft> ys"
-      sorry
+    hence zs'_interleave: "zs' = (ws \<frown> LCons (\<sigma>, \<sigma>'') vs) \<triangleright> traj zs' \<triangleleft> ys"
+      by (simp add: tshuffle_words_def) (metis reinterleave)
 
-    have "(ws \<frown> LCons (\<sigma>,\<sigma>') (LCons (\<sigma>',\<sigma>'') vs) \<triangleright> linsertLeft (llength ws + 1) () (traj zs') \<triangleleft> ys) \<in> (ws \<frown> LCons (\<sigma>, \<sigma>') (LCons (\<sigma>', \<sigma>'') vs)) \<sha> ys"
-      sorry
+    from mumble(3)
+    have "(ws \<frown> LCons (\<sigma>,\<sigma>') (LCons (\<sigma>',\<sigma>'') vs) \<triangleright> linsertLeft (llength ws) () (traj zs') \<triangleleft> ys) \<in> (ws \<frown> LCons (\<sigma>, \<sigma>') (LCons (\<sigma>', \<sigma>'') vs)) \<sha> ys"
+      apply (auto simp add: tshuffle_words_def)
+      apply (subgoal_tac "linsertLeft (llength ws) () (traj zs') = traj (linsertLeft (llength ws) () (traj zs'))")
+      apply (rotate_tac 1)
+      apply (erule ssubst)
+      apply (subst lefts_interleave_llength)
+      apply simp_all
+      defer
+      apply (subgoal_tac "linsertLeft (llength ws) () (traj zs') = traj (linsertLeft (llength ws) () (traj zs'))")
+      apply (rotate_tac 1)
+      apply (erule ssubst)
+      apply (subst rights_interleave_llength)
+      apply simp_all
+      apply (simp add: lefts_def lmap_unl_Inl)
+      apply (cases "llength ws")
+      apply simp_all
+      apply (subst llength_linsertLeft_nat)
+      by (simp_all add: iadd_Suc_right)
 
     from this and mumble(2) obtain zs where "zs \<in> xs \<sha> ys"
-    and "lmap \<langle>id,id\<rangle> (ws \<frown> LCons (\<sigma>,\<sigma>') (LCons (\<sigma>',\<sigma>'') vs) \<triangleright> linsertLeft (llength ws + 1) () (traj zs') \<triangleleft> ys) \<in> stutter (lmap \<langle>id,id\<rangle> zs)"
+    and "lmap \<langle>id,id\<rangle> (ws \<frown> LCons (\<sigma>,\<sigma>') (LCons (\<sigma>',\<sigma>'') vs) \<triangleright> linsertLeft (llength ws) () (traj zs') \<triangleleft> ys) \<in> stutter (lmap \<langle>id,id\<rangle> zs)"
       by blast
 
-    moreover have "lmap \<langle>id,id\<rangle> zs' \<in> stutter (lmap \<langle>id,id\<rangle> (ws \<frown> LCons (\<sigma>,\<sigma>') (LCons (\<sigma>',\<sigma>'') vs) \<triangleright> linsertLeft (llength ws + 1) () (traj zs') \<triangleleft> ys))"
-      apply (subst zs'_interleave)
-      sorry
+    moreover have "lmap \<langle>id,id\<rangle> zs' \<in> stutter (lmap \<langle>id,id\<rangle> (ws \<frown> LCons (\<sigma>,\<sigma>') (LCons (\<sigma>',\<sigma>'') vs) \<triangleright> linsertLeft (llength ws) () (traj zs') \<triangleleft> ys))"
+      by (subst zs'_interleave) (metis (full_types) mumble.prems mumble_in_left)
  
     ultimately show ?case
       by (metis (hide_lams, no_types) stutter_trans)
