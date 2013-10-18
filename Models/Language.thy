@@ -1,5 +1,5 @@
 theory Language
-  imports "$AFP/Kleene_Algebra/Kleene_Algebra" LazySumList Fixpoint Omega_Algebra
+  imports "$AFP/Kleene_Algebra/Kleene_Algebra" Lazy_Sum_List Fixpoint Omega_Algebra
 begin
 
 (* Old coinduction princples from old version of coinductive packages. Newer coinduction principles

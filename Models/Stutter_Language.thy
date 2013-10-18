@@ -1,5 +1,5 @@
 theory Stutter_Language
-  imports Language
+  imports Aczel
 begin
 
 inductive_set stutter :: "('a \<times> 'a) llist \<Rightarrow> ('a \<times> 'a) lan" for xs where
@@ -590,6 +590,7 @@ lemma lefts_LCons_deleteLeft:
   apply metis
   by (metis Not_is_left is_left.simps(1) lhd_LCons lhd_lfilter)
 
+(*
 lemma [simp]: "\<up> \<infinity> xs = xs"
   apply (cases "lfinite xs")
   apply (induct xs rule: lfinite_induct)
@@ -598,6 +599,7 @@ lemma [simp]: "\<up> \<infinity> xs = xs"
   apply (subst ltake_LCons)
   apply (simp del: eSuc_infinity)
   by (metis ltake_all not_lfinite_llength order_refl)
+*)
 
 lemma [simp]: "\<down> (llength xs) xs = LNil"
   by (metis ldrop_eq_LNil order_refl)
@@ -1773,6 +1775,92 @@ lemma Stutter_l_prod4: "(X \<cdot> Y)\<^sup>\<dagger> \<subseteq> (X \<cdot> Y\<
 
 lemma Stutter_l_prod [simp]: "(X\<^sup>\<dagger> \<cdot> Y\<^sup>\<dagger>)\<^sup>\<dagger> = (X \<cdot> Y)\<^sup>\<dagger>"
   by (metis Stutter_idem Stutter_l_prod1 Stutter_l_prod2 Stutter_l_prod4 subset_antisym)
+
+lemma inconsistent_stutter: "xs \<in> stutter ys \<Longrightarrow> \<not> consistent ys \<Longrightarrow> \<not> consistent xs"
+  sorry
+
+lemma [simp]: "\<not> consistent xs \<Longrightarrow> \<pi> (stutter xs) = {}"
+  by (auto simp add: Aczel_def Con_def) (metis inconsistent_stutter)
+
+lemma [simp]: "\<not> consistent xs \<Longrightarrow> {xs} \<inter> Con = {}"
+  by (auto simp add: Con_def)
+
+lemma [simp]: "consistent xs \<Longrightarrow> {xs} \<inter> Con = {xs}"
+  by (auto simp add: Con_def)
+
+lemma [simp]: "{LNil} \<inter> Con = {LNil}"
+  by (auto simp add: Con_def)
+
+lemma stutter_proj1: "(\<pi> (stutter xs))\<^sup>\<dagger> \<subseteq> ({xs} \<inter> Con)\<^sup>\<dagger>"
+  apply (cases "consistent xs")
+  apply simp_all
+  apply (auto simp add: Stutter_def Aczel_def Con_def)
+  by (metis stutter_trans)
+
+lemma Stutter_proj1: "(\<pi> X\<^sup>\<dagger>)\<^sup>\<dagger> \<subseteq> (\<pi> X)\<^sup>\<dagger>"
+proof -
+  have "(\<pi> X\<^sup>\<dagger>)\<^sup>\<dagger> = (\<pi> (\<Union>{stutter xs |xs. xs \<in> X}))\<^sup>\<dagger>"
+    by (simp add: Stutter_def)
+  also have "... = (\<Union>{\<pi> (stutter xs) |xs. xs \<in> X})\<^sup>\<dagger>"
+    by (subst Aczel_continuous) (rule arg_cong, blast)
+  also have "... = \<Union>{(\<pi> (stutter xs))\<^sup>\<dagger> |xs. xs \<in> X}"
+    by (subst Stutter_continuous) (rule arg_cong, blast)
+  also have "... \<subseteq> \<Union>{({xs} \<inter> Con)\<^sup>\<dagger> |xs. xs \<in> X}"
+    by (rule set_comp_fun_sub1) (rule stutter_proj1)
+  also have "... = (\<Union>{{xs} \<inter> Con |xs. xs \<in> X})\<^sup>\<dagger>"
+    by (subst Stutter_continuous) (rule arg_cong, blast)
+  also have "... = (\<pi> X)\<^sup>\<dagger>"
+    by (simp add: Aczel_def) (rule arg_cong, blast)
+  finally show "(\<pi> X\<^sup>\<dagger>)\<^sup>\<dagger> \<subseteq> (\<pi> X)\<^sup>\<dagger>" .
+qed
+
+lemma stutter_proj2: "zs \<in> stutter LNil \<Longrightarrow> zs \<in> \<Union>{stutter xs |xs. xs \<in> stutter LNil \<and> xs \<in> Con}"
+  apply (induct zs rule: stutter.induct)
+  apply auto
+  apply (rule_tac x = "stutter (LCons (\<sigma>, \<sigma>) LNil)" in exI)
+  apply (auto intro: stutter_refl)
+  apply (rule_tac x = "LCons (\<sigma>, \<sigma>) LNil" in exI)
+  by (auto simp add: Con_def)
+
+lemma Stutter_proj2: "(\<pi> X)\<^sup>\<dagger> \<subseteq> (\<pi> X\<^sup>\<dagger>)\<^sup>\<dagger>"
+  apply (cases "LNil \<in> X")
+  apply (subgoal_tac "X = (X - {LNil}) \<union> {LNil}")
+  apply (rotate_tac 1)
+  apply (erule ssubst)
+  apply (simp only: Stutter_union Aczel_union)
+  apply (rule Un_mono)
+  apply (intro Stutter_iso Aczel_iso Stutter_ext_var)
+  apply (simp add: Aczel_def test_def image_def Stutter_def)
+  apply default
+  apply (rule stutter_proj2)
+  apply assumption
+  apply (metis insert_Diff insert_is_Un sup_commute)
+  apply (intro Stutter_iso Aczel_iso Stutter_ext_var)
+  by (metis (hide_lams, no_types) Diff_insert_absorb Stutter_ext_var)  
+
+lemma Stutter_proj [simp]: "(\<pi> X\<^sup>\<dagger>)\<^sup>\<dagger> = (\<pi> X)\<^sup>\<dagger>"
+  by (metis Stutter_proj1 Stutter_proj2 subset_antisym)
+
+lemma proj_test: "\<pi> \<langle>X\<rangle> = {xs. lfinite xs \<and> (\<exists>\<sigma>\<in>X. lset xs = {(\<sigma>,\<sigma>)})}"
+  sorry
+
+lemma test_l_prod: "(\<langle>X\<rangle> \<otimes> \<langle>Y\<rangle>)\<^sup>\<dagger> = (\<pi> \<langle>X \<inter> Y\<rangle>)\<^sup>\<dagger>"
+  sorry
+
+lemma test_union [simp]: "\<langle>X\<rangle> \<union> \<langle>Y\<rangle> = \<langle>X \<union> Y\<rangle>"
+  apply (simp add: test_def image_def Stutter_union[symmetric] del: Stutter_union)
+  apply (rule arg_cong) back
+  by auto
+
+lemma test_iso [intro]: "X \<subseteq> Y \<Longrightarrow> test X \<subseteq> test Y"
+  apply (simp add: test_def)
+  apply (rule Stutter_iso)
+  by (auto simp add: image_def)
+
+lemma [simp]: "\<langle>{}\<rangle> = {}"
+  apply (subst test_def)
+  apply (subst Stutter_def)
+  by simp
 
 end
 
