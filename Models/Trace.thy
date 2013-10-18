@@ -211,7 +211,7 @@ lemma proj_leq_trans3 [trans]: "x \<le>\<^sub>\<pi> y \<Longrightarrow> y \<le> 
 find_theorems Aczel "op \<inter>"
 find_theorems Stutter "op \<inter>"
 
-lemma Stutter_Con: "(X \<inter> Con)\<^sup>\<dagger> = (X \<inter> Con\<^sup>\<dagger>)\<^sup>\<dagger>"
+lemma Stutter_Con: "(X \<inter> Con)\<^sup>\<dagger> = (X \<inter> Con\<^sup>\<dagger>)\<^sup>\<dagger>"EC
   sorry
 
 lemma proj_meet [simp]: "\<pi> x \<sqinter> \<pi> y = \<pi> (x \<sqinter> y)"
@@ -223,8 +223,6 @@ lemma proj_leq_meet [simp]: "\<pi> x \<sqinter> \<pi> y \<le>\<^sub>\<pi> x \<sq
   by (metis inf_mono proj_coextensive proj_iso proj_leq_def)
 
 lemma [iff]: "x \<le>\<^sub>\<pi> y \<sqinter> z \<longleftrightarrow> x \<le>\<^sub>\<pi> y \<and> x \<le>\<^sub>\<pi> z"
-  apply (simp add: proj_leq_def)
-  sledgehammer
-  apply transfer
+  by (simp add: proj_leq_def) (metis inf.bounded_iff proj_meet)
 
 end
