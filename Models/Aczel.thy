@@ -191,12 +191,12 @@ lemma Aczel_consistent [simp]: "\<pi> X \<inter> Con = \<pi> X"
 lemma Aczel_UNIV [simp]: "\<pi> UNIV = Con"
   by (auto simp add: Aczel_def)
 
-lemma consistent_lappend:
+lemma lappend_consistent:
   "lfinite xs \<Longrightarrow> consistent (LCons x xs \<frown> LCons y ys) \<Longrightarrow> snd (llast (LCons x xs)) = fst y"
   by (induct xs arbitrary: x rule: lfinite_induct) auto
 
 lemma [dest!]: "consistent (LCons x xs \<frown> LCons y ys) \<Longrightarrow> lfinite xs \<longrightarrow> snd (llast (LCons x xs)) = fst y"
-  by (metis consistent_lappend)
+  by (metis lappend_consistent)
 
 lemma [simp]: "llast (LCons (\<sigma>, \<sigma>) (llist_of (replicate n (\<sigma>, \<sigma>)))) = (\<sigma>, \<sigma>)"
   by (induct n) auto
@@ -256,5 +256,8 @@ next
   case (Suc n) thus ?case
     by (cases n) (auto simp add: Con_def)
 qed
+
+lemma consistent_lappend: "lfinite xs \<Longrightarrow> snd (llast (LCons x xs)) = fst y \<Longrightarrow> consistent (LCons x xs) \<Longrightarrow> consistent (LCons y ys) \<Longrightarrow> consistent (LCons x xs \<frown> LCons y ys)"
+  sorry
 
 end

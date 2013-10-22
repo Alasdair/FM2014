@@ -2,7 +2,6 @@ theory Rely_Guarantee
   imports Language
 begin
 
-
 definition atomic :: "'a rel \<Rightarrow> ('a \<times> 'a) lan" ("\<langle>_\<rangle>" [0] 1000) where
   "\<langle>R\<rangle> \<equiv> ((\<lambda>x. LCons x LNil) ` R)"
 
