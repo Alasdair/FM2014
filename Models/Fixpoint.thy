@@ -336,11 +336,32 @@ lemma Inf_continuity_mono:
   shows "(\<And>X. Inf (f ` X) = f (Inf X)) \<Longrightarrow> x \<le> y \<Longrightarrow> f x \<le> f y"
   by (metis antisym atLeast_iff image_eqI le_Inf_iff order_refl)
 
+definition (in order) directed :: "'a set \<Rightarrow> bool" where
+  "directed X \<equiv> X \<noteq> {} \<and> (\<forall>x y. x \<in> X \<and> y \<in> X \<longrightarrow> (\<exists>z. x \<le> z \<and> y \<le> z))"
+
 context complete_lattice
 begin
 
 lemma continuity_mono1: "(\<And>X. Sup (f ` X) = f (Sup X)) \<Longrightarrow> x \<le> y \<Longrightarrow> f x \<le> f y"
   by (metis Sup_le_iff antisym atMost_iff imageI order_refl)
+
+lemma scott_continuity_mono: "(\<And>X. directed X \<Longrightarrow> Sup (f ` X) = f (Sup X)) \<Longrightarrow> x \<le> y \<Longrightarrow> f x \<le> f y"
+proof -
+  assume scott_continuity: "\<And>X. directed X \<Longrightarrow> Sup (f ` X) = f (Sup X)"
+ 
+  {
+    fix x y
+    have "directed {x, y}"
+    by (auto intro: exI[of _ "sup x y"] simp add: directed_def)
+    hence "Sup (f ` {x, y}) = f (Sup {x, y})"
+      by (metis scott_continuity)
+    hence "sup (f x) (f y) = f (sup x y)"
+      by auto
+  }
+  moreover assume "x \<le> y"
+  ultimately show ?thesis
+    by (metis le_iff_sup)
+qed 
 
 lemma Inf_continuity_mono1: "(\<And>X. Inf (f ` X) = f (Inf X)) \<Longrightarrow> x \<le> y \<Longrightarrow> f x \<le> f y"
   by (metis antisym atLeast_iff image_eqI le_Inf_iff order_refl)
@@ -431,17 +452,35 @@ lemma iter_pp: "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y) \<Longrig
   apply simp
   by (metis (full_types) iter.simps(2) order_trans)
 
+lemma iter_plus: "(\<And>x y. x \<le> y \<Longrightarrow> f x \<le> f y) \<Longrightarrow> iter f n bot \<le> iter f (n + m) bot"
+proof (induct n)
+  case 0 thus ?case
+    by auto
+next
+  case (Suc n)
+  thus ?case
+    by auto
+qed
+
 theorem kleene_lfp:
-  assumes continuity: "(\<And>X. Sup (f ` X) = f (Sup X))"
+  assumes scott_continuity: "(\<And>X. directed X \<Longrightarrow> Sup (f ` X) = f (Sup X))"
   shows "\<mu> f = Sup {iter f n bot|n. True}"
 proof -
   let ?C = "{iter f n bot|n. True}"
   let ?c = "Sup {iter f n bot|n. True}"
 
+  have directed_C: "directed ?C"
+    apply (auto simp add: directed_def)
+    apply (rename_tac n m)
+    apply (rule_tac x = "iter f (n + m) bot" in exI)
+    apply auto
+    apply (metis iter_plus scott_continuity scott_continuity_mono)
+    by (metis (full_types) iter_plus nat_add_commute scott_continuity scott_continuity_mono)
+
   have "f ?c \<le> ?c"
   proof -
     have "f ?c = Sup (f ` ?C)"
-      by (metis continuity)
+      by (metis scott_continuity[OF directed_C])
     also have "... \<le> ?c"
       apply (rule Sup_mono)
       apply (auto simp add: image_def)
@@ -457,9 +496,9 @@ proof -
     have "bot \<le> y"
       by (metis bot_least)
     hence "\<forall>n. iter f n bot \<le> iter f n y"
-      by (metis continuity continuity_mono1 iter_mono)
+      by (metis scott_continuity scott_continuity_mono iter_mono)
      hence "\<forall>n. iter f n bot \<le> y"
-      by (metis continuity continuity_mono1 iter_pp order_trans y_fp)
+      by (metis scott_continuity scott_continuity_mono iter_pp order_trans y_fp)
     thus "?c \<le> y"
       by (auto intro!: Sup_least)
   qed
@@ -467,7 +506,7 @@ proof -
   ultimately have "is_lpp ?c f"
     by (auto simp add: is_lpp_def)
   hence "is_lfp ?c f"
-    by (metis (full_types) continuity continuity_mono1 lpp_is_lfp)
+    by (metis (full_types) scott_continuity scott_continuity_mono lpp_is_lfp)
   thus "\<mu> f = ?c"
     by (metis lfp_equality)
 qed

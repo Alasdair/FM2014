@@ -8,8 +8,62 @@ definition atomic :: "'a rel \<Rightarrow> ('a \<times> 'a) lan" ("\<langle>_\<r
 lemma [iff]: "\<langle>X\<rangle> \<subseteq> \<langle>Y\<rangle> \<longleftrightarrow> X \<subseteq> Y"
   by (auto simp add: atomic_def)
 
+lemma atom_finite [intro!]: "\<langle>R\<rangle> \<subseteq> FIN"
+  by (auto simp add: FIN_def atomic_def)
+
+lemma [dest!]: "x \<in> lset (xs \<frown> ys) \<Longrightarrow> x \<in> lset xs \<or> x \<in> lset ys"
+  by (metis in_lset_lappend_iff)
+
+lemma rely_power1: "x \<in> power \<langle>R\<rangle> i \<Longrightarrow> lfinite x"
+  by (induct i arbitrary: x) (auto simp add: l_prod_def atomic_def)
+
+lemma rely_power2: "x \<in> power \<langle>R\<rangle> i \<Longrightarrow> (a, b) \<in> lset x \<Longrightarrow> (a, b) \<in> R"
+proof (induct i arbitrary: x)
+  case 0 thus ?case
+    by simp
+next
+  case (Suc n) thus ?case
+    apply simp
+    apply (erule rev_mp)
+    apply (subst fin_l_prod)
+    by (auto simp add: atomic_def FIN_def)
+qed
+
+lemma lset_LCons_subsetD: "lset (LCons x xs) \<subseteq> R \<Longrightarrow> lset xs \<subseteq> R"
+  by (metis Coinductive_List.lset_eq_lsetp Collect_mono dual_order.trans lsetp.intros(2))
+
+lemma rely_power3: "lfinite xs \<Longrightarrow> lset xs \<subseteq> R \<Longrightarrow> \<exists>X. (\<exists>i. X = power \<langle>R\<rangle> i) \<and> xs \<in> X"
+proof (induct xs rule: lfinite.induct)
+  case lfinite_LNil
+  thus ?case
+    apply (rule_tac x = "power \<langle>R\<rangle> 0" in exI)
+    apply auto
+    apply (rule_tac x = 0 in exI)
+    by auto
+next
+  case (lfinite_LConsI xs x)
+  then obtain X and i where "X = Language.power \<langle>R\<rangle> i" and "xs \<in> X"
+    by - (auto dest: lset_LCons_subsetD)
+  from this show ?case
+    apply (rule_tac x = "\<langle>R\<rangle> \<cdot> X" in exI)
+    apply auto
+    apply (rule_tac x = "Suc i" in exI)
+    apply auto
+    apply (subst fin_l_prod)
+    apply auto
+    apply (rule_tac x = "LCons x LNil" in exI)
+    apply (rule_tac x = xs in exI)
+    apply auto
+    apply (insert lfinite_LConsI(3))
+    by (simp add: atomic_def)
+qed
+
 lemma rely_def: "\<langle>R\<rangle>\<^sup>\<star> = {xs. lfinite xs \<and> lset xs \<subseteq> R}"
-  sorry
+  apply (subst star_power)
+  apply (auto simp add: powers_def)
+  apply (metis rely_power1)
+  apply (metis rely_power2)
+  by (metis rely_power3)
 
 lemma lset_lefts [iff]: "lset (\<ll> xs) \<subseteq> R \<longleftrightarrow> lset (lfilter is_left xs) \<subseteq> Inl ` R"
   apply (auto simp add: lefts_def image_def subset_iff)

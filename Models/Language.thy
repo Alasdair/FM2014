@@ -1196,13 +1196,13 @@ proof
   fix X Y Z :: "'a lan"
   show "{LNil} \<union> X \<cdot> X\<^sup>\<star> \<subseteq> X\<^sup>\<star>"
     unfolding star_def
-    by (subst fp_compute[symmetric], metis (lifting) insert_is_Un insert_mono mono_def seq.mult_isol, blast)
+    by (subst fp_compute[symmetric], metis (lifting) insert_is_Un insert_mono seq.mult_isol, blast)
 
   show "Z \<union> X \<cdot> Y \<subseteq> Y \<longrightarrow> X\<^sup>\<star> \<cdot> Z \<subseteq> Y"
   proof
     assume "Z \<union> X \<cdot> Y \<subseteq> Y"
     hence "(\<mu> Y. Z \<union> X \<cdot> Y) \<subseteq> Y"
-      by (rule fp_induct[rotated 1]) (metis (lifting) mono_def l_prod_isor subset_refl sup_mono)
+      by (rule fp_induct[rotated 1]) (metis (lifting) l_prod_isor subset_refl sup_mono)
     moreover have "X\<^sup>\<star> \<cdot> Z = (\<mu> Y. Z \<union> X \<cdot> Y)"
       unfolding star_def
       by (rule fixpoint_fusion) (auto simp only: lower_is_jp join_preserving_def l_prod_inf_distr o_def l_prod_distr l_prod_one l_prod_assoc)
@@ -1389,5 +1389,93 @@ qed
 
 lemma shuffle_inf_dist: "X \<parallel> (\<Union>\<YY>) = \<Union>{X \<parallel> Y |Y. Y \<in> \<YY>}"
   by (auto simp add: shuffle_def)
+
+primrec power :: "'a lan \<Rightarrow> nat \<Rightarrow> 'a lan" where
+  "power x 0 = {LNil}"
+| "power x (Suc n) = x \<cdot> power x n"
+
+definition powers :: "'a lan \<Rightarrow> 'a lan set" where
+  "powers x  = {y. (\<exists>i. y = power x i)}"
+
+lemma l_prod_inf_distl: "X \<subseteq> FIN \<Longrightarrow> X \<cdot> \<Union>\<YY> = \<Union>{X \<cdot> Y |Y. Y \<in> \<YY>}"
+  by (auto simp add: l_prod_def FIN_def)
+
+definition powers_up_to :: "nat \<Rightarrow> 'a lan \<Rightarrow> 'a lan set" where
+  "powers_up_to n x \<equiv> {power x i |i. Suc i \<le> n}"
+
+text {* We now show that $x^*$ can be defined as the sum of the powers of $x$. *}
+
+lemma star_power: assumes finite_x: "x \<subseteq> FIN" shows "x\<^sup>\<star> = \<Union>(powers x)"
+proof -
+  let ?STAR_FUN = "\<lambda>y. {LNil} \<union> x\<cdot>y"
+  have "\<mu> ?STAR_FUN = \<Union>{iter ?STAR_FUN n {} |n. True}"
+  proof (rule kleene_lfp)
+    fix X :: "'a lan set"
+    assume "directed X"
+    thus "\<Union>((\<lambda>y. {LNil} \<union> x \<cdot> y) ` X) = {LNil} \<union> x \<cdot> \<Union>X"
+      by (subst l_prod_inf_distl) (auto intro!: finite_x simp add: directed_def)
+  qed
+ 
+  moreover have "\<forall>n. iter ?STAR_FUN n {} = \<Union>(powers_up_to n x)"
+  proof
+    fix n show "iter ?STAR_FUN n {} = \<Union>(powers_up_to n x)"
+    proof (induct n)
+      case 0 show ?case
+        by (simp add: iter_def powers_up_to_def)
+      case (Suc n)
+      have "iter ?STAR_FUN (Suc n) {} = {LNil} \<union> x \<cdot> iter ?STAR_FUN n {}"
+        by simp
+      moreover have "... = {LNil} \<union> x \<cdot> \<Union>(powers_up_to n x)"
+        by (metis Suc)
+      moreover have "... = {LNil} \<union> x \<cdot> \<Union>{power x i |i. Suc i \<le> n}"
+        by (simp add: powers_up_to_def)
+      moreover have "... = {LNil} \<union> \<Union>{x \<cdot> power x i |i. Suc i \<le> n}"
+        by (subst l_prod_inf_distl) (auto intro!: finite_x)
+      moreover have "... = {LNil} \<union> \<Union>{power x (Suc i) |i. Suc i \<le> n}"
+        by simp
+      moreover have "... = \<Union>{{LNil}} \<union> \<Union>{power x (Suc i) |i. Suc i \<le> n}"
+        by auto
+      moreover have "... = \<Union>({{LNil}} \<union> {power x (Suc i) |i. Suc i \<le> n})"
+        by auto
+      moreover have "... = \<Union>(powers_up_to (Suc n) x)"
+        apply (simp only: powers_up_to_def)
+        apply (rule arg_cong) back
+        apply auto
+        prefer 3
+        apply (erule_tac x = "i - 1" in allE)
+        apply simp
+        apply (subgoal_tac "i = 0 \<or> (\<exists>j. i = Suc j)")
+        apply (erule disjE)
+        apply simp
+        apply (erule exE)
+        apply simp
+        apply (metis not0_implies_Suc)
+        apply (metis Language.power.simps(1) le0)
+        apply (metis Language.power.simps(2))
+        apply (erule_tac x = "i - 1" in allE)
+        apply simp
+        apply (subgoal_tac "i = 0 \<or> (\<exists>j. i = Suc j)")
+        apply (erule disjE)
+        apply simp
+        apply (erule exE)
+        apply simp
+        by (metis not0_implies_Suc)
+      ultimately show ?case by metis
+    qed
+  qed
+
+  ultimately have "\<mu> ?STAR_FUN = \<Union>{z. \<exists>i. z = \<Union>(powers_up_to i x)}"
+    by auto
+  moreover have "... = \<Union>(\<Union> {z. \<exists>i. z = powers_up_to i x})"
+    by auto
+  moreover have "... = \<Union>(powers x)"
+    apply (rule arg_cong) back
+    apply safe
+    apply (simp_all add: powers_up_to_def powers_def)
+    apply metis
+    by (metis (lifting, full_types) le_add2 mem_Collect_eq)
+  ultimately show ?thesis
+    by (metis star_def)
+qed
 
 end

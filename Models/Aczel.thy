@@ -257,7 +257,4 @@ next
     by (cases n) (auto simp add: Con_def)
 qed
 
-lemma consistent_lappend: "lfinite xs \<Longrightarrow> snd (llast (LCons x xs)) = fst y \<Longrightarrow> consistent (LCons x xs) \<Longrightarrow> consistent (LCons y ys) \<Longrightarrow> consistent (LCons x xs \<frown> LCons y ys)"
-  sorry
-
 end
