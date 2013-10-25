@@ -52,10 +52,9 @@ end
 
 class weak_omega_trioid = weak_trioid + left_omega_algebra_zerol
 
-(*
-class rely_guarantee_trioid = weak_omega_trioid + semilattice_inf +
+class rely_guarantee_trioid = weak_star_trioid + semilattice_inf +
   fixes RG :: "'a set"
-  and Con :: "'a"
+  and \<C> :: "'a"
   assumes rg1: "r \<in> RG \<Longrightarrow> r \<parallel> r \<le> r"
   and rg2: "r \<in> RG \<Longrightarrow> s \<in> RG \<Longrightarrow> r \<le> r \<parallel> s"
   and rg3: "r \<in> RG \<Longrightarrow> r\<parallel>(x\<cdot>y) = (r\<parallel>x)\<cdot>(r\<parallel>y)"
@@ -64,11 +63,12 @@ class rely_guarantee_trioid = weak_omega_trioid + semilattice_inf +
   and rg_meet_closed: "\<lbrakk>r \<in> RG; s \<in> RG\<rbrakk> \<Longrightarrow> (r \<sqinter> s) \<in> RG"
   and rg_par_closed: "\<lbrakk>r \<in> RG; s \<in> RG\<rbrakk> \<Longrightarrow> (r \<parallel> s) \<in> RG"
 
-  and Con_mult: "x\<cdot>y \<sqinter> Con \<le> (x \<sqinter> Con)\<cdot>(y \<sqinter> Con) \<sqinter> Con"
-  and Con_star: "x\<^sup>\<star> \<sqinter> Con \<le> (x \<sqinter> Con)\<^sup>\<star> \<sqinter> Con"
+  and Con_mult: "x\<cdot>y \<sqinter> \<C> \<le> (x \<sqinter> \<C>)\<cdot>(y \<sqinter> \<C>) \<sqinter> \<C>"
+  and Con_star: "x\<^sup>\<star> \<sqinter> \<C> \<le> (x \<sqinter> \<C>)\<^sup>\<star> \<sqinter> \<C>"
 
   and plus_meet_distrib: "x + y \<sqinter> z = (x + y) \<sqinter> (x + z)"
 
+(*
 begin
 
   declare mult_onel [simp]
@@ -276,8 +276,9 @@ begin
 
   lemma proj_add_lub: "x + y \<le>\<^sub>\<pi> z \<longleftrightarrow> x \<le>\<^sub>\<pi> z \<and> y \<le>\<^sub>\<pi> z"
     by (auto simp add: proj_leq_def)
-*)
+
 
 end
+*)
 
 end

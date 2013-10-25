@@ -5,7 +5,13 @@ begin
 definition atomic :: "'a rel \<Rightarrow> ('a \<times> 'a) lan" ("\<langle>_\<rangle>" [0] 1000) where
   "\<langle>R\<rangle> \<equiv> ((\<lambda>x. LCons x LNil) ` R)"
 
+lemma atomic_zero [simp]: "\<langle>{}\<rangle> = {}"
+  by (auto simp add: atomic_def)
+
 lemma [iff]: "\<langle>X\<rangle> \<subseteq> \<langle>Y\<rangle> \<longleftrightarrow> X \<subseteq> Y"
+  by (auto simp add: atomic_def)
+
+lemma [iff]: "\<langle>X\<rangle> = \<langle>Y\<rangle> \<longleftrightarrow> X = Y"
   by (auto simp add: atomic_def)
 
 lemma atom_finite [intro!]: "\<langle>R\<rangle> \<subseteq> FIN"
@@ -347,5 +353,8 @@ proof -
     by (simp add: shuffle_def)
   finally show ?thesis .
 qed
+
+definition stutter :: "('a \<times> 'a) lan" where
+  "stutter = \<langle>Id_on UNIV\<rangle>\<^sup>\<star>"
 
 end

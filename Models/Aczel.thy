@@ -74,6 +74,9 @@ lemma Aczel_iso [intro]: "X \<subseteq> Y \<Longrightarrow> \<pi> X \<subseteq> 
 lemma Aczel_idem [simp]: "\<pi> (\<pi> X) = \<pi> X"
   by (auto simp add: Aczel_def)
 
+lemma Aczel_zero [simp]: "\<pi> {} = {}"
+  by (simp add: Aczel_def)
+
 lemma Con_l_prod: "Con = (Con \<cdot> Con) \<inter> Con"
   by (auto simp add: Con_def l_prod_def) (metis EqNil lappend_LNil2)
 

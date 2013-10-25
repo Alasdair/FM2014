@@ -1125,7 +1125,7 @@ lemma mumble_infinite2: "xs \<in> mumble ys \<Longrightarrow> \<not> lfinite xs 
 lemma mumble_preserves_finiteness [dest]: "xs \<in> mumble ys \<Longrightarrow> lfinite xs \<longleftrightarrow> lfinite ys"
   by (metis mumble_infinite mumble_infinite2)
 
-lemma Mumble_l_prod: "(X\<^sup>\<dagger> \<cdot> Y\<^sup>\<dagger>)\<^sup>\<dagger> = (X \<cdot> Y)\<^sup>\<dagger>"
+lemma Mumble_l_prod [simp]: "(X\<^sup>\<dagger> \<cdot> Y\<^sup>\<dagger>)\<^sup>\<dagger> = (X \<cdot> Y)\<^sup>\<dagger>"
 proof (rule antisym)
   show "(X\<^sup>\<dagger> \<cdot> Y\<^sup>\<dagger>)\<^sup>\<dagger> \<subseteq> (X \<cdot> Y)\<^sup>\<dagger>"
     apply (simp add: l_prod_def)
