@@ -1154,5 +1154,8 @@ proof (rule antisym)
     by (metis Mumble_ext Mumble_iso seq.mult_isol_var)
 qed
 
+lemma Mumble_star [simp]: "((x\<^sup>\<dagger>)\<^sup>\<star>)\<^sup>\<dagger> = (x\<^sup>\<star>)\<^sup>\<dagger>"
+  sorry
+
 end
 

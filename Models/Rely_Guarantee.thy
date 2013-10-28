@@ -206,6 +206,9 @@ lemma rely_1: "\<langle>R\<rangle>\<^sup>\<star> \<le> \<langle>R\<rangle>\<^sup
 lemma rely_2: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>R\<rangle>\<^sup>\<star> \<subseteq> \<langle>R\<rangle>\<^sup>\<star>"
   by auto 
 
+lemma rely_par_idem: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>R\<rangle>\<^sup>\<star> = \<langle>R\<rangle>\<^sup>\<star>"
+  by (metis rely_union sup_idem)
+
 lemma rely_inter: "\<langle>R\<rangle>\<^sup>\<star> \<inter> \<langle>S\<rangle>\<^sup>\<star> = \<langle>R \<inter> S\<rangle>\<^sup>\<star>"
   by (auto simp add: rely_def)
 
@@ -307,7 +310,29 @@ next
   qed
 qed
 
-lemma rely_l_prod: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> x \<cdot> y \<subseteq> (\<langle>R\<rangle>\<^sup>\<star> \<parallel> x) \<cdot> (\<langle>R\<rangle>\<^sup>\<star> \<parallel> y)"
+lemma fin_inf_split: "x \<inter> FIN \<union> x\<cdot>{} = x"
+  by (auto simp add: l_prod_def FIN_def)
+
+lemma rely_exchange: "(\<langle>R\<rangle>\<^sup>\<star> \<parallel> x) \<cdot> (\<langle>R\<rangle>\<^sup>\<star> \<parallel> y) \<subseteq> \<langle>R\<rangle>\<^sup>\<star> \<parallel> x \<cdot> y"
+proof -
+  have "(\<langle>R\<rangle>\<^sup>\<star> \<parallel> x) \<cdot> (\<langle>R\<rangle>\<^sup>\<star> \<parallel> y) = (\<langle>R\<rangle>\<^sup>\<star> \<parallel> (x \<inter> FIN \<union> x\<cdot>{})) \<cdot> (\<langle>R\<rangle>\<^sup>\<star> \<parallel> y)"
+    by (metis fin_inf_split)
+  also have "... = (\<langle>R\<rangle>\<^sup>\<star> \<parallel> (x \<inter> FIN)) \<cdot> (\<langle>R\<rangle>\<^sup>\<star> \<parallel> y) \<union> \<langle>R\<rangle>\<^sup>\<star> \<parallel> x\<cdot>{}" using rely_finite[of R]
+    by simp
+  also have "... \<subseteq> (x \<inter> FIN) \<cdot> y \<parallel> \<langle>R\<rangle>\<^sup>\<star> \<cdot> \<langle>R\<rangle>\<^sup>\<star> \<union> \<langle>R\<rangle>\<^sup>\<star> \<parallel> x\<cdot>{}"
+    by (subst shuffle_comm) (intro Un_mono order_refl exchange rely_finite Int_lower2)
+  also have "... = \<langle>R\<rangle>\<^sup>\<star> \<parallel> (x \<inter> FIN) \<cdot> y \<union> \<langle>R\<rangle>\<^sup>\<star> \<parallel> x\<cdot>{}"
+    by (metis seq.star_trans_eq shuffle_comm)
+  also have "... = \<langle>R\<rangle>\<^sup>\<star> \<parallel> ((x \<inter> FIN) \<cdot> y \<union> x\<cdot>{})"
+    by simp
+  also have "... = \<langle>R\<rangle>\<^sup>\<star> \<parallel> ((x \<inter> FIN) \<cdot> y \<union> x \<cdot> {} \<cdot> y)"
+    by simp
+  also have "... = \<langle>R\<rangle>\<^sup>\<star> \<parallel> x \<cdot> y"
+    by (metis fin_inf_split seq.distrib_right')
+  finally show ?thesis .
+qed
+
+lemma rely_l_prod1: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> x \<cdot> y \<subseteq> (\<langle>R\<rangle>\<^sup>\<star> \<parallel> x) \<cdot> (\<langle>R\<rangle>\<^sup>\<star> \<parallel> y)"
 proof -
   let ?lhs_inf = "\<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> xs) |rs xs. rs \<in> \<langle>R\<rangle>\<^sup>\<star> \<and> xs \<in> x \<and> \<not> lfinite xs}"
   let ?lhs_fin = "\<Union>{lmap \<langle>id,id\<rangle> ` (rs \<sha> (xs \<frown> ys)) |rs xs ys. rs \<in> \<langle>R\<rangle>\<^sup>\<star> \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
@@ -353,6 +378,9 @@ proof -
     by (simp add: shuffle_def)
   finally show ?thesis .
 qed
+
+lemma rely_l_prod [simp]: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> x \<cdot> y = (\<langle>R\<rangle>\<^sup>\<star> \<parallel> x) \<cdot> (\<langle>R\<rangle>\<^sup>\<star> \<parallel> y)"
+  by (metis rely_exchange rely_l_prod1 subset_antisym)
 
 definition stutter :: "('a \<times> 'a) lan" where
   "stutter = \<langle>Id_on UNIV\<rangle>\<^sup>\<star>"

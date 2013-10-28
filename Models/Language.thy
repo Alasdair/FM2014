@@ -1099,7 +1099,7 @@ qed
 lemma lfinite_traj: "lfinite (xs \<triangleright> t \<triangleleft> ys) \<Longrightarrow> lfinite t"
   by (metis lfinite_traj')
 
-lemma shuffle_dist: "X \<parallel> (Y \<union> Z) = X \<parallel> Y \<union> X \<parallel> Z"
+lemma shuffle_dist [simp]: "X \<parallel> (Y \<union> Z) = X \<parallel> Y \<union> X \<parallel> Z"
   by (simp only: shuffle_def Union_Un_distrib[symmetric]) (rule arg_cong, fast)
 
 lemma lfilter_right_left: "lfilter is_right x = LNil \<Longrightarrow> lfilter is_left x = x"
@@ -1477,5 +1477,19 @@ proof -
   ultimately show ?thesis
     by (metis star_def)
 qed
+
+lemma [simp]: "X \<subseteq> FIN \<Longrightarrow> (X \<parallel> Y \<cdot> {}) = (X \<parallel> Y) \<cdot> {}"
+  apply (auto simp add: l_prod_def shuffle_def FIN_def)
+  apply (metis (mono_tags) lfinite_rights mem_Collect_eq tshuffle_words_def)  
+  apply (rename_tac xs ys zs)
+  apply (rule_tac x = "lmap \<langle>id,id\<rangle> ` (xs \<sha> ys)" in exI)
+  apply auto
+  apply (rule_tac x = xs in exI)
+  apply (rule_tac x = ys in exI)
+  apply auto
+  by (metis in_mono lfinite_shuffle mem_Collect_eq)
+
+lemma zero_mid [simp]: "X \<cdot> {} \<cdot> Z = X \<cdot> {}"
+  by (metis l_prod_zero seq.mult_assoc)
 
 end

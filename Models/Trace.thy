@@ -246,6 +246,117 @@ lemma [transfer_rule]: "(pcr_trace op = ===> set_rel (pcr_trace op =) ===> op =)
 lemma [transfer_rule]: "(op = ===> pcr_trace op = ===> op =) (\<lambda>x y. x = Abs_trace {Y. y\<^sup>\<dagger> = Y\<^sup>\<dagger>}) op ="
   by (auto simp add: fun_rel_def)
 
+lemma atomic_star_lfinite: "xs \<in> star (atomic R) \<Longrightarrow> lfinite xs"
+  apply (erule rev_mp)
+  apply (subst star_power)
+  apply (auto simp add: powers_def)
+  by (metis rely_power1)
+
+lemma atomic_star_lset: "xs \<in> star (atomic R) \<Longrightarrow> lset xs \<subseteq> R"
+  by (metis (lifting) mem_Collect_eq rely_def)
+
+lemma atomic_star_elemI [intro]: "lfinite xs \<Longrightarrow> lset xs \<subseteq> R \<Longrightarrow> xs \<in> star (atomic R)"
+proof (induct xs rule: lfinite.induct)
+  case lfinite_LNil
+  thus ?case
+    by (metis (lifting) lfinite_LNil.prems lfinite_code(1) mem_Collect_eq rely_def)
+next
+  case (lfinite_LConsI xs x)
+  thus ?case
+    apply auto
+    apply (erule rev_mp)+
+    apply (subst star_power, metis atom_finite)+
+    apply (auto simp add: powers_def)
+    apply (rule_tac x = "Language.power (atomic R) (Suc i)" in exI)
+    apply auto
+    apply (rule_tac x = "Suc i" in exI)
+    apply (auto simp add: l_prod_def)
+    apply (rule_tac x = "LCons x LNil" in exI)
+    apply (rule_tac x = xs in exI)
+    by (auto simp add: atomic_def)
+qed
+
+lemma mumble_star1: "ys \<in> mumble xs \<Longrightarrow> xs \<in> star (atomic R) \<Longrightarrow> ys \<in> star (atomic (trancl R))"
+  apply (induct ys rule: mumble.induct)
+  apply (erule set_rev_mp)
+  apply (rule seq.star_iso[rule_format])
+  apply simp
+  apply (metis r_into_trancl' subsetI)
+  apply auto
+  apply (frule atomic_star_lfinite)
+  apply simp
+  apply (erule conjE)
+  apply (drule atomic_star_lset)
+  apply (rule atomic_star_elemI)
+  by auto
+
+lemma O_member: "x \<in> (R O S) \<Longrightarrow> (\<exists>\<sigma> \<sigma>' \<sigma>''. (\<sigma>, \<sigma>') \<in> R \<and> (\<sigma>', \<sigma>'') \<in> S)"
+  by auto
+
+lemma mumble_head [intro!]: "LCons (\<sigma>, \<sigma>'') xs \<in> mumble (LCons (\<sigma>, \<sigma>') (LCons (\<sigma>', \<sigma>'') xs))"
+proof -
+  have "LCons (\<sigma>, \<sigma>') (LCons (\<sigma>', \<sigma>'') xs) \<in> mumble (LCons (\<sigma>, \<sigma>') (LCons (\<sigma>', \<sigma>'') xs))"
+    by (metis mumble.self)
+  thus "LCons (\<sigma>, \<sigma>'') xs \<in> mumble (LCons (\<sigma>, \<sigma>') (LCons (\<sigma>', \<sigma>'') xs))"
+    by (rule mumble[where ys = LNil, simplified])
+qed
+
+lemma trancl_to_llist: "x \<in> trancl R \<Longrightarrow> \<exists>xs. lfinite xs \<and> lset xs \<subseteq> R \<and> LCons x LNil \<in> mumble xs"
+proof (auto simp add: trancl_power)
+  fix n
+  assume "x \<in> R ^^ n" and "0 < n"
+  then obtain m where "n = Suc m"
+    by (metis gr_implies_not0 list_decode.cases)
+  hence "x \<in> R ^^ Suc m"
+    by (metis `x \<in> R ^^ n`)
+  thus "\<exists>xs. lfinite xs \<and> lset xs \<subseteq> R \<and> LCons x LNil \<in> mumble xs"
+  proof (induct m arbitrary: x)
+    case 0 thus ?case
+      by (rule_tac x = "LCons x LNil" in exI) auto
+  next
+    case (Suc n) note ih = this[simplified]
+    then obtain \<sigma> \<sigma>' \<sigma>'' where split1: "(\<sigma>, \<sigma>') \<in> R ^^ n O R" and split2: "(\<sigma>', \<sigma>'') \<in> R" and x_def [simp]: "x = (\<sigma>, \<sigma>'')"
+      by auto
+    show ?case using ih(1)[OF split1] and split2
+      apply auto
+      apply (rule_tac x = "xs \<frown> LCons (\<sigma>', \<sigma>'') LNil" in exI)
+      apply auto
+      apply (rule mumble_trans[of _ "LCons (\<sigma>, \<sigma>') LNil \<frown> LCons (\<sigma>', \<sigma>'') LNil"])
+      defer
+      apply (rule mumble_lappend)
+      by auto
+  qed
+qed
+
+lemma mumble_LNil [iff]: "xs \<in> mumble LNil \<longleftrightarrow> xs = LNil"
+  apply auto
+  apply (induct xs rule: mumble.induct)
+  by auto
+
+lemma mumble_star2: "lfinite xs \<Longrightarrow> lset xs \<subseteq> R\<^sup>+ \<Longrightarrow> \<exists>X. (\<exists>xs. X = mumble xs \<and> lfinite xs \<and> lset xs \<subseteq> R) \<and> xs \<in> X"
+proof (induct xs rule: lfinite.induct)
+  case lfinite_LNil
+  thus ?case
+    by (rule_tac x = "{LNil}" in exI) auto
+next
+  case (lfinite_LConsI xs x)
+  thus ?case
+    apply auto
+    apply (drule trancl_to_llist)
+    apply auto
+    apply (rename_tac xs ys)
+    apply (rule_tac x = "mumble (ys \<frown> xs)" in exI)
+    apply (intro conjI)
+    apply (rule_tac x = "ys \<frown> xs" in exI)
+    apply auto
+    by (metis LCons_lappend_LNil mumble_lappend)
+qed
+
+lemma Mumble_star: "(star (atomic R))\<^sup>\<dagger> = star (atomic (trancl R))"
+  apply (auto simp add: Mumble_def)
+  apply (metis mumble_star1)
+  by (metis atomic_star_elemI atomic_star_lfinite atomic_star_lset mumble_star2)
+
 instantiation trace :: (type) rely_guarantee_trioid
 begin
 
@@ -259,7 +370,45 @@ begin
     show "(1::'a trace) \<in> RG"
       by transfer (auto intro: exI[of _ "{LNil}"] exI[of _ "{}"] simp add: image_def)
 
+    assume r_rg: "r \<in> RG"
 
+    from r_rg show "r \<parallel> r \<le> r"
+      apply transfer
+      apply (simp add: image_def)
+      apply (erule exE)
+      apply (erule conjE)
+      apply (erule exE)
+      by (metis Mumble_shuffle_right Un_absorb order_refl rely_union shuffle_comm)
+
+    from r_rg show "r \<parallel> x \<cdot> y = (r \<parallel> x) \<cdot> (r \<parallel> y)"
+      apply transfer
+      apply (simp add: image_def)
+      apply (erule exE)
+      apply (erule conjE)
+      apply (erule exE)
+      apply simp
+      apply (subst Mumble_shuffle_left[symmetric])
+      apply (subst Mumble_l_prod[symmetric])
+      apply (subst Mumble_shuffle_left[symmetric]) back
+      apply (subst Mumble_shuffle_left[symmetric]) back back
+      apply (erule ssubst)
+      by simp
+
+    assume s_rg: "s \<in> RG"
+
+    from r_rg and s_rg show "r \<parallel> s \<in> RG"
+      apply transfer
+      apply (auto simp add: image_def)
+      by (metis Mumble_shuffle_left rely_union shuffle_comm)
+
+    from r_rg and s_rg show "r \<sqinter> s \<in> RG"
+      apply transfer
+      apply (auto simp add: image_def)
+      apply (rename_tac r s R S)
+      apply (rule_tac x = "star (atomic (R\<^sup>+ \<inter> S\<^sup>+))" in exI)
+      apply (intro conjI)
+      apply blast
+      by (metis Mumble_meet Trace.Mumble_star rely_inter)
 
 lemma "\<pi> (test X \<cdot> test Y \<parallel> stuttering) = \<pi> (test (X \<inter> Y) \<parallel> stuttering)"
   sorry
