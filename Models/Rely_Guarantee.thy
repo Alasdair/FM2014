@@ -382,6 +382,9 @@ qed
 lemma rely_l_prod [simp]: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> x \<cdot> y = (\<langle>R\<rangle>\<^sup>\<star> \<parallel> x) \<cdot> (\<langle>R\<rangle>\<^sup>\<star> \<parallel> y)"
   by (metis rely_exchange rely_l_prod1 subset_antisym)
 
+lemma rely_star: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> x\<^sup>\<star> \<cdot> x = (\<langle>R\<rangle>\<^sup>\<star> \<parallel> x)\<^sup>\<star> \<cdot> (\<langle>R\<rangle>\<^sup>\<star> \<parallel> x)"
+  sorry
+
 definition stutter :: "('a \<times> 'a) lan" where
   "stutter = \<langle>Id_on UNIV\<rangle>\<^sup>\<star>"
 

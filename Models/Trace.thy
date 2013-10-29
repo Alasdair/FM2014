@@ -352,10 +352,13 @@ next
     by (metis LCons_lappend_LNil mumble_lappend)
 qed
 
-lemma Mumble_star: "(star (atomic R))\<^sup>\<dagger> = star (atomic (trancl R))"
+lemma Mumble_atomic_star: "(star (atomic R))\<^sup>\<dagger> = star (atomic (trancl R))"
   apply (auto simp add: Mumble_def)
   apply (metis mumble_star1)
   by (metis atomic_star_elemI atomic_star_lfinite atomic_star_lset mumble_star2)
+
+lemma Mumble_Inter_Con [simp]: "x\<^sup>\<dagger> \<inter> Con = (x \<inter> Con)\<^sup>\<dagger>"
+  by (auto simp add: Con_def Mumble_def)
 
 instantiation trace :: (type) rely_guarantee_trioid
 begin
@@ -366,9 +369,20 @@ begin
 
   instance
   proof
-    fix r s x y :: "'a trace"
+    fix r s x y z :: "'a trace"
     show "(1::'a trace) \<in> RG"
       by transfer (auto intro: exI[of _ "{LNil}"] exI[of _ "{}"] simp add: image_def)
+
+    show "x \<cdot> y \<sqinter> \<C> \<le> (x \<sqinter> \<C>) \<cdot> (y \<sqinter> \<C>) \<sqinter> \<C>"
+      apply transfer using Aczel_l_prod by (auto intro!: Mumble_iso simp add: Aczel_def)
+      
+    show "x\<^sup>\<star> \<sqinter> \<C> \<le> (x \<sqinter> \<C>)\<^sup>\<star> \<sqinter> \<C>"
+      by transfer (auto intro!: Mumble_iso Aczel_star simp add: Aczel_def)
+
+    show "x + y \<sqinter> z = (x + y) \<sqinter> (x + z)"
+      apply transfer
+      apply simp
+      by (metis Mumble_meet Mumble_union Un_Int_distrib inf_sup_absorb)
 
     assume r_rg: "r \<in> RG"
 
@@ -394,6 +408,23 @@ begin
       apply (erule ssubst)
       by simp
 
+    from r_rg show "r \<parallel> x\<^sup>\<star> \<cdot> x \<le> (r \<parallel> x)\<^sup>\<star> \<cdot> (r \<parallel> x)"
+      apply transfer
+      apply (simp add: image_def)
+      apply (erule exE)
+      apply (erule conjE)
+      apply (erule exE)
+      apply simp
+      apply (subst Mumble_l_prod[symmetric])
+      apply (subst Mumble_shuffle_left[symmetric])
+      apply (subst Mumble_shuffle_left[symmetric]) back
+      apply (subst Mumble_star[symmetric])
+      apply (subst Mumble_shuffle_left[symmetric]) back
+      apply (erule ssubst)
+      apply simp
+      apply (rule Mumble_iso)
+      by (metis eq_iff rely_l_prod rely_star)
+
     assume s_rg: "s \<in> RG"
 
     from r_rg and s_rg show "r \<parallel> s \<in> RG"
@@ -408,7 +439,14 @@ begin
       apply (rule_tac x = "star (atomic (R\<^sup>+ \<inter> S\<^sup>+))" in exI)
       apply (intro conjI)
       apply blast
-      by (metis Mumble_meet Trace.Mumble_star rely_inter)
+      by (metis Mumble_meet Mumble_atomic_star rely_inter)
+
+    from r_rg and s_rg show "r \<le> r \<parallel> s"
+      apply transfer
+      apply (auto simp add: image_def)
+      by (metis (hide_lams, no_types) Mumble_shuffle_right Mumble_atomic_star in_mono rely_1 shuffle_mumble1)
+  qed
+end
 
 lemma "\<pi> (test X \<cdot> test Y \<parallel> stuttering) = \<pi> (test (X \<inter> Y) \<parallel> stuttering)"
   sorry
@@ -473,7 +511,7 @@ lemma proj_leq_trans5 [trans]: "x =\<^sub>\<pi> y \<Longrightarrow> y \<le>\<^su
 lemma proj_meet [simp]: "\<pi> x \<sqinter> \<pi> y = \<pi> (x \<sqinter> y)"
   apply transfer
   apply (simp add: Aczel_def)
-  by (metis Aczel_def Int_assoc Mumble_Con Mumble_meet inf_commute inf_left_idem)
+  by (metis Aczel_def Mumble_Inter_Con Int_assoc Mumble_meet inf_commute inf_left_idem)
 
 lemma proj_leq_meet [simp]: "\<pi> x \<sqinter> \<pi> y \<le>\<^sub>\<pi> x \<sqinter> y"
   by (metis inf_mono proj_coextensive proj_iso proj_leq_def)

@@ -20,6 +20,7 @@
 \DeclareMathOperator{\fin}{finite}
 \DeclareMathOperator{\rely}{rely}
 \DeclareMathOperator{\guar}{guar}
+\DeclareMathOperator{\letters}{letters}
 \DeclareMathOperator{\wlp}{wlp}
 
 \newcommand{\udagger}{\text{$\rotatebox[origin=c]{180}{$\dagger$}$}}
@@ -239,13 +240,14 @@ return to later), so it should come as no suprise that a
 non-compositional method such as Owicki-Gries cannot be so easily be
 done algebraically.
 
+\newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Algebra for Rely-Guarantee}
 \label{sec:RG}
 
-Define a rely-guarantee algebra as a structure
+A rely-guarantee algebra is a structure
 $(K,RG,+,\sqcap,\cdot,\|,^\star,0,1)$, where $(K,+,\sqcap)$ is a
-lattice, $(K,+,\cdot,\|,0,1)$ is a weak trioid and
+distributive lattice, $(K,+,\cdot,\|,0,1)$ is a weak trioid and
 $(K,+,\cdot,^\star,0,1)$ is a Kleene algebra. $RG$ is a distinguished
 subset of relys and guarantees which satisfy the following axioms
 \begin{align}
@@ -330,7 +332,7 @@ Axiom (\ref{rg4}) can be derived from (\ref{rg3}) in all finite
 models. This is because any finite $K$ is complete, and in a complete
 setting fixpoint laws can be used to show $r\|x^+ \le (r\|x)^+$. Thus
 it is impossible to construct a finite model demonstrating that
-(\ref{rg4}) is independent from (\ref{rg1}) -- (\ref{rg2}).
+(\ref{rg4}) is independent from (\ref{rg1}) -- (\ref{rg3}).
 
 \begin{figure}[t]
 \centering
@@ -368,16 +370,16 @@ rules, as shown in Figure \ref{fig:rgrules}. Thus equations
 rules, somehow represent a minimal set of axioms from which these
 inference rules can be derived.
 
-We can expand our rely-guarantee algebras to have residuals
-axiomatised by Galois connections for both parallel and sequential
-composition, i.e.
+If we expand our rely-guarantee algebras to have residuals axiomatised
+by Galois connections for both parallel and sequential composition,
+i.e.
 \begin{align}
 xy \le z &\iff y \le x \rightarrow z, \label{res1}\\
 xy \le z &\iff x \le z \leftarrow y, \label{res2}\\
-x\|y \le z &\iff y \le x/z \label{res3}.
+x\|y \le z &\iff y \le x/z \label{res3},
 \end{align}
-For sequential composition, (\ref{res1}) and (\ref{res2}) essentially
-provide a link between weakest-precondition style semantics and hoare
+then for sequential composition, (\ref{res1}) and (\ref{res2}) provide
+a link between weakest-precondition style semantics and hoare
 logic. As mentioned in Section \ref{sec:KA}, the triple $\{p\} c
 \{q\}$ can be encoded as $pc \le q$, while $q \leftarrow c$ represents
 $wlp(c,q)$. Equation (\ref{res2}) can thus be written as $\{p\} c
@@ -385,7 +387,7 @@ $wlp(c,q)$. Equation (\ref{res2}) can thus be written as $\{p\} c
 understood similarly as follows; it is the weakest program such that
 when placed in parallel with $x$, the composition behaves as $z$.
 
-By using residuals quintuples can be encoded in the following way,
+By using these residuals quintuples can be encoded in the following way,
 which is equivalent to the encoding in Equation (\ref{quin}).
 \begin{align}
 r, g \vdash \{p\} c \{q\} \iff c \le r/(p \rightarrow q) \sqcap g \label{refine}.
@@ -393,8 +395,8 @@ r, g \vdash \{p\} c \{q\} \iff c \le r/(p \rightarrow q) \sqcap g \label{refine}
 This encoding allows us to think in terms of program refinement, as
 $r/(p \rightarrow q) \sqcap g$ defines the weakest program that when
 placed in parallel with interference from $r$, and guaranteeing
-interference at most $g$, goes from $p$ to $q$---which is essentially
-a generic specification for a concurrent program.
+interference at most $g$, goes from $p$ to $q$---a generic
+specification for a concurrent program.
 
 \begin{figure}[tbh]
 \centering
@@ -454,7 +456,7 @@ a generic specification for a concurrent program.
 \label{sec:INT}
 
 While the algebra in section \ref{sec:RG} is adequate for deriving the
-standard inference rules, the equality is too strong to capture many
+standard inference rules, it's equality is too strong to capture many
 interesting statements about concurrent programs. Consider the
 congruence rule for parallel composition, which is inherent in the
 algebraic approach:
@@ -463,58 +465,53 @@ x = y \implies x\|z = y\|z.
 \end{align*}
 This can be read as follows; if $x$ and $y$ are equal, then they must
 be equal under all possible interference from any arbitrary $z$. At
-first glance this might seem to preclude any reasoning about
-interference in a fine-grained way using only algebra. This is not the
-case, but breaking such inherent compositionality in just the right way to
-capture interesting properties of interference requires some extra work.
+first sight, this might seem to preclude any reasoning about
+interference in a fine-grained way using purely algebra. This is not
+the case, but breaking such inherent compositionality in just the
+right way to capture interesting properties of concurrency requires
+extra work.
 
-The most obvious way we can acheive this is by simply expanding our
-rely-guarantee algebra with an arbitrary function $f$. And redefining our quintuples
-as,
+The most obvious way we can acheive this is by expanding our
+rely-guarantee algebra with an additional function $\pi$ and redefining
+our quintuples as,
 \begin{align*}
-r, g \vdash \{p\} c \{q\} \iff f(p(r\|c)) \le f(q) \land c \le g.
+r, g \vdash \{p\} c \{q\} \iff \pi(p(r\|c)) \le \pi(q) \land c \le g.
 \end{align*}
-
-
- but we can work around this by
-using an \emph{interior operator}. In a rely-guarantee algebra an
-interior operator is any function $f : K \to K$ which satisfies
+Since for any operator $\bullet$, it is not required that
 \begin{align*}
-f(f(x)) &= f(x) \tag{$f$ is idempotent}\\
-x \le y \implies f(x) &\le f(y) \tag{$f$ is isotone}\\
-f(x) &\le x \tag{$f$ is coextensive}
+\pi(x) = \pi(y) \implies \pi(x \bullet z) = \pi(y \bullet z),
 \end{align*}
-
-We extend our rely-guarantee algebra to
-$(K,RG,+,\cdot,\|,^\star,[\--],0,1)$ by adding a single interior
-operator $[\--]$, which additionally satisfies
+we can `break' compositionality in just the right way, provided we
+choose the correct properties for $\pi$. For example, if we consider
+the following seven axioms
 \begin{align}
-[xy] &= [x][y], \label{rgimult}\\
-[x + y] &= [x] + [y],\\
-[x \sqcap y] &= [x] \sqcap [y],\\
-[x^\star] &= [x]^\star,\\
-[0] &= 0 \label{rgi0}
+\pi(\pi(x)) &= \pi(x), \label{pi1}\\
+x \le y \implies \pi(x) &\le \pi(y), \label{pi2}\\
+\pi(x) &\le x, \label{pi3}\\
+\pi(x^*) &\le \pi(\pi(x)^*), \label{pi4}\\
+\pi(xy) &\le \pi(\pi(x)\pi(y)), \label{pi5}\\
+\pi(x \sqcap y) &= \pi(x) \sqcap \pi(y). \label{pi6}
 \end{align}
-Intuitively $[x]$ can be thought of as the \emph{execution} of a
-program $x$. While $x$ contains all information about what the process
-or program \emph{could} do, $[x]$ only contains information about what
-it \emph{actually} does. Note that (\ref{rgimult}) -- (\ref{rgi0}) do
-not mention parallel composition, such that in general $[x] = [y]
-\centernot\implies [x\|z] = [y\|z]$. We amend our jones-quintuples to
-involve this operator as shown below.
-\begin{align*}
-r,g \vdash \{p\} c \{q\} \iff p[r\|c] \le q \land c \le g.
-\end{align*}
+
+Axioms (\ref{pi1}) to (\ref{pi3}) show that $\pi$ is an interior
+operator, while (\ref{pi4}) and (\ref{pi5}) allow us to introduce
+$\pi$ as needed around sequential composition and finite iteration,
+which allows us to substitute under those operators as required---we
+only want to break compositionality for $\|$.
+
+The above axioms indicate that we could define $\pi$ as a function
+$\lambda x.\; x \sqcap c$ where $c$ satisfies
+\begin{align}
+x^* \sqcap c &\le (x \sqcap c)^* \sqcap c, \label{con1}\\
+xy \sqcap c &\le (x \sqcap c)(y \sqcap c) \sqcap c. \label{con2}
+\end{align}
+
+TODO: Define algebra w/ c.
+
 All the rules in Figure \ref{fig:rgrules} can be derived with this
-encoding, and moreover their proofs remain the same, mutatis
+algebra, and moreover their proofs remain the same, mutatis
 mutandis.
 
-\newpage
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Algebra for Separation Logic}
-
-
-\newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Finite Language Model}
 \label{sec:Model}
@@ -530,8 +527,20 @@ general definitions by using coinductively defined lazy lists to
 represent words, and having a weakly-fair shuffle operator for such
 infinite languages.
 
-As usual, the product of two languages X and Y over an alphabet
-$\Sigma$ is defined as $XY = \{x\frown y.\; x \in X \land y \in Y\}$.
+We consider languages where the alphabet contains state pairs of the
+form $(\sigma_1,\sigma_2) \in \Sigma \times \Sigma$. A word in such a
+language is \emph{consistent} if every such pair in a word has the
+same first state as the previous transition's second state. For
+example, $(\sigma_1,\sigma_2)(\sigma_2,\sigma_3)$ is consistent, while
+$(\sigma_1,\sigma_2)(\sigma_3,\sigma_3)$ is inconsistent. Sets of
+consistent words are essentially \emph{Aczel
+  traces}~\cite{boer_formal_1999}, but lack the usual process
+labels. We denote the set of all consistent words by $C$.
+
+As usual, the product of two languages X and Y is defined as
+\begin{align*}
+XY = \{x\frown y.\; x \in X \land y \in Y\}.
+\end{align*}
 The language product is associative, and distributes over arbitrary
 joins from both the left and the right, i.e.
 \begin{align*}
@@ -545,44 +554,27 @@ as \sha bt = a(s \sha bt) \cup b(as \sha t),
 \end{align*}
 which is then lifted to languages X and Y as the shuffle product,
 \begin{align*}
-X \sha Y = \bigcup\{xs \sha ys.\; x \in X \land x \in Y\}.
+X \sha Y = \bigcup\{x \sha y.\; x \in X \land x \in Y\}.
 \end{align*}
 The shuffle product is associative, commutative, and distributes over
 arbitrary joins. Both products share the same unit, $\{\epsilon\}$ and
 zero, $\emptyset$. Proving properties of shuffle is suprisingly
 tricky (especially if one considers infinite words). For a in-depth
 treatment of the shuffle product see~\cite{shufflethings}. The
-above properties are enough to show that $(\mathcal{P}(\Sigma)^*),
+above properties are enough to show that $(\mathcal{P}((\Sigma\times\Sigma)^*),
 \cup, \cdot,\sha, \emptyset, \{\epsilon\})$ forms a weak trioid.
 
 The rely-guarantee elements in this model are sets containing all the
-words which can be built from some set of actions in $\Sigma$. We can
-consider a function $\rely : \mathcal{P}(\Sigma) \to
-\mathcal{P}(\Sigma)^*$ which takes a set of actions and returns all
-the words that can be built from them. This function is an upper
-adjoint for $\guar$, the function which returns all the letters in a
-language.
-\begin{align*}
-\guar(X) \le Y \iff X \le \rely(Y)
-\end{align*}
+words which can be built from some set of state pairs in
+$\Sigma\times\Sigma$. We define a function $\langle R\rangle$ which
+lifts a relation $R$ to a language containing length 1 words for each
+pair in $R$. The set of rely-guaratee elements RG is then defined as
+$\{r.\; \exists R. r = \langle R\rangle^*\}$. We can show that
+$(\mathcal{P}((\Sigma\times\Sigma)^*), RG, \cup, \cdot,\sha,
+\emptyset, \{\epsilon\}, C)$ is a rely-guarantee algebra.
 
-Properties (\ref{rg1}) and (\ref{rg2}) from Section \ref{sec:RG} can
-mostly be derived from basic properties of $\rely$. Namely,
-\begin{align*}
-\rely(X \cup Y) &= \rely(X) \| \rely(Y),\\
-\qquad \rely(X \cap Y) &= \rely(X) \cap \rely(Y).
-\end{align*}
-The proofs of (\ref{rg3}) and (\ref{rg4}) are somewhat more involved,
-but ultimately rather mechanical, so we do not show them here. We
-define the set $RG$ of rely-guarantee elements as the range of the
-$\rely$ function and therefore are able to show that $(\mathcal{P}(\Sigma)^*), RG, \cup,
-\cdot,\sha, \emptyset, \{\epsilon\})$ is a rely-guarantee algebra.
-
-To make our model more concrete we consider an alphabet comprising
-relations ($R,S,T,\dots$) over a state space $\Sigma$. A single
-relation represents a single atomic action of a program. Assuming
-$\Sigma = \{\sigma_1,\sigma_2,\sigma_3\}$, an example of a word in
-$(\Sigma^2)^*$ is shown below.
+To demonstrate how this model works, consider the graphical
+representation of a language shown below.
 
 \begin{center}
 \begin{tikzpicture}[x=1cm,auto]
@@ -591,56 +583,47 @@ $(\Sigma^2)^*$ is shown below.
   \node [elem, above of=s12] (s11) {$\sigma_1$};
   \node [elem, below of=s12] (s13) {$\sigma_3$};
   \node [right of=s13, node distance=0.75cm] (r1) {};
-  \node [below of=r1, node distance=0.5cm] (t4) {R};
 
   \node [elem, right of=s12, node distance=1.5cm] (s22) {$\sigma_2$};
   \node [elem, above of=s22] (s21) {$\sigma_1$};
   \node [elem, below of=s22] (s23) {$\sigma_3$};
   \node [right of=s23, node distance=0.75cm] (r2) {};
-  \node [below of=r2, node distance=0.5cm] (t4) {S};
 
   \node [elem, right of=s22, node distance=1.5cm] (s32) {$\sigma_2$};
   \node [elem, above of=s32] (s31) {$\sigma_1$};
   \node [elem, below of=s32] (s33) {$\sigma_3$};
   \node [right of=s33, node distance=0.75cm] (r3) {};
-  \node [below of=r3, node distance=0.5cm] (t4) {T};
 
   \node [elem, right of=s32, node distance=1.5cm] (s42) {$\sigma_2$};
   \node [elem, above of=s42] (s41) {$\sigma_1$};
   \node [elem, below of=s42] (s43) {$\sigma_3$};
   \node [right of=s43, node distance=0.75cm] (r4) {};
-  \node [below of=r4, node distance=0.5cm] (t4) {U};
 
-  \node [elem, right of=s42, node distance=1.5cm] (s52) {$\sigma_2$};
-  \node [elem, above of=s52] (s51) {$\sigma_1$};
-  \node [elem, below of=s52] (s53) {$\sigma_3$};
 
   \path [line] (s11) -- (s21);
   \path [line] (s21) -- (s32);
   \path [line] (s32) -- (s43);
-  \path [line] (s43) -- (s52);
 
   \path [rel] (s11) -- (s22);
   \path [rel] (s12) -- (s22);
   \path [rel] (s23) -- (s32);
-  \path [rel] (s32) -- (s42);
-  \path [rel] (s42) -- (s51);
-  \path [rel] (s41) -- (s52);
 \end{tikzpicture}
 \end{center}
-
-This word only has a single valid \emph{trace}, which is
-$\sigma_1\rightarrow\sigma_1\rightarrow\sigma_2\rightarrow\sigma_3\rightarrow\sigma_2$.
-Such state transition traces are commonly called \emph{Aczel
-  traces}~\cite{Aczel}. Note that unlike much of the literature involving
-Aczel-style traces for concurrency, we omit any kind of process or
-environment labelling from our transitions. We define an operator
-$\tr(X)$ which returns all such traces in a language $X$. $\tr$ is
-both idempotent and isotone.
-
-Note that we cannot use the shuffle operator on directly traces. For
-example, imagine we shuffled the single transition $\sigma_2 \to
-\sigma_3$ into the above word, we could end up with a word as below.
+The language contains the following six words
+\begin{align*}
+(\sigma_1,\sigma_1)(\sigma_1,\sigma_2)(\sigma_2,\sigma_3), \qquad
+(\sigma_1,\sigma_2)(\sigma_1,\sigma_2)(\sigma_2,\sigma_3),\\
+(\sigma_2,\sigma_2)(\sigma_1,\sigma_2)(\sigma_2,\sigma_3), \qquad
+(\sigma_1,\sigma_1)(\sigma_3,\sigma_2)(\sigma_2,\sigma_3),\\
+(\sigma_1,\sigma_2)(\sigma_3,\sigma_2)(\sigma_2,\sigma_3), \qquad
+(\sigma_2,\sigma_2)(\sigma_3,\sigma_2)(\sigma_2,\sigma_3),
+\end{align*}
+but only the first,
+$(\sigma_1,\sigma_1)(\sigma_1,\sigma_2)(\sigma_2,\sigma_3)$ is
+consistent. This word is highlighted with solid arrows in the
+diagram above. Now imagine we place the single state pair $(\sigma_2,
+\sigma_3)$ into the above language, we might end up with a language as
+below:
 
 \begin{center}
 \begin{tikzpicture}[x=1cm,auto]
@@ -648,59 +631,53 @@ example, imagine we shuffled the single transition $\sigma_2 \to
   \node [elem, above of=s12] (s11) {$\sigma_1$};
   \node [elem, below of=s12] (s13) {$\sigma_3$};
   \node [right of=s13, node distance=0.75cm] (r1) {};
-  \node [below of=r1, node distance=0.5cm] (t4) {R};
 
   \node [elem, right of=s12, node distance=1.5cm] (i2) {$\sigma_2$};
   \node [elem, above of=i2] (i1) {$\sigma_1$};
   \node [elem, below of=i2] (i3) {$\sigma_3$};
   \node [right of=i3, node distance=0.75cm] (ri) {};
-  \node [below of=ri, node distance=0.5cm] (ti) {V};
 
   \node [elem, right of=i2, node distance=1.5cm] (s22) {$\sigma_2$};
   \node [elem, above of=s22] (s21) {$\sigma_1$};
   \node [elem, below of=s22] (s23) {$\sigma_3$};
   \node [right of=s23, node distance=0.75cm] (r2) {};
-  \node [below of=r2, node distance=0.5cm] (t4) {S};
 
   \node [elem, right of=s22, node distance=1.5cm] (s32) {$\sigma_2$};
   \node [elem, above of=s32] (s31) {$\sigma_1$};
   \node [elem, below of=s32] (s33) {$\sigma_3$};
   \node [right of=s33, node distance=0.75cm] (r3) {};
-  \node [below of=r3, node distance=0.5cm] (t4) {T};
 
   \node [elem, right of=s32, node distance=1.5cm] (s42) {$\sigma_2$};
   \node [elem, above of=s42] (s41) {$\sigma_1$};
   \node [elem, below of=s42] (s43) {$\sigma_3$};
   \node [right of=s43, node distance=0.75cm] (r4) {};
-  \node [below of=r4, node distance=0.5cm] (t4) {U};
 
-  \node [elem, right of=s42, node distance=1.5cm] (s52) {$\sigma_2$};
-  \node [elem, above of=s52] (s51) {$\sigma_1$};
-  \node [elem, below of=s52] (s53) {$\sigma_3$};
 
   \path [rel] (s11) -- (i1);
   \path [rel] (s21) -- (s32);
   \path [line] (s32) -- (s43);
-  \path [line] (s43) -- (s52);
   \path [line] (i2) -- (s23);
 
-  \path [rel] (s11) -- (i2);
+  \path [line] (s11) -- (i2);
   \path [line] (s12) -- (i2);
   \path [line] (s23) -- (s32);
-  \path [line] (s32) -- (s42);
-  \path [line] (s42) -- (s51);
-  \path [rel] (s41) -- (s52);
 \end{tikzpicture}
 \end{center}
 
-By performing this shuffle action, we no longer have a trace from
-$\sigma_1$ to $\sigma_2$, but instead two traces from $\sigma_2$ to
-$\sigma_2$ and $\sigma_3$. This subtle interplay between shuffle and
-$\tr$ mimics how Aczel-traces are typically generated from an
-operational semantics in much existing rely-guarantee literature. This
-operational approach is not desireable from an algebraic perspective
-though, as we would rather see programs as mathematical objects in
-their own right---a more denotational approach.
+By performing this shuffle action, we no longer have a consistent word
+from $\sigma_1$ to $\sigma_3$, but instead a consistent word from
+$\sigma_2$ to $\sigma_3$ and $\sigma_1$ to $\sigma_3$. The new
+consistent word was constructed by making a previously inconsistent
+word consistent by `filling in the gaps' in that word. This shows that
+the shuffle operator can take two inconsistent words and shuffle them
+together in such a way that it generates many consistent words. If we
+only considered consistent words, we would be unable to define such a
+shuffle operator, and would instead have to rely on some operational
+semantics to generate traces instead, which would be less
+algebraic. This also clearly demonstrates why shuffle is not well
+defined on the subalgebra we get by intersecting with $C$.
+
+\newpage
 
 Following~\cite{brookes_full_1993} and~\cite{dingel_refinement_2002},
 we inductively generate the stutter/mumble language $w^\dagger$ for a
@@ -714,91 +691,6 @@ thus defined by lifting this operation to languages.
 \begin{align*}
 X^\dagger = \bigcup\{x^\dagger.\; x \in X\}
 \end{align*}
-
-Next, we define the following language for a word $w = R_0R_1\dots
-R_n$. The language $w^\udagger$ contains all strings $S_0S_1\dots S_n$
-such that for all $m \le n$, $S_m \subseteq R_m$. Effectively this
-gives us all the words which are less that $w$ pointwise. Again this
-operation is lifted to languages in the same way as before. We define
-the set of \emph{$smp$-closed} languages by combining both these
-closure operators into a single closure operator, $X^\ddagger$, which
-satisfies the properties
-\begin{align}
-(X^\ddagger \sha Y)^\ddagger &= (X \sha Y)^\ddagger,\\
-(X^\ddagger Y)^\ddagger = (&XY)^\ddagger = (XY^\ddagger)^\ddagger,\\
-(X \cup Y)^\ddagger &= (X^\ddagger \cup Y^\ddagger),\\
-(X^\ddagger \cap Y^\ddagger)^\ddagger &= (X^\ddagger \cap Y^\ddagger),\\
-\tr(X^\ddagger) &\subseteq X^\ddagger. \label{trcoext}
-\end{align}
-These five properties essentially allow us to `lift' all our operators
-from above to act on $smp$-closed languages in such a way that they
-still form a weak trioid. Henceforth, we will assume all our languages are
-$smp$-closed, and all operators have been appropriately lifted.
-
-Equation (\ref{trcoext}) shows that $\tr$ is now an interior operator
-on the set of $smp$-closed languages.
-
-We now consider how tests are represented in this model, we define
-$\langle R\rangle$ as the singleton language containing just the
-relation $R$. Tests are defined as traces of the form $\langle
-R\rangle^\ddagger$ where $R \subseteq I$. We denote the set of all
-tests as $B$, and let it be ranged over by $P,Q,S$. From the
-definition of $smp$-closure $\langle I\rangle^\ddagger =
-\{\epsilon\}^\ddagger$, thus the greatest test is $1$, while the least
-test is $\langle \emptyset\rangle^\ddagger$, $0$. As such our tests
-form a boolean algebra between $1$ and $0$, much they would in
-Kozen's Kleene algebra with tests.
-
-\begin{center}
-\begin{tikzpicture}[x=1cm,auto]
-  \node (center) {};
-  \node [elem] (s12) {$\sigma_2$};
-  \node [elem, above of=s12] (s11) {$\sigma_1$};
-  \node [elem, below of=s12] (s13) {$\sigma_3$};
-  \node [right of=s13, node distance=0.75cm] (r1) {};
-  \node [below of=r1, node distance=0.5cm] (t4) {$R$};
-
-  \node [elem, right of=s12, node distance=1.5cm] (s22) {$\sigma_2$};
-  \node [elem, above of=s22] (s21) {$\sigma_1$};
-  \node [elem, below of=s22] (s23) {$\sigma_3$};
-  \node [right of=s23, node distance=0.75cm] (r2) {};
-  \node [below of=r2, node distance=0.5cm] (t4) {$R$};
-
-  \node [elem, right of=s22, node distance=1.5cm] (s32) {$\sigma_2$};
-  \node [elem, above of=s32] (s31) {$\sigma_1$};
-  \node [elem, below of=s32] (s33) {$\sigma_3$};
-
-  \node [elem, right of=s32, node distance=1.5cm] (s42) {$\sigma_2$};
-  \node [elem, above of=s42] (s41) {$\sigma_1$};
-  \node [elem, below of=s42] (s43) {$\sigma_3$};
-  \node [right of=s43, node distance=0.75cm] (r4) {};
-  \node [below of=r4, node distance=0.5cm] (t4) {$R$};
-
-  \node [elem, right of=s42, node distance=1.5cm] (s52) {$\sigma_2$};
-  \node [elem, above of=s52] (s51) {$\sigma_1$};
-  \node [elem, below of=s52] (s53) {$\sigma_3$};
-  \node [right of=s53, node distance=0.75cm] (r5) {};
-  \node [below of=r5, node distance=0.5cm] (t5) {$\lnot R$};
-
-  \node [elem, right of=s52, node distance=1.5cm] (s62) {$\sigma_2$};
-  \node [elem, above of=s62] (s61) {$\sigma_1$};
-  \node [elem, below of=s62] (s63) {$\sigma_3$};
-
-  \path [line] (s11) -- (s21);
-  \path [line] (s12) -- (s22);
-  \path [line] (s21) -- (s31);
-  \path [line] (s22) -- (s32);
-
-  \path [rel] (s42) -- (s52);
-  \path [rel] (s41) -- (s51);
-  \path [rel] (s53) -- (s63);
-\end{tikzpicture}
-\end{center}
-
-A key difference however is that tests only behave as tests when under
-$\tr$. This is illustrated above---$\tr(\langle R\rangle^\ddagger\langle
-R\rangle^\ddagger) = \tr(\langle R\rangle^\ddagger)$ while $\tr(\langle
-R\rangle^\ddagger\langle \lnot R\rangle^\ddagger) = 0$.
 
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
