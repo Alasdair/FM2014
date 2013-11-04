@@ -260,4 +260,7 @@ next
     by (cases n) (auto simp add: Con_def)
 qed
 
+lemma Aczel_star: "x\<^sup>\<star> \<inter> Con \<le> (x \<inter> Con)\<^sup>\<star> \<inter> Con"
+  sorry
+
 end

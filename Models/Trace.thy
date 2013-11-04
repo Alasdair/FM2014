@@ -4,6 +4,7 @@ begin
 
 no_notation shuffle (infixl "\<parallel>" 75)
 no_notation l_prod (infixl "\<cdot>" 80)
+no_notation Aczel ("\<pi>")
 
 quotient_type 'a trace = "('a \<times> 'a) lan" / "\<lambda>X Y. X\<^sup>\<dagger> = Y\<^sup>\<dagger>"
   by (intro equivpI reflpI sympI transpI) auto
@@ -49,7 +50,7 @@ begin
     show "0 \<cdot> x = 0"
       by transfer simp
     show "(x \<le> y) = (x + y = y)"
-      by transfer (metis Mumble_union par.add_commute sup.order_iff)
+      by transfer auto
     show "(x < y) = (x \<le> y \<and> x \<noteq> y)"
       by transfer (metis par.less_def)
     show "x + x = x"
@@ -58,76 +59,6 @@ begin
       by transfer simp
   qed
 end
-
-no_notation Aczel ("\<pi>")
-
-lift_definition Aczel_trace :: "'a trace \<Rightarrow> 'a trace" ("\<pi>") is "\<lambda>X. Aczel X\<^sup>\<dagger>" by simp
-
-(* \<pi> is an interior operator *)
-
-lemma proj_coextensive [intro!]: "\<pi> x \<le> x"
-  by transfer (metis Aczel_coextensive Mumble_idem Mumble_iso)
-
-lemma proj_iso [intro]: "x \<le> y \<Longrightarrow> \<pi> x \<le> \<pi> y"
-  by transfer (metis Aczel_iso Mumble_iso)
-
-lemma [simp]: "(Aczel x\<^sup>\<dagger>)\<^sup>\<dagger> = (Aczel x)\<^sup>\<dagger>"
-  by (auto simp add: Aczel_def Con_def Mumble_def) (metis mumble_preserves_consistent mumble_trans)
-
-lemma proj_idem [simp]: "\<pi> (\<pi> x) = \<pi> x"
-  by transfer simp
-
-lemma proj_plus [simp]: "\<pi> x + \<pi> y = \<pi> (x + y)"
-  by transfer (metis Aczel_union Mumble_union)
-
-lemma proj_mult [simp]: "\<pi> (\<pi> x \<cdot> \<pi> y) = \<pi> (x \<cdot> y)"
-  by transfer simp
-
-lemma proj_mult2 [simp]: "\<pi> (\<pi> x \<cdot> y) = \<pi> (x \<cdot> y)"
-  by transfer (metis Aczel_trace.abs_eq proj_idem proj_mult times_trace.abs_eq trace.abs_eq_iff)
-
-lemma proj_mult3 [simp]: "\<pi> (x \<cdot> \<pi> y) = \<pi> (x \<cdot> y)"
-  by (metis proj_mult proj_mult2)
-
-(* Tests *)
-
-no_notation atomic ("\<langle>_\<rangle>" [0] 1000)
-
-lift_definition atomic_trace :: "'a rel \<Rightarrow> 'a trace" ("\<langle>_\<rangle>" [0] 1000) is "\<lambda>S. atomic S" by simp
-
-definition test :: "'a set \<Rightarrow> 'a trace" where
-  "test X = \<langle>Id_on X\<rangle>"
-
-lemma atomic_test: "atomic (Id_on X) = {LCons (\<sigma>, \<sigma>') LNil |\<sigma> \<sigma>'. \<sigma> \<in> X \<and> \<sigma> = \<sigma>'}"
-  sorry
-
-lemma "\<pi> (test (X \<inter> Y)) \<le> \<pi> (test X \<cdot> test Y)"
-  apply (simp only: test_def)
-  apply transfer
-  apply (simp add: atomic_test)
-  apply (subst fin_l_prod)
-  apply (force simp add: FIN_def)
-  apply (auto simp add: Aczel_def Con_def Mumble_def)
-  apply (rule_tac x = "mumble (LCons (\<sigma>, \<sigma>) (LCons (\<sigma>, \<sigma>) LNil))" in exI)
-  apply (intro conjI)
-  apply (rule_tac x = "LCons (\<sigma>, \<sigma>) (LCons (\<sigma>, \<sigma>) LNil)" in exI)
-  apply (metis LCons_lappend_LNil inconsistent_mumble lappend_code(1) lfinite.simps)
-  by (metis lappend_code(1) mumble.mumble mumble.self mumble_trans)
-
-lemma [dest!]: "ys \<frown> LCons z (LCons z' zs) = LCons x LNil \<Longrightarrow> False"
-  apply (cases "lfinite ys")
-  apply (rotate_tac 1)
-  apply (induct ys rule: lfinite.induct)
-  by (simp_all add: lappend_inf)
-
-lemma [dest!]: "xs \<in> mumble (LCons x LNil) \<Longrightarrow> xs = LCons x LNil"
-  by (induct xs rule: mumble.induct) auto
-
-lemma Mumble_atomic [simp]: "(atomic X)\<^sup>\<dagger> = atomic X"
-  by (auto simp add: Mumble_def atomic_def image_def)
-
-lemma "\<langle>X\<rangle> + \<langle>Y\<rangle> = \<langle>X \<union> Y\<rangle>"
-  by transfer (metis Mumble_atomic atomic_def image_Un)
 
 (* traces form a dioid w.r.t. parallel composition *)
 
@@ -180,13 +111,6 @@ begin
   qed
 end
 
-lift_definition stuttering :: "'a trace" is stutter done
-
-lemma join_is_plus [simp]:
-  fixes x y :: "'a trace"
-  shows "x \<squnion> y = x + y"
-  by transfer simp
-
 instance trace :: (type) distrib_lattice
   by (default, transfer, simp, metis Mumble_idem Mumble_meet Mumble_union Un_Int_distrib)
 
@@ -207,6 +131,23 @@ begin
       by transfer (metis Mumble_ext Mumble_idem Mumble_iso Mumble_l_prod order.trans seq.star_inductl)
   qed
 end
+
+lemma [dest!]: "ys \<frown> LCons z (LCons z' zs) = LCons x LNil \<Longrightarrow> False"
+  apply (cases "lfinite ys")
+  apply (rotate_tac 1)
+  apply (induct ys rule: lfinite.induct)
+  by (simp_all add: lappend_inf)
+
+lemma [dest!]: "xs \<in> mumble (LCons x LNil) \<Longrightarrow> xs = LCons x LNil"
+  by (induct xs rule: mumble.induct) auto
+
+lemma Mumble_atomic [simp]: "(atomic X)\<^sup>\<dagger> = atomic X"
+  by (auto simp add: Mumble_def atomic_def image_def)
+
+lemma join_is_plus [simp]:
+  fixes x y :: "'a trace"
+  shows "x \<squnion> y = x + y"
+  by transfer simp
 
 lemma [simp]: "set_rel (llist_all2 (prod_rel op = op =)) x y \<longleftrightarrow> x = y"
   by (auto simp add: prod_rel_eq set_rel_def)
@@ -365,7 +306,7 @@ begin
 
   lift_definition RG_trace :: "'a trace set" is "{x. \<exists>R. x = Language.star (atomic R)}" done
 
-  lift_definition \<C>_trace :: "'a trace" is Aczel.Con done
+  lift_definition C_trace :: "'a trace" is Aczel.Con done
 
   instance
   proof
@@ -373,10 +314,10 @@ begin
     show "(1::'a trace) \<in> RG"
       by transfer (auto intro: exI[of _ "{LNil}"] exI[of _ "{}"] simp add: image_def)
 
-    show "x \<cdot> y \<sqinter> \<C> \<le> (x \<sqinter> \<C>) \<cdot> (y \<sqinter> \<C>) \<sqinter> \<C>"
+    show "x \<cdot> y \<sqinter> C \<le> (x \<sqinter> C) \<cdot> (y \<sqinter> C) \<sqinter> C"
       apply transfer using Aczel_l_prod by (auto intro!: Mumble_iso simp add: Aczel_def)
       
-    show "x\<^sup>\<star> \<sqinter> \<C> \<le> (x \<sqinter> \<C>)\<^sup>\<star> \<sqinter> \<C>"
+    show "x\<^sup>\<star> \<sqinter> C \<le> (x \<sqinter> C)\<^sup>\<star> \<sqinter> C"
       by transfer (auto intro!: Mumble_iso Aczel_star simp add: Aczel_def)
 
     show "x + y \<sqinter> z = (x + y) \<sqinter> (x + z)"
@@ -448,75 +389,190 @@ begin
   qed
 end
 
-lemma "\<pi> (test X \<cdot> test Y \<parallel> stuttering) = \<pi> (test (X \<inter> Y) \<parallel> stuttering)"
+no_notation atomic ("\<langle>_\<rangle>" [0] 1000)
+
+lift_definition atomic_trace :: "'a rel \<Rightarrow> 'a trace" ("\<langle>_\<rangle>" [0] 1000) is "\<lambda>S. atomic S" by simp
+
+definition test :: "'a set \<Rightarrow> 'a trace" where
+  "test X = \<langle>Id_on X\<rangle>"
+
+lemma atomic_test: "atomic (Id_on X) = {LCons (\<sigma>, \<sigma>') LNil |\<sigma> \<sigma>'. \<sigma> \<in> X \<and> \<sigma> = \<sigma>'}"
   sorry
 
-definition proj_eq :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> bool" (infix "=\<^sub>\<pi>" 55) where
-  "x =\<^sub>\<pi> y \<equiv> \<pi> x = \<pi> y"
+lemma "\<pi> (test (X \<inter> Y)) \<le> \<pi> (test X \<cdot> test Y)"
+  apply (simp only: test_def proj_def)
+  apply transfer
+  apply (simp add: atomic_test)
+  apply (subst fin_l_prod)
+  apply (force simp add: FIN_def)
+  apply (auto simp add: Aczel_def Con_def Mumble_def)
+  apply (rule_tac x = "mumble (LCons (\<sigma>, \<sigma>) (LCons (\<sigma>, \<sigma>) LNil))" in exI)
+  apply (intro conjI)
+  apply (rule_tac x = "LCons (\<sigma>, \<sigma>) (LCons (\<sigma>, \<sigma>) LNil)" in exI)
+  apply (metis LCons_lappend_LNil inconsistent_mumble lappend_code(1) lfinite.simps)
+  by (metis lappend_code(1) mumble.mumble mumble.self)
 
-lemma proj_eq_trans [trans]: "x =\<^sub>\<pi> y \<Longrightarrow> y =\<^sub>\<pi> z \<Longrightarrow> x =\<^sub>\<pi> z"
-  by (simp add: proj_eq_def)
+lemma "\<langle>X\<rangle> + \<langle>Y\<rangle> = \<langle>X \<union> Y\<rangle>"
+  by transfer (metis Mumble_atomic atomic_def image_Un)
 
-no_notation Aczel_mult (infixl "\<otimes>" 75)
+lift_definition stuttering :: "'a trace" is stutter done
 
-definition pmult :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" (infixl "\<otimes>" 75) where
-  "x \<otimes> y = \<pi> (x \<cdot> y)"
+type_synonym state = "string \<Rightarrow> nat"
 
-lemma [simp]: "\<pi> (x \<otimes> y) = x \<otimes> y"
-  by (simp add: pmult_def)
+value atomic
 
-lemma pmult_onel [simp]: "1 \<otimes> x = \<pi> x"
-  by (metis mult_onel pmult_def)
+lift_definition atomic_fn :: "(state \<Rightarrow> state) \<Rightarrow> state trace"
+  is "\<lambda>f. {LCons (x, f x) LNil |x. True}" by simp
 
-lemma pmult_oner [simp]: "x \<otimes> 1 = \<pi> x"
-  by (metis mult_oner pmult_def)
+definition assign :: "string \<Rightarrow> (state \<Rightarrow> nat) \<Rightarrow> state trace" (infix ":=" 110) where
+  "assign x f = atomic_fn (\<lambda>\<sigma> y. if x = y then f \<sigma> else \<sigma> y)"
 
-lemma proj_zero [simp]: "\<pi> 0 = 0"
-  by transfer simp
+lemma assign_atomic: "x := f = \<langle>{(\<sigma>, (\<lambda>y. if x = y then f \<sigma> else \<sigma> y)) |\<sigma>. True}\<rangle>"
+  apply (simp add: assign_def)
+  apply transfer
+  apply (rule arg_cong) back
+  by (auto simp add: atomic_def)
 
-lemma pmult_zero [simp]: "0 \<otimes> x = 0"
-  by (simp add: pmult_def)
+definition preserves :: "'a set \<Rightarrow> 'a trace" where
+  "preserves P = \<langle>{(\<sigma>, \<sigma>'). \<sigma> \<in> P \<longrightarrow> \<sigma>' \<in> P}\<rangle>\<^sup>\<star>"
 
-interpretation proj!: dioid "op +" "op \<otimes>" "op \<le>" "op <"
-proof
-  fix x y z :: "'a trace"
-  show "(x \<otimes> y) \<otimes> z = x \<otimes> (y \<otimes> z)"
-    by (simp add: pmult_def mult_assoc)
-  show "(x + y) \<otimes> z = x \<otimes> z + y \<otimes> z"
-    by (simp add: pmult_def distrib_right)
-  show "x \<otimes> (y + z) = x \<otimes> y + x \<otimes> z"
-    by (simp add: pmult_def distrib_left)
-  show "x + x = x"
-    by (metis add_idem)
+lemma preserves_RG [intro]: "preserves X \<in> RG"
+  by (simp add: preserves_def, transfer, auto)
+
+definition unchanged :: "string set \<Rightarrow> state trace" where
+  "unchanged Vars \<equiv> \<langle>{(\<sigma>, \<sigma>'). \<forall>v\<in>Vars. \<sigma> v = \<sigma>' v}\<rangle>\<^sup>\<star>"
+
+lemma unchanged_RG [intro]: "unchanged X \<in> RG"
+  by (simp add: unchanged_def, transfer, auto)
+
+find_theorems Language.star
+
+lemma assign_unchanged [intro]: "x := e \<le> unchanged (- {x})"
+  apply (simp add: assign_def unchanged_def)
+  apply transfer
+  apply (rule Mumble_iso)
+  apply (rule order_trans[OF _ seq.star_ext])
+  apply simp
+  apply (simp add: atomic_def image_def)
+  by auto
+
+lift_definition ends :: "'a set \<Rightarrow> 'a trace"
+  is "\<lambda>P. {t. lfinite t \<and> t \<noteq> LNil \<and> snd (llast t) \<in> P}" by simp
+
+declare rg_meet_closed [intro!]
+
+lemma atomic_shuffle [simp]: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>S\<rangle> = \<langle>R\<rangle>\<^sup>\<star> \<cdot> \<langle>S\<rangle> \<cdot> \<langle>R\<rangle>\<^sup>\<star>"
+  sorry
+
+lemma [simp]: "\<langle>R\<rangle>\<^sup>\<star> \<sqinter> \<langle>S\<rangle>\<^sup>\<star> = \<langle>R\<^sup>+ \<inter> S\<^sup>+\<rangle>\<^sup>\<star>"
+  by transfer (metis Mumble_atomic Mumble_atomic_star rely_inter)
+
+lemma [simp]: "{(\<sigma>, \<sigma>'). \<sigma> x = \<sigma>' x}\<^sup>+ = {(\<sigma>, \<sigma>'). \<sigma> x = \<sigma>' x}"
+  by (rule trancl_id) (simp add: trans_def)
+
+lemma [simp]: "{(\<sigma>, \<sigma>'). \<sigma> \<in> P \<longrightarrow> \<sigma>' \<in> P}\<^sup>+ = {(\<sigma>, \<sigma>'). \<sigma> \<in> P \<longrightarrow> \<sigma>' \<in> P}"
+  by (rule trancl_id) (simp add: trans_def)
+
+lemma ends_preserves: "ends P \<cdot> preserves P \<le> ends P"
+  apply (simp add: preserves_def)
+  apply transfer
+  apply simp
+  apply (rule Mumble_iso)
+  sorry
+
+lemma atomic_iso: "X \<le> Y \<Longrightarrow> \<langle>X\<rangle> \<le> \<langle>Y\<rangle>"
+  by transfer auto
+
+lemma ends_test: "ends P \<cdot> test P = ends P"
+  sorry
+
+lemma test_ends: "test P \<le> ends P"
+  apply (simp add: test_def)
+  apply transfer
+  apply (simp add: atomic_def)
+  apply (rule Mumble_iso)
+  by (auto simp add: image_def)
+
+lemma ends_right: "x\<cdot>0 = 0 \<Longrightarrow> x \<cdot> ends P \<le> ends P"
+  apply transfer
+  apply simp
+  sorry
+
+lemma Mumble_empty: "{}\<^sup>\<dagger> = {}"
+  by (auto simp add: Mumble_def)
+
+lemma [simp]: "lfinite xs \<Longrightarrow> llast (LCons x (xs \<frown> LCons y ys)) = llast (LCons y ys)"
+  by (metis lappend_code(2) lfinite_LCons llast_lappend_LCons)
+
+lemma assign1: "\<forall>\<sigma>\<in>P. expr \<sigma> = v \<Longrightarrow> ends P \<cdot> x := expr \<le>\<^sub>\<pi> ends {\<sigma>. \<sigma> x = v}"
+  apply (simp add: assign_def proj_leq_def proj_def)
+  apply transfer
+  apply simp
+  apply (rule Mumble_iso)
+  apply (subst fin_l_prod)
+  apply (simp add: FIN_def)
+  apply blast
+  by (auto simp add: Con_def)
+
+lemma proj_order_refl [intro!]: "x \<le>\<^sub>\<pi> x"
+  by (metis order_refl proj_leq_iso)
+
+lemma assignment:
+  assumes P_expr: "\<forall>\<sigma>\<in>P. e \<sigma> = v"
+  shows "(unchanged {x} \<sqinter> preserves P), (unchanged (- {x})) \<turnstile> \<lbrace>ends P\<rbrace> x := e \<lbrace>ends {\<sigma>. \<sigma> x = v}\<rbrace>"
+proof (auto simp add: quintuple_def)
+  let ?P = "{(\<sigma>, \<sigma>'). \<sigma> \<in> P \<longrightarrow> \<sigma>' \<in> P}"
+  let ?x = "{(\<sigma>, \<sigma>'). \<sigma> x = \<sigma>' x}"
+
+  have "ends P \<cdot> (unchanged {x} \<sqinter> preserves P \<parallel> x := e) = ends P \<cdot> \<langle>?x \<inter> ?P\<rangle>\<^sup>\<star> \<cdot> x := e \<cdot> \<langle>?x \<inter> ?P\<rangle>\<^sup>\<star>"
+    by (simp add: unchanged_def preserves_def) (simp only: assign_atomic atomic_shuffle mult_assoc)
+  also have "... \<le> ends P \<cdot> \<langle>?P\<rangle>\<^sup>\<star> \<cdot> x := e \<cdot> \<langle>?x \<inter> ?P\<rangle>\<^sup>\<star>"
+    by (intro mult_isor[rule_format]  mult_isol[rule_format]) (smt Int_lower2 atomic_iso star_iso)
+  also have "... = ends P \<cdot> preserves P \<cdot> x := e \<cdot> \<langle>?x \<inter> ?P\<rangle>\<^sup>\<star>"
+    by (simp add: preserves_def)
+  also have "... \<le> ends P \<cdot> x := e \<cdot> \<langle>?x \<inter> ?P\<rangle>\<^sup>\<star>"
+    by (metis ends_preserves mult_isor)
+  also have "... \<le>\<^sub>\<pi> ends {\<sigma>. \<sigma> x = v} \<cdot> \<langle>?x \<inter> ?P\<rangle>\<^sup>\<star>"
+    by (intro proj_mult_iso assms(1) assign1 proj_order_refl)
+  also have "... \<le> ends {\<sigma>. \<sigma> x = v} \<cdot> \<langle>?x\<rangle>\<^sup>\<star>"
+    by (intro mult_isor[rule_format]  mult_isol[rule_format]) (smt Int_lower1 atomic_iso star_iso)
+  also have "... \<le> ends {\<sigma>. \<sigma> x = v}"
+    sorry
+  finally show "ends P \<cdot> (unchanged {x} \<sqinter> preserves P \<parallel> x := e) \<le>\<^sub>\<pi> ends {\<sigma>. \<sigma> x = v}" .
 qed
 
-definition proj_leq :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> bool" (infixl "\<le>\<^sub>\<pi>" 55) where
-  "x \<le>\<^sub>\<pi> y \<equiv> (\<pi> x \<le> \<pi> y)"
+lemma [simp]: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>S\<rangle>\<^sup>\<star> = (\<langle>R\<rangle>\<^sup>\<star> \<cdot> \<langle>S\<rangle>\<^sup>\<star>)\<^sup>\<star>"
+  sorry
 
-lemma proj_leq_trans [trans]: "x \<le>\<^sub>\<pi> y \<Longrightarrow> y \<le>\<^sub>\<pi> z \<Longrightarrow> x \<le>\<^sub>\<pi> z"
-  by (auto simp add: proj_leq_def)
+lemma "unchanged (- {x}) \<parallel> unchanged (- {y}) = unchanged (- {x, y})"
+  sorry
 
-lemma proj_leq_trans2 [trans]: "x \<le> y \<Longrightarrow> y \<le>\<^sub>\<pi> z \<Longrightarrow> x \<le>\<^sub>\<pi> z"
-  by (auto simp add: proj_leq_def) (metis dual_order.trans proj_iso)
-
-lemma proj_leq_trans3 [trans]: "x \<le>\<^sub>\<pi> y \<Longrightarrow> y \<le> z \<Longrightarrow> x \<le>\<^sub>\<pi> z"
-  by (metis proj_iso proj_leq_def proj_leq_trans)
-
-lemma proj_leq_trans4 [trans]: "x \<le>\<^sub>\<pi> y \<Longrightarrow> y =\<^sub>\<pi> z \<Longrightarrow> x \<le>\<^sub>\<pi> z"
-  by (auto simp add: proj_leq_def proj_eq_def)
-
-lemma proj_leq_trans5 [trans]: "x =\<^sub>\<pi> y \<Longrightarrow> y \<le>\<^sub>\<pi> z \<Longrightarrow> x \<le>\<^sub>\<pi> z"
-  by (auto simp add: proj_leq_def proj_eq_def)
-
-lemma proj_meet [simp]: "\<pi> x \<sqinter> \<pi> y = \<pi> (x \<sqinter> y)"
+lemma unchanged_antitone: "Y \<subseteq> X \<Longrightarrow> unchanged X \<le> unchanged Y"
+  apply (simp add: unchanged_def)
+  apply (rule star_iso[rule_format])
   apply transfer
-  apply (simp add: Aczel_def)
-  by (metis Aczel_def Mumble_Inter_Con Int_assoc Mumble_meet inf_commute inf_left_idem)
+  apply (rule Mumble_iso)
+  apply (simp add: atomic_def)
+  by (auto simp add: image_def)
 
-lemma proj_leq_meet [simp]: "\<pi> x \<sqinter> \<pi> y \<le>\<^sub>\<pi> x \<sqinter> y"
-  by (metis inf_mono proj_coextensive proj_iso proj_leq_def)
-
-lemma [iff]: "x \<le>\<^sub>\<pi> y \<sqinter> z \<longleftrightarrow> x \<le>\<^sub>\<pi> y \<and> x \<le>\<^sub>\<pi> z"
-  by (simp add: proj_leq_def) (metis inf.bounded_iff proj_meet)
+lemma
+  assumes "x \<noteq> y"
+  shows "((unchanged {x} \<sqinter> preserves P) \<sqinter> (unchanged {y} \<sqinter> preserves P)), (unchanged (- {x}) \<parallel> unchanged (- {y})) \<turnstile> \<lbrace>ends P \<sqinter> ends P\<rbrace> x := e1 \<parallel> y := e2 \<lbrace>ends {\<sigma>. \<sigma> x = v} \<sqinter> ends {\<sigma>. \<sigma> y = v}\<rbrace>"
+  using assms
+  apply -
+  apply (rule parallel)
+  apply (rule assignment)
+  defer
+  apply simp
+  apply (intro conjI)
+  apply (rule unchanged_antitone)
+  apply simp
+  apply (simp add: unchanged_def preserves_def)
+  apply (rule star_iso[rule_format])
+  apply transfer
+  apply (rule Mumble_iso)
+  apply (simp add: atomic_def)
+  apply (rule image_mono)
+  apply auto
 
 end

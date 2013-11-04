@@ -54,7 +54,7 @@ class weak_omega_trioid = weak_trioid + left_omega_algebra_zerol
 
 class rely_guarantee_trioid = weak_star_trioid + semilattice_inf +
   fixes RG :: "'a set"
-  and \<C> :: "'a"
+  and C :: "'a"
   assumes rg1: "r \<in> RG \<Longrightarrow> r \<parallel> r \<le> r"
   and rg2: "r \<in> RG \<Longrightarrow> s \<in> RG \<Longrightarrow> r \<le> r \<parallel> s"
   and rg3: "r \<in> RG \<Longrightarrow> r\<parallel>(x\<cdot>y) = (r\<parallel>x)\<cdot>(r\<parallel>y)"
@@ -63,12 +63,11 @@ class rely_guarantee_trioid = weak_star_trioid + semilattice_inf +
   and rg_meet_closed: "\<lbrakk>r \<in> RG; s \<in> RG\<rbrakk> \<Longrightarrow> (r \<sqinter> s) \<in> RG"
   and rg_par_closed: "\<lbrakk>r \<in> RG; s \<in> RG\<rbrakk> \<Longrightarrow> (r \<parallel> s) \<in> RG"
 
-  and Con_mult: "x\<cdot>y \<sqinter> \<C> \<le> (x \<sqinter> \<C>)\<cdot>(y \<sqinter> \<C>) \<sqinter> \<C>"
-  and Con_star: "x\<^sup>\<star> \<sqinter> \<C> \<le> (x \<sqinter> \<C>)\<^sup>\<star> \<sqinter> \<C>"
+  and Con_mult: "x\<cdot>y \<sqinter> C \<le> (x \<sqinter> C)\<cdot>(y \<sqinter> C) \<sqinter> C"
+  and Con_star: "x\<^sup>\<star> \<sqinter> C \<le> (x \<sqinter> C)\<^sup>\<star> \<sqinter> C"
 
   and plus_meet_distrib: "x + y \<sqinter> z = (x + y) \<sqinter> (x + z)"
 
-(*
 begin
 
   declare mult_onel [simp]
@@ -77,7 +76,7 @@ begin
     and par_unitr [simp]
 
   definition proj :: "'a \<Rightarrow> 'a" ("\<pi>") where
-    "\<pi> x = x \<sqinter> Con"
+    "\<pi> x = x \<sqinter> C"
 
   lemma proj_mult [simp]: "\<pi> (\<pi> x \<cdot> \<pi> y) = \<pi> (x\<cdot>y)"
     by (auto intro!: antisym Con_mult simp add: proj_def) (metis inf_commute inf_le2 le_infI2 mult_isol_var)
@@ -166,7 +165,7 @@ begin
       by (metis sup_idem)
   qed
 
-  definition quintuple :: "'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" ("_, _ \<turnstile> \<lbrace>_\<rbrace> _ \<lbrace>_\<rbrace>") where
+  definition quintuple :: "'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" ("_, _ \<turnstile> \<lbrace>_\<rbrace> _ \<lbrace>_\<rbrace>" [20,20,20,20,20] 1000) where
     "r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>q\<rbrace> \<equiv> p\<cdot>(r\<parallel>c) \<le>\<^sub>\<pi> q \<and> c \<le> g \<and> r \<in> RG \<and> g \<in> RG"
 
   lemma rg_idem_mult [simp]: "r \<in> RG \<Longrightarrow> r\<cdot>r = r"
@@ -274,11 +273,9 @@ begin
       by (metis `g1 \<in> RG` `g2 \<in> RG` rg_par_closed)
   qed
 
-  lemma proj_add_lub: "x + y \<le>\<^sub>\<pi> z \<longleftrightarrow> x \<le>\<^sub>\<pi> z \<and> y \<le>\<^sub>\<pi> z"
+  lemma proj_add_lub [simp]: "x + y \<le>\<^sub>\<pi> z \<longleftrightarrow> x \<le>\<^sub>\<pi> z \<and> y \<le>\<^sub>\<pi> z"
     by (auto simp add: proj_leq_def)
 
-
 end
-*)
 
 end
