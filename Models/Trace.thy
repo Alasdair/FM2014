@@ -399,7 +399,7 @@ definition test :: "'a set \<Rightarrow> 'a trace" where
   "test X = \<langle>Id_on X\<rangle>"
 
 lemma atomic_test: "atomic (Id_on X) = {LCons (\<sigma>, \<sigma>') LNil |\<sigma> \<sigma>'. \<sigma> \<in> X \<and> \<sigma> = \<sigma>'}"
-  sorry
+  by (auto simp add: atomic_def image_def Id_on_def)
 
 lemma "\<pi> (test (X \<inter> Y)) \<le> \<pi> (test X \<cdot> test Y)"
   apply (simp only: test_def proj_def)
