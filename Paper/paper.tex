@@ -22,6 +22,8 @@
 \DeclareMathOperator{\guar}{guar}
 \DeclareMathOperator{\letters}{letters}
 \DeclareMathOperator{\wlp}{wlp}
+\DeclareMathOperator{\test}{test}
+\DeclareMathOperator{\eval}{eval}
 
 \newcommand{\udagger}{\text{$\rotatebox[origin=c]{180}{$\dagger$}$}}
 
@@ -43,14 +45,14 @@
 \maketitle
 
 \begin{abstract}
-We investigate equational laws for the derivation of rely-guarantee
-style, Owicki-Gries style and separation logic style inference and
-refinement rules in the minimalistic setting of semirings. The
-algebraic level is linked with concrete programming models based on
-languages and execution traces. The approach has been implemented in
-Isabelle/HOL where the link between algebras and models supports
-reasoning about both the control and data flow of concurrent
-programs. This is illustrated by simple program verification examples.
+  We investigate equational laws for the derivation of rely-guarantee
+  style inference and refinement rules in the minimalistic setting of
+  semirings. This algebraic level is linked with concrete programming
+  models based on languages and execution traces. The approach has
+  been implemented in Isabelle/HOL where the link between algebras and
+  models supports reasoning about both the control and data flow of
+  concurrent programs. This is illustrated by simple program
+  verification examples.
 \end{abstract}
 
 \pagestyle{plain}
@@ -693,6 +695,12 @@ X^\dagger = \bigcup\{x^\dagger.\; x \in X\}
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Example}
+
+In the trace model, assignment is defined as
+\begin{align*}
+  x := e = \bigsqcup v.\,\test\{\sigma.\,\eval(\sigma,e) = v\} \cdot x \leftarrow v
+\end{align*}
+where $x \leftarrow v$ denotes the atomic command which assigns the value $v$ to $x$.
 
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
