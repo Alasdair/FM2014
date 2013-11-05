@@ -426,6 +426,28 @@ qed
 lemma ardens_lemma_var_equiv: "x\<^sup>\<omega> = 0 \<longrightarrow> (z + x \<cdot> y = y \<longleftrightarrow> x\<^sup>\<star> \<cdot> z = y)"
   by (metis ardens_lemma_equiv ewp_neg_and_omega)
 
+lemma inf_star [simp]: "(x\<cdot>0)\<^sup>\<star> = 1 + x\<cdot>0"
+  apply (rule antisym)
+  apply (rule star_inductl_one[rule_format])
+  apply (metis annil mult_assoc order_refl)
+  by (metis add_lub star_ext star_ref)
+
+lemma [simp]: "x \<cdot> 0 \<cdot> y = x \<cdot> 0"
+  by (metis annil mult_assoc)
+
+lemma inf_part_star1: "(y + x\<cdot>0)\<^sup>\<star> \<le> y\<^sup>\<star>\<cdot>x\<cdot>0 + y\<^sup>\<star>"
+  apply (rule star_inductl_one[rule_format])
+  apply (subst star_unfoldl_eq[symmetric]) back back
+  apply (subst star_unfoldl_eq[symmetric]) back back back
+  apply (simp only: distrib_right distrib_left mult_assoc[symmetric])
+  apply (simp add: distrib_left)
+  by (metis add_assoc' add_idem' add_iso add_left_commute combine_common_factor distrib_right' star_unfoldl)
+
+lemma inf_part_star [simp]: "(y + x\<cdot>0)\<^sup>\<star> = y\<^sup>\<star>\<cdot>x\<cdot>0 + y\<^sup>\<star>"
+  apply (rule antisym)
+  apply (metis inf_part_star1)
+  by (metis add_commute add_lub mult_assoc prod_star_closure star_subdist star_subdist_var_1)
+
 (*
 lemma arden_conv1: "(\<forall>y z. z + x \<cdot> y = y \<longrightarrow> x\<^sup>\<star> \<cdot> z = y) \<longrightarrow> \<not> ewp x"
   nitpick [expect = genuine]

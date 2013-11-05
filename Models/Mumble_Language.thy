@@ -1157,5 +1157,13 @@ qed
 lemma Mumble_star [simp]: "((x\<^sup>\<dagger>)\<^sup>\<star>)\<^sup>\<dagger> = (x\<^sup>\<star>)\<^sup>\<dagger>"
   sorry
 
+lemma Mumble_Inter [simp]: "(\<Inter>(Mumble ` A))\<^sup>\<dagger> = \<Inter>(Mumble ` A)"
+  apply (simp add: Mumble_def image_def)
+  apply auto
+  apply auto
+  apply (erule_tac x = "xa\<^sup>\<dagger>" in allE)
+  apply (auto simp add: Mumble_def)
+  by (metis mumble_trans)
+
 end
 

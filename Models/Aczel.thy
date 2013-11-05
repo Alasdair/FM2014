@@ -260,7 +260,43 @@ next
     by (cases n) (auto simp add: Con_def)
 qed
 
-lemma Aczel_star: "x\<^sup>\<star> \<inter> Con \<le> (x \<inter> Con)\<^sup>\<star> \<inter> Con"
+lemma Aczel_inf [simp]: "\<pi> (x\<cdot>{}) = (\<pi> x)\<cdot>{}"
+  by (auto simp add: l_prod_def Con_def)
+
+lemma Aczel_one [simp]: "\<pi> {LNil} = {LNil}"
+  by (auto simp add: Aczel_def Con_def)
+
+lemma Aczel_fin_star: "\<pi> ((x \<inter> FIN)\<^sup>\<star>) \<le> \<pi> ((\<pi> (x \<inter> FIN))\<^sup>\<star>)"
   sorry
+
+lemma Aczel_star1: "\<pi> (x\<^sup>\<star>) \<le> \<pi> (\<pi> x\<^sup>\<star>)"
+proof -
+  have "\<pi> (x\<^sup>\<star>) = \<pi> ((x \<inter> FIN \<union> x\<cdot>{})\<^sup>\<star>)"
+    by simp
+  also have "... = \<pi> ((x \<inter> FIN)\<^sup>\<star>\<cdot>x\<cdot>{} \<union> (x \<inter> FIN)\<^sup>\<star>)"
+    by (simp only: seq.inf_part_star)
+  also have "... = \<pi> ((x \<inter> FIN)\<^sup>\<star> \<cdot> (x\<cdot>{} \<union> {LNil}))"
+    by (metis seq.distrib_left seq.mult.right_neutral seq.mult_assoc)
+  also have "... = \<pi> (\<pi> ((x \<inter> FIN)\<^sup>\<star>) \<cdot> \<pi> (x\<cdot>{} \<union> {LNil}))"
+    by (metis Aczel_l_prod)
+  also have "... \<le> \<pi> (\<pi> ((\<pi> (x \<inter> FIN))\<^sup>\<star>) \<cdot> \<pi> (x\<cdot>{} \<union> {LNil}))"
+    by (metis (hide_lams, no_types) Aczel_fin_star Aczel_iso seq.mult_isor)
+  also have "... = \<pi> (\<pi> (\<pi> (x \<inter> FIN)\<^sup>\<star>) \<cdot> (\<pi> x \<cdot> {} \<union> {LNil}))"
+    by (simp only: Aczel_union Aczel_inf Aczel_one)
+  also have "... = \<pi> (\<pi> (\<pi> (x \<inter> FIN)\<^sup>\<star>) \<cdot> \<pi> x \<cdot> {} \<union> \<pi> (\<pi> (x \<inter> FIN)\<^sup>\<star>))"
+    by (metis seq.distrib_left seq.mult.right_neutral seq.mult_assoc)
+  also have "... = \<pi> (\<pi> (x \<inter> FIN)\<^sup>\<star> \<cdot> \<pi> x \<cdot> {} \<union> \<pi> (x \<inter> FIN)\<^sup>\<star>)"
+    by (metis Aczel_idem Aczel_l_prod Aczel_union)
+  also have "... = \<pi> ((\<pi> (x \<inter> FIN) \<union> \<pi> x \<cdot> {})\<^sup>\<star>)"
+    by (simp only: seq.inf_part_star)
+  also have "... = \<pi> ((\<pi> (x \<inter> FIN \<union> x\<cdot>{}))\<^sup>\<star>)"
+    by (simp only: Aczel_union Aczel_inf Aczel_idem)
+  also have "... = \<pi> (\<pi> x\<^sup>\<star>)"
+    by simp
+  finally show ?thesis .
+qed
+
+lemma Aczel_star [simp]: "\<pi> (\<pi> x\<^sup>\<star>) = \<pi> (x\<^sup>\<star>)"
+  by (metis Aczel_def Aczel_iso Aczel_star1 par.add_ub2 seq.star_iso subset_antisym sup_inf_absorb)
 
 end

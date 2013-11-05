@@ -417,21 +417,79 @@ lemma "\<langle>X\<rangle> + \<langle>Y\<rangle> = \<langle>X \<union> Y\<rangle
 
 lift_definition stuttering :: "'a trace" is stutter done
 
-type_synonym state = "string \<Rightarrow> nat"
+instantiation trace :: (type) complete_lattice
+begin
 
-value atomic
+  lift_definition Sup_trace :: "'a trace set \<Rightarrow> 'a trace" is "Union"
+    by (auto simp add: Mumble_continuous set_rel_def) metis+
+ 
+  lift_definition Inf_trace :: "'a trace set \<Rightarrow> 'a trace" is "\<lambda>X. Inter (Mumble ` X)"
+    apply (rule arg_cong) back
+    apply (simp add: set_rel_def)
+    apply safe
+    by (metis INT_iff)+
+
+  lift_definition bot_trace :: "'a trace" is "{}" done
+
+  lift_definition top_trace :: "'a trace" is "UNIV" done
+
+  instance
+  proof
+    fix x :: "'a trace" and A :: "'a trace set"
+    assume "x \<in> A"
+    thus "\<Sqinter>A \<le> x"
+      by (transfer, simp only: Mumble_Inter, auto simp add: image_def Mumble_def)
+  next
+    fix x :: "'a trace" and A :: "'a trace set"
+    assume "x \<in> A"
+    thus "x \<le> \<Squnion>A"
+      by transfer (auto simp add: Mumble_continuous)
+  next
+    fix z :: "'a trace" and A :: "'a trace set"
+    assume "\<And>x. x \<in> A \<Longrightarrow> z \<le> x"
+    thus "z \<le> \<Sqinter>A"
+      by transfer (simp only: Mumble_Inter, auto)
+  next
+    fix z :: "'a trace" and A :: "'a trace set"
+    assume "\<And>x. x \<in> A \<Longrightarrow> x \<le> z"
+    thus "\<Squnion>A \<le> z"
+      by transfer (auto simp add: Mumble_continuous)
+  next
+    show "\<Sqinter>({}::'a trace set) = \<top>"
+      by transfer simp
+  next
+    show "\<Squnion>({}::'a trace set) = \<bottom>"
+      by transfer simp
+  qed
+end
+
+type_synonym state = "nat \<Rightarrow> nat"
+
+datatype expr = Var nat
+              | BinOp "nat \<Rightarrow> nat \<Rightarrow> nat" expr expr
+              | UnOp "nat \<Rightarrow> nat" expr
+              | Val nat
+
+primrec vars :: "expr \<Rightarrow> nat set" where
+  "vars (Var n) = {n}"
+| "vars (BinOp f e1 e2) = vars e1 \<union> vars e2"
+| "vars (UnOp f e) = vars e"
+| "vars (Val n) = {}"
+
+primrec eval :: "state \<Rightarrow> expr \<Rightarrow> nat" where
+  "eval \<sigma> (Var v) = \<sigma> v"
+| "eval \<sigma> (BinOp f e1 e2) = f (eval \<sigma> e1) (eval \<sigma> e2)"
+| "eval \<sigma> (UnOp f e) = f (eval \<sigma> e)"
+| "eval \<sigma> (Val n) = n"
 
 lift_definition atomic_fn :: "(state \<Rightarrow> state) \<Rightarrow> state trace"
   is "\<lambda>f. {LCons (x, f x) LNil |x. True}" by simp
 
-definition assign :: "string \<Rightarrow> (state \<Rightarrow> nat) \<Rightarrow> state trace" (infix ":=" 110) where
-  "assign x f = atomic_fn (\<lambda>\<sigma> y. if x = y then f \<sigma> else \<sigma> y)"
+definition assign_value :: "nat \<Rightarrow> nat \<Rightarrow> state trace" (infix "\<leftharpoondown>" 110) where
+  "x \<leftharpoondown> v = atomic_fn (\<lambda>\<sigma> y. if x = y then v else \<sigma> y)"
 
-lemma assign_atomic: "x := f = \<langle>{(\<sigma>, (\<lambda>y. if x = y then f \<sigma> else \<sigma> y)) |\<sigma>. True}\<rangle>"
-  apply (simp add: assign_def)
-  apply transfer
-  apply (rule arg_cong) back
-  by (auto simp add: atomic_def)
+definition assign :: "nat \<Rightarrow> expr \<Rightarrow> state trace" (infix ":=" 110) where
+  "x := e = (\<Squnion>v. test {\<sigma>. eval \<sigma> e = v} \<cdot> x \<leftharpoondown> v)"
 
 definition preserves :: "'a set \<Rightarrow> 'a trace" where
   "preserves P = \<langle>{(\<sigma>, \<sigma>'). \<sigma> \<in> P \<longrightarrow> \<sigma>' \<in> P}\<rangle>\<^sup>\<star>"
@@ -439,22 +497,14 @@ definition preserves :: "'a set \<Rightarrow> 'a trace" where
 lemma preserves_RG [intro]: "preserves X \<in> RG"
   by (simp add: preserves_def, transfer, auto)
 
-definition unchanged :: "string set \<Rightarrow> state trace" where
+definition unchanged :: "nat set \<Rightarrow> state trace" where
   "unchanged Vars \<equiv> \<langle>{(\<sigma>, \<sigma>'). \<forall>v\<in>Vars. \<sigma> v = \<sigma>' v}\<rangle>\<^sup>\<star>"
 
 lemma unchanged_RG [intro]: "unchanged X \<in> RG"
   by (simp add: unchanged_def, transfer, auto)
 
-find_theorems Language.star
-
 lemma assign_unchanged [intro]: "x := e \<le> unchanged (- {x})"
-  apply (simp add: assign_def unchanged_def)
-  apply transfer
-  apply (rule Mumble_iso)
-  apply (rule order_trans[OF _ seq.star_ext])
-  apply simp
-  apply (simp add: atomic_def image_def)
-  by auto
+  sorry
 
 lift_definition ends :: "'a set \<Rightarrow> 'a trace"
   is "\<lambda>P. {t. lfinite t \<and> t \<noteq> LNil \<and> snd (llast t) \<in> P}" by simp
@@ -504,7 +554,8 @@ lemma Mumble_empty: "{}\<^sup>\<dagger> = {}"
 lemma [simp]: "lfinite xs \<Longrightarrow> llast (LCons x (xs \<frown> LCons y ys)) = llast (LCons y ys)"
   by (metis lappend_code(2) lfinite_LCons llast_lappend_LCons)
 
-lemma assign1: "\<forall>\<sigma>\<in>P. expr \<sigma> = v \<Longrightarrow> ends P \<cdot> x := expr \<le>\<^sub>\<pi> ends {\<sigma>. \<sigma> x = v}"
+(*
+lemma assign1: "\<forall>\<sigma>\<in>P. eval \<sigma> expr = v \<Longrightarrow> ends P \<cdot> x := expr \<le>\<^sub>\<pi> ends {\<sigma>. \<sigma> x = v}"
   apply (simp add: assign_def proj_leq_def proj_def)
   apply transfer
   apply simp
@@ -513,33 +564,47 @@ lemma assign1: "\<forall>\<sigma>\<in>P. expr \<sigma> = v \<Longrightarrow> end
   apply (simp add: FIN_def)
   apply blast
   by (auto simp add: Con_def)
+*)
 
 lemma proj_order_refl [intro!]: "x \<le>\<^sub>\<pi> x"
   by (metis order_refl proj_leq_iso)
 
-lemma assignment:
-  assumes P_expr: "\<forall>\<sigma>\<in>P. e \<sigma> = v"
-  shows "(unchanged {x} \<sqinter> preserves P), (unchanged (- {x})) \<turnstile> \<lbrace>ends P\<rbrace> x := e \<lbrace>ends {\<sigma>. \<sigma> x = v}\<rbrace>"
-proof (auto simp add: quintuple_def)
-  let ?P = "{(\<sigma>, \<sigma>'). \<sigma> \<in> P \<longrightarrow> \<sigma>' \<in> P}"
-  let ?x = "{(\<sigma>, \<sigma>'). \<sigma> x = \<sigma>' x}"
+abbreviation assigns_notation :: "state set \<Rightarrow> nat \<Rightarrow> expr \<Rightarrow> state set"
+  ("_\<lbrakk>_ := _\<rbrakk>" [100,100,100] 101) where
+  "P\<lbrakk>x := e\<rbrakk> \<equiv> (\<lambda>\<sigma> y. if x = y then eval \<sigma> e else \<sigma> y) ` P"
 
-  have "ends P \<cdot> (unchanged {x} \<sqinter> preserves P \<parallel> x := e) = ends P \<cdot> \<langle>?x \<inter> ?P\<rangle>\<^sup>\<star> \<cdot> x := e \<cdot> \<langle>?x \<inter> ?P\<rangle>\<^sup>\<star>"
-    by (simp add: unchanged_def preserves_def) (simp only: assign_atomic atomic_shuffle mult_assoc)
-  also have "... \<le> ends P \<cdot> \<langle>?P\<rangle>\<^sup>\<star> \<cdot> x := e \<cdot> \<langle>?x \<inter> ?P\<rangle>\<^sup>\<star>"
-    by (intro mult_isor[rule_format]  mult_isol[rule_format]) (smt Int_lower2 atomic_iso star_iso)
-  also have "... = ends P \<cdot> preserves P \<cdot> x := e \<cdot> \<langle>?x \<inter> ?P\<rangle>\<^sup>\<star>"
-    by (simp add: preserves_def)
-  also have "... \<le> ends P \<cdot> x := e \<cdot> \<langle>?x \<inter> ?P\<rangle>\<^sup>\<star>"
-    by (metis ends_preserves mult_isor)
-  also have "... \<le>\<^sub>\<pi> ends {\<sigma>. \<sigma> x = v} \<cdot> \<langle>?x \<inter> ?P\<rangle>\<^sup>\<star>"
-    by (intro proj_mult_iso assms(1) assign1 proj_order_refl)
-  also have "... \<le> ends {\<sigma>. \<sigma> x = v} \<cdot> \<langle>?x\<rangle>\<^sup>\<star>"
-    by (intro mult_isor[rule_format]  mult_isol[rule_format]) (smt Int_lower1 atomic_iso star_iso)
-  also have "... \<le> ends {\<sigma>. \<sigma> x = v}"
+find_theorems UNION
+
+lemma [simp]: "(\<Union>x\<in>X. (f x)\<^sup>\<dagger>)\<^sup>\<dagger> = (\<Union>x\<in>X. f x)\<^sup>\<dagger>"
+  apply (auto simp add: Mumble_def)
+  apply (metis mumble_trans)
+  by (metis mumble.self)
+
+lemma par_inf_dist: "(x::'a trace) \<parallel> \<Squnion>Y = \<Squnion>(op \<parallel> x ` Y)"
+  apply transfer
+  apply simp
+  apply (simp add: shuffle_inf_dist)
+  apply (rule arg_cong) back
+  by auto
+
+lemma assignment:
+  shows "(unchanged ({x} \<union> vars e) \<sqinter> preserves P \<sqinter> preserves (P\<lbrakk>x := e\<rbrakk>)), (unchanged (- {x})) \<turnstile> \<lbrace>ends P\<rbrace> x := e \<lbrace>ends (P\<lbrakk>x := e\<rbrakk>)\<rbrace>"
+proof (auto simp only: quintuple_def)
+  let ?P = "preserves P"
+  let ?P' = "preserves (P\<lbrakk>x := e\<rbrakk>)" 
+
+  have "ends P \<cdot> ((unchanged ({x} \<union> vars e) \<sqinter> ?P \<sqinter> ?P') \<parallel> x := e) = ends P \<cdot> ((unchanged ({x} \<union> vars e) \<sqinter> ?P \<sqinter> ?P') \<parallel> (\<Squnion>v. test {\<sigma>. eval \<sigma> e = v} \<cdot> x \<leftharpoondown> v))"
+    by (simp only: assign_def)
+  also have "... = (\<Squnion>v. ends P \<cdot> ((unchanged ({x} \<union> vars e) \<sqinter> ?P \<sqinter> ?P') \<parallel> test {\<sigma>. eval \<sigma> e = v} \<cdot> x \<leftharpoondown> v))"
     sorry
-  finally show "ends P \<cdot> (unchanged {x} \<sqinter> preserves P \<parallel> x := e) \<le>\<^sub>\<pi> ends {\<sigma>. \<sigma> x = v}" .
-qed
+  also have "... = (\<Squnion>v. ends P \<cdot> ((unchanged ({x} \<union> vars e) \<sqinter> ?P \<sqinter> ?P') \<parallel> test {\<sigma>. eval \<sigma> e = v}) \<cdot> ((unchanged ({x} \<union> vars e) \<sqinter> ?P \<sqinter> ?P') \<parallel> x \<leftharpoondown> v))"
+    sorry
+  also have "... = (\<Squnion>v. ends P \<cdot> (?P \<cdot> test {\<sigma>. eval \<sigma> e = v} \<cdot> )
+
+(*
+proof (auto simp add: quintuple_def)
+*)
+sorry
 
 lemma [simp]: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>S\<rangle>\<^sup>\<star> = (\<langle>R\<rangle>\<^sup>\<star> \<cdot> \<langle>S\<rangle>\<^sup>\<star>)\<^sup>\<star>"
   sorry
@@ -555,24 +620,39 @@ lemma unchanged_antitone: "Y \<subseteq> X \<Longrightarrow> unchanged X \<le> u
   apply (simp add: atomic_def)
   by (auto simp add: image_def)
 
+lemma "ends P \<sqinter> ends Q = ends (P \<sqinter> Q)"
+  apply transfer
+  apply simp
+  sorry
+
 lemma
-  assumes "x \<noteq> y"
-  shows "((unchanged {x} \<sqinter> preserves P) \<sqinter> (unchanged {y} \<sqinter> preserves P)), (unchanged (- {x}) \<parallel> unchanged (- {y})) \<turnstile> \<lbrace>ends P \<sqinter> ends P\<rbrace> x := e1 \<parallel> y := e2 \<lbrace>ends {\<sigma>. \<sigma> x = v} \<sqinter> ends {\<sigma>. \<sigma> y = v}\<rbrace>"
+  assumes "({x} \<union> vars e1) \<inter> ({y} \<union> vars e2) = {}"
+  and "P\<lbrakk>x := e1\<rbrakk> \<inter> P\<lbrakk>y := e2\<rbrakk> \<subseteq> Q"
+  shows "(unchanged ({x,y} \<union> vars e1 \<union> vars e2)), (unchanged (- {x, y})) \<turnstile> \<lbrace>ends P\<rbrace> x := e1 \<parallel> y := e2 \<lbrace>ends Q\<rbrace>"
+
+lemma
+  assumes "x \<noteq> y" and "({x} \<union> vars e1) \<inter> ({y} \<union> vars e2) = {}"
+  shows "((unchanged ({x} \<union> vars e1)) \<sqinter> (unchanged ({y} \<union> vars e2))), (unchanged (- {x}) \<parallel> unchanged (- {y})) \<turnstile> \<lbrace>ends P \<sqinter> ends P\<rbrace> x := e1 \<parallel> y := e2 \<lbrace>ends (P\<lbrakk>x := e1\<rbrakk>) \<sqinter> ends (P\<lbrakk>y := e2\<rbrakk>)\<rbrace>"
   using assms
   apply -
   apply (rule parallel)
   apply (rule assignment)
-  defer
-  apply simp
-  apply (intro conjI)
+  apply (rule order_refl)
   apply (rule unchanged_antitone)
-  apply simp
-  apply (simp add: unchanged_def preserves_def)
-  apply (rule star_iso[rule_format])
-  apply transfer
-  apply (rule Mumble_iso)
-  apply (simp add: atomic_def)
-  apply (rule image_mono)
-  apply auto
+  apply blast
+  apply (rule assignment)
+  apply (rule order_refl)
+  apply (rule unchanged_antitone)
+  by blast
+
+  notation
+    times (infixl ";" 64)
+
+  definition while_inv :: "'a set \<Rightarrow> 'b \<Rightarrow> 'a trace \<Rightarrow> 'a trace" ("WHILE _ INVARIANT _ DO _ WEND" [64,64,64] 63) where
+    "WHILE b INVARIANT i DO p WEND = (test b ; p)\<^sup>\<star> ; test b"
+
+  definition par_rg :: "'b \<Rightarrow> 'a trace \<Rightarrow> 'b \<Rightarrow> 'b \<Rightarrow> 'a trace \<Rightarrow> 'b \<Rightarrow> 'a trace"
+    ("COBEGIN RELY _ DO _ GUAR _ RELY _ DO _ GUAR _ COEND" [64,64,64,64,64,64] 63) where
+    "COBEGIN RELY r1 DO p1 GUAR g1 RELY r2 DO p2 GUAR g2 COEND \<equiv> p1 \<parallel> p2"
 
 end
