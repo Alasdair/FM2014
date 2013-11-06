@@ -288,13 +288,107 @@ proof (auto simp only: quintuple_def)
   finally show "ends P \<cdot> (unchanged (vars e) \<sqinter> preserves P \<sqinter> preserves (P\<lbrakk>x := e\<rbrakk>) \<parallel> x := e) \<le>\<^sub>\<pi> ends (P\<lbrakk>x := e\<rbrakk>)" .
 qed
 
-lemma unchanged_antitone: "Y \<subseteq> X \<Longrightarrow> unchanged X \<le> unchanged Y"
+lemma strengthen_guar: "x \<le> g \<Longrightarrow> g \<in> RG \<Longrightarrow> r, x \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>q\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>q\<rbrace>"
+  by (auto simp add: quintuple_def proj_leq_def)
+
+lemma weaken_rely: "r \<le> x \<Longrightarrow> r \<in> RG \<Longrightarrow> x, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>q\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>q\<rbrace>"
+  apply (auto simp add: quintuple_def proj_leq_def)
+  by (metis mult_isol par_comm par_isor proj_leq_def proj_leq_trans2)
+
+lemma weaken_precondition: "p \<le> x \<Longrightarrow> r, g \<turnstile> \<lbrace>x\<rbrace> c \<lbrace>q\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>q\<rbrace>"
+  apply (auto simp add: quintuple_def proj_leq_def)
+  by (metis mult_isor proj_leq_def proj_leq_trans2)
+
+lemma strengthen_postcondition: "x \<le> q \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>x\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>q\<rbrace>"
+  apply (auto simp add: quintuple_def proj_leq_def)
+  by (metis mult_isor proj_leq_def proj_leq_trans2)
+
+lemma ends_mono: "P \<subseteq> Q \<Longrightarrow> ends P \<le> ends Q"
+  apply transfer
+  apply (rule Mumble_iso)
+  by auto
+
+lemma assignment_var:
+  assumes "P\<lbrakk>x := e\<rbrakk> \<le> Q"
+  and "r \<le> unchanged (vars e) \<sqinter> preserves P \<sqinter> preserves (P\<lbrakk>x := e\<rbrakk>)" and "r \<in> RG"
+  and "unchanged (- {x}) \<le> g" and "g \<in> RG"
+  shows "r, g \<turnstile> \<lbrace>ends P\<rbrace> x := e \<lbrace>ends Q\<rbrace>"
+  apply (rule weaken_rely[OF assms(2) assms(3)])
+  apply (rule strengthen_postcondition[OF ends_mono[OF assms(1)]])
+  apply (rule strengthen_guar[OF assms(4) assms(5)])
+  by (rule assignment)
+
+lemma unchanged_antitone [intro!]: "Y \<subseteq> X \<Longrightarrow> unchanged X \<le> unchanged Y"
   apply (simp add: unchanged_def)
   apply (rule star_iso[rule_format])
   apply transfer
   apply (rule Mumble_iso)
   apply (simp add: atomic_def)
   by (auto simp add: image_def)
+
+definition V1 :: nat where "V1 \<equiv> 1"
+definition V2 :: nat where "V2 \<equiv> 2"
+
+lemma [simp]: "unchanged {} = \<langle>UNIV\<rangle>\<^sup>\<star>"
+  apply (simp add: unchanged_def)
+  apply (intro antisym rg_iso)
+  by auto  
+
+lemma [simp]: "\<langle>UNIV\<rangle>\<^sup>\<star> \<sqinter> preserves X = preserves X"
+  sorry
+
+lemma [simp]: "unchanged {m} \<le> preserves {\<sigma>. \<sigma> m = n}"
+  apply (simp add: unchanged_def preserves_def)
+  apply (rule rg_iso)
+  by auto
+
+lemma [simp]: "{\<sigma>. \<sigma> i = n}\<lbrakk>i := Val m\<rbrakk> = {\<sigma>. \<sigma> i = m}"
+  apply (simp only: image_def)
+  apply (rule Collect_cong)
+  apply safe
+  apply (metis Examples.eval.simps(4))
+  apply (rule_tac x = "\<lambda>x. if i = x then n else y x" in bexI)
+  defer
+  apply simp
+  by auto
+
+lemma [simp]: "ends P \<sqinter> ends Q = ends (P \<inter> Q)"
+  sorry
+
+lemma [intro!]: "x\<cdot>0 = 0 \<Longrightarrow> x \<le> \<langle>UNIV\<rangle>\<^sup>\<star>"
+  sorry
+
+lemma dual_assignment:
+  shows "unchanged {V1,V2}, \<langle>UNIV\<rangle>\<^sup>\<star> \<turnstile>
+         \<lbrace>ends {\<sigma>. \<sigma> V1 = 2 \<and> \<sigma> V2 = 3}\<rbrace> V1 := Val 4 \<parallel> V2 := Val 5 \<lbrace>ends ({\<sigma>. \<sigma> V1 = 4 \<and> \<sigma> V2 = 5})\<rbrace>"
+  apply (rule_tac x = "unchanged {V2} \<parallel> unchanged{V1}" in strengthen_guar)
+  defer
+  defer
+  apply (rule_tac x = "unchanged {V1} \<sqinter> unchanged {V2}" in weaken_rely)
+  defer
+  defer
+  apply (rule_tac x = "ends {\<sigma>. \<sigma> V1 = 2} \<sqinter> ends {\<sigma>. \<sigma> V2 = 3}" in weaken_precondition)
+  apply simp
+  defer
+  apply (rule_tac x = "ends {\<sigma>. \<sigma> V1 = 4} \<sqinter> ends {\<sigma>. \<sigma> V2 = 5}" in strengthen_postcondition)
+  defer
+  apply (rule parallel)
+  apply (rule assignment_var)
+  apply auto
+  apply (simp only: V1_def V2_def)
+  apply (rule assignment_var)
+  apply auto
+  apply (simp only: V1_def V2_def)
+  defer
+  apply transfer
+  apply auto
+  apply (rule ends_mono)
+  apply auto
+  apply (rule ends_mono)
+  apply auto
+  apply (simp add: unchanged_def preserves_def)
+  sorry (* Obvious due to finiteness *)
+  
 
 notation
   times (infixl ";" 64)
