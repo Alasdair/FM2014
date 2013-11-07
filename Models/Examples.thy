@@ -388,12 +388,94 @@ lemma dual_assignment:
   apply auto
   apply (simp add: unchanged_def preserves_def)
   sorry (* Obvious due to finiteness *)
-  
 
 notation
-  times (infixl ";" 64)
+  times (infixr ";//" 63)
 
-definition while_inv :: "'a set \<Rightarrow> 'b \<Rightarrow> 'a trace \<Rightarrow> 'a trace" ("WHILE _ INVARIANT _ DO _ WEND" [64,64,64] 63) where
+no_notation par (infixl "\<parallel>" 69)
+
+notation par (infixr "//\<parallel>" 62)
+
+definition OT :: "nat" where "OT = 0"
+definition ET :: "nat" where "ET = 1"
+definition OC :: "nat" where "OC = 2"
+definition EC :: "nat" where "EC = 3"
+definition LEN :: "nat" where "LEN = 10"
+
+definition array :: "nat \<Rightarrow> nat" where "array x = x + 10"
+
+definition while_inv :: "'a set \<Rightarrow> 'b \<Rightarrow> 'a trace \<Rightarrow> 'a trace" ("WHILE _ //INVARIANT _ //DO _ //WEND" [64,64,64] 63) where
   "WHILE b INVARIANT i DO p WEND = (test b ; p)\<^sup>\<star> ; test b"
+
+definition if_then_else :: "'a set \<Rightarrow> 'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" ("IF _ //THEN _ //ELSE _" [64,64,64] 64) where
+  "IF b THEN  p ELSE q = test b \<cdot> p + test b \<cdot> q"
+
+definition FIND :: "(nat \<Rightarrow> bool) \<Rightarrow> state trace" where
+  "FIND p \<equiv>
+  OT := Val LEN;
+  ET := Val LEN;
+  ( OC := Val 0;
+    WHILE {\<sigma>. \<sigma> OC < \<sigma> OT \<and> \<sigma> OC < \<sigma> ET}
+    INVARIANT (UNIV :: nat set)
+    DO
+      IF {\<sigma>. p (\<sigma> (array (\<sigma> OC)))}
+      THEN OT := Var OC
+      ELSE OC := BinOp op + (Var OC) (Val 2)
+    WEND
+  \<parallel> EC := Val 1;
+    WHILE {\<sigma>. \<sigma> EC < \<sigma> OT \<and> \<sigma> EC < \<sigma> ET}
+    INVARIANT (UNIV :: nat set)
+    DO
+      IF {\<sigma>. p (\<sigma> (array (\<sigma> EC)))}
+      THEN ET := Var EC
+      ELSE EC := BinOp op + (Var EC) (Val 2)
+    WEND)"
+
+lemma sequential: "r, g \<turnstile> \<lbrace>p\<rbrace> c1 \<lbrace>x\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>x\<rbrace> c2 \<lbrace>q\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> c1 \<cdot> c2 \<lbrace>q\<rbrace>"
+  sorry
+
+lemma RG_one_leq: "(x::'a trace) \<in> RG \<Longrightarrow> 1 \<le> x"
+  apply transfer
+  apply (simp add: image_def)
+  apply (erule exE)
+  apply (erule conjE)
+  apply (erule exE)
+  apply simp
+  by (metis Mumble_iso seq.star_ref)
+
+lemma "1, \<langle>UNIV\<rangle>\<^sup>\<star> \<turnstile> \<lbrace>ends UNIV\<rbrace> FIND P \<lbrace>q\<rbrace>"
+  apply (simp add: FIND_def)
+  apply (rule_tac x = "ends {\<sigma>. \<sigma> OT = LEN}" in sequential)
+  apply (rule assignment_var)
+  apply clarify
+  apply simp
+  apply (intro RG_one_leq rg_meet_closed unchanged_RG preserves_RG)
+  apply (metis rg_unit)
+  apply (simp add: unchanged_def)
+  apply (rule rg_iso)
+  apply blast
+  apply transfer
+  apply force
+  apply (rule_tac x = "ends {\<sigma>. \<sigma> OT = LEN \<and> \<sigma> ET = LEN}" in sequential)
+  apply (rule assignment_var)
+  apply clarify
+  apply simp
+  apply (intro RG_one_leq rg_meet_closed unchanged_RG preserves_RG)
+  apply (metis rg_unit)
+  apply (simp add: unchanged_def)
+  apply (rule rg_iso)
+  apply blast
+  apply transfer
+  apply force
+  apply (rule_tac x = "decreasing {OT} \<parallel> decreasing {ET}" in strengthen_guar)
+  defer defer
+  apply (rule_tac x = "decreasing {ET} \<sqinter> decreasing {OT}" in weaken_rely)
+  defer
+  defer
+  apply (rule_tac x = "ends {\<sigma>. \<sigma> OT = LEN \<and> \<sigma> ET = LEN} \<sqinter> ends {\<sigma>. \<sigma> OT = LEN \<and> \<sigma> ET = LEN}" in weaken_precondition)
+  defer
+  apply (rule_tac x = "q \<sqinter> q" in strengthen_postcondition)
+  defer
+  apply (rule parallel)
 
 end
