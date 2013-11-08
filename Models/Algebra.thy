@@ -165,7 +165,7 @@ begin
       by (metis sup_idem)
   qed
 
-  definition quintuple :: "'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" ("_, _ \<turnstile> \<lbrace>_\<rbrace> _ \<lbrace>_\<rbrace>" [20,20,20,20,20] 1000) where
+  definition quintuple :: "'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> 'a \<Rightarrow> bool" ("_,// _// \<turnstile> \<lbrace>_\<rbrace> _ \<lbrace>_\<rbrace>" [20,20,20,20,20] 1000) where
     "r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>q\<rbrace> \<equiv> p\<cdot>(r\<parallel>c) \<le>\<^sub>\<pi> q \<and> c \<le> g \<and> r \<in> RG \<and> g \<in> RG"
 
   lemma rg_idem_mult [simp]: "r \<in> RG \<Longrightarrow> r\<cdot>r = r"

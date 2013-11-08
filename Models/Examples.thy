@@ -40,6 +40,7 @@ definition assign :: "nat \<Rightarrow> expr \<Rightarrow> state trace" (infix "
 definition preserves :: "'a set \<Rightarrow> 'a trace" where
   "preserves P = \<langle>{(\<sigma>, \<sigma>'). \<sigma> \<in> P \<longrightarrow> \<sigma>' \<in> P}\<rangle>\<^sup>\<star>"
 
+
 lemma preserves_RG [intro]: "preserves X \<in> RG"
   by (simp add: preserves_def, transfer, auto)
 
@@ -48,6 +49,12 @@ definition unchanged :: "nat set \<Rightarrow> state trace" where
 
 lemma unchanged_RG [intro]: "unchanged X \<in> RG"
   by (simp add: unchanged_def, transfer, auto)
+
+definition decreasing :: "nat set \<Rightarrow> state trace" where
+  "decreasing Vars \<equiv> \<langle>{(\<sigma>, \<sigma>'). \<forall>v\<in>Vars. \<sigma> v \<le> \<sigma>' v}\<rangle>\<^sup>\<star>"
+
+lemma decreasing_RG [intro]: "decreasing X \<in> RG"
+  by (simp add: decreasing_def, transfer, auto)
 
 lemma assign_unchanged [intro]: "x := e \<le> unchanged (- {x})"
   sorry
@@ -416,7 +423,7 @@ definition FIND :: "(nat \<Rightarrow> bool) \<Rightarrow> state trace" where
   ET := Val LEN;
   ( OC := Val 0;
     WHILE {\<sigma>. \<sigma> OC < \<sigma> OT \<and> \<sigma> OC < \<sigma> ET}
-    INVARIANT (UNIV :: nat set)
+    INVARIANT {\<sigma>. \<forall>v. v < \<sigma> OC \<longrightarrow> \<not> p (\<sigma> (array (\<sigma> v)))}
     DO
       IF {\<sigma>. p (\<sigma> (array (\<sigma> OC)))}
       THEN OT := Var OC
@@ -424,12 +431,38 @@ definition FIND :: "(nat \<Rightarrow> bool) \<Rightarrow> state trace" where
     WEND
   \<parallel> EC := Val 1;
     WHILE {\<sigma>. \<sigma> EC < \<sigma> OT \<and> \<sigma> EC < \<sigma> ET}
-    INVARIANT (UNIV :: nat set)
+    INVARIANT (UNIV :: state set)
     DO
       IF {\<sigma>. p (\<sigma> (array (\<sigma> EC)))}
       THEN ET := Var EC
       ELSE EC := BinOp op + (Var EC) (Val 2)
     WEND)"
+
+definition LOOP1 :: "(nat \<Rightarrow> bool) \<Rightarrow> state trace" where
+  "LOOP1 p \<equiv>
+    WHILE {\<sigma>. \<sigma> OC < \<sigma> OT \<and> \<sigma> OC < \<sigma> ET}
+    INVARIANT {\<sigma>. \<forall>v. v < \<sigma> OC \<longrightarrow> \<not> p (\<sigma> (array (\<sigma> v)))}
+    DO
+      IF {\<sigma>. p (\<sigma> (array (\<sigma> OC)))}
+      THEN OT := Var OC
+      ELSE OC := BinOp op + (Var OC) (Val 2)
+    WEND"
+
+
+lemma (in left_kleene_algebra) star_leq: "x \<le> y \<Longrightarrow> x \<le> y\<^sup>\<star>"
+  by (metis dual_order.trans star_ext)
+
+lemma tests_preserve_all: "test X \<le> preserves Y"
+  apply (simp add: test_def preserves_def)
+  apply (rule star_leq)
+  apply (rule atomic_iso)
+  by auto
+
+lemma seq_preserves: "X \<le> preserves Z \<Longrightarrow> Y \<le> preserves Z \<Longrightarrow> X ; Y \<le> preserves Z"
+  apply (auto simp add: preserves_def)
+  by (metis prod_star_closure)
+
+lemma "\<not> (x \<longrightarrow> y) \<longleftrightarrow> x \<and> \<not> y"
 
 lemma sequential: "r, g \<turnstile> \<lbrace>p\<rbrace> c1 \<lbrace>x\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>x\<rbrace> c2 \<lbrace>q\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> c1 \<cdot> c2 \<lbrace>q\<rbrace>"
   sorry
@@ -443,7 +476,71 @@ lemma RG_one_leq: "(x::'a trace) \<in> RG \<Longrightarrow> 1 \<le> x"
   apply simp
   by (metis Mumble_iso seq.star_ref)
 
-lemma "1, \<langle>UNIV\<rangle>\<^sup>\<star> \<turnstile> \<lbrace>ends UNIV\<rbrace> FIND P \<lbrace>q\<rbrace>"
+lemma UNIV_rg_leq: "x \<in> RG \<Longrightarrow> x \<le> \<langle>UNIV\<rangle>\<^sup>\<star>" sorry
+
+lemma [simp]: "{(\<sigma>, \<sigma>'). True}\<^sup>+ = {(\<sigma>, \<sigma>'). True}"
+  by (metis (lifting) mem_Collect_eq pred_equals_eq2 split_conv trancl.r_into_trancl)
+
+lemma [simp]: "{\<sigma>. \<sigma> OT = LEN}\<lbrakk>OC := Val 0\<rbrakk> = {\<sigma>. \<sigma> OT = LEN \<and> \<sigma> OC = 0}"
+  apply (simp add: image_def)
+  apply safe
+  apply (simp add: OC_def OT_def LEN_def)+
+  by (metis Examples.eval.simps(4))
+
+lemma [simp]: "{\<sigma>. \<sigma> ET = LEN}\<lbrakk>EC := Val (Suc 0)\<rbrakk> = {\<sigma>. \<sigma> ET = LEN \<and> \<sigma> EC = Suc 0}"
+  apply (simp add: image_def)
+  apply safe
+  apply (simp add: EC_def ET_def LEN_def)+
+  by (metis Examples.eval.simps(4))
+
+lemma [simp]: "{(\<sigma>, \<sigma>'). True} \<inter> X = X"
+  by auto
+
+lemma [simp]: "{(\<sigma>, \<sigma>'). \<sigma> ET = LEN \<longrightarrow> \<sigma>' ET = LEN}\<^sup>+ = {(\<sigma>, \<sigma>'). \<sigma> ET = LEN \<longrightarrow> \<sigma>' ET = LEN}"
+  by (rule trancl_id) (auto simp add: trans_def)
+
+lemma [simp]: "{(\<sigma>, \<sigma>'). \<sigma> OT = LEN \<longrightarrow> \<sigma>' OT = LEN}\<^sup>+ = {(\<sigma>, \<sigma>'). \<sigma> OT = LEN \<longrightarrow> \<sigma>' OT = LEN}"
+  by (rule trancl_id) (auto simp add: trans_def)
+
+lemma trancl_leq: "x \<subseteq> y \<Longrightarrow> x \<subseteq> y\<^sup>+"
+  by (metis r_into_trancl' subsetI subset_trans)
+
+lemma
+  assumes "(\<forall>v. even v \<and> v < oc \<longrightarrow> \<not> P (A(v))) \<and> even oc \<and> (P (A(ot)) \<or> ot = len)"
+  and "ot \<le> oc \<or> et \<le> oc"
+  shows "P (A(ot)) \<or> ot = len"
+  using assms
+  by auto
+
+lemma while:
+  assumes "ends p \<le> ends i"
+  and "ends (-b \<inter> i) \<le> ends q"
+  and "r, g \<turnstile> \<lbrace>ends (i \<inter> b)\<rbrace> c \<lbrace>ends i\<rbrace>"
+  shows "r, g \<turnstile> \<lbrace>ends p\<rbrace> WHILE b INVARIANT i DO c WEND \<lbrace>ends q\<rbrace>"
+  sorry
+
+lemma if_then_else:
+  assumes "r, g \<turnstile> \<lbrace>ends (p \<inter> b)\<rbrace> c1 \<lbrace>ends q\<rbrace>"
+  and "r, g \<turnstile> \<lbrace>ends (p \<inter> - b)\<rbrace> c2 \<lbrace>ends q\<rbrace>"
+  shows "r, g \<turnstile> \<lbrace>ends p\<rbrace> IF b THEN c1 ELSE c2 \<lbrace>ends q\<rbrace>"
+  sorry
+
+lemma test: "decreasing {ET} \<sqinter> unchanged {OT, OC},
+      decreasing {OT} \<sqinter> unchanged {ET, EC}
+      \<turnstile> \<lbrace>ends {\<sigma>. \<sigma> OT = LEN \<and> \<sigma> OC = 0}\<rbrace> LOOP1 P \<lbrace>ends Q\<rbrace>"
+  apply (simp add: LOOP1_def)
+  apply (rule while)
+  apply (rule ends_mono)
+  apply auto
+  defer
+  apply (rule if_then_else)
+  apply (rule assignment_var)
+  apply (rule order_trans[of _ "{\<sigma>. \<forall>v<\<sigma> OC. \<not> P (\<sigma> (array (\<sigma> v)))}\<lbrakk>OT := Var OC\<rbrakk>"])
+  apply (intro order_refl le_infI1 image_mono)
+
+thm test
+
+lemma "1, \<langle>UNIV\<rangle>\<^sup>\<star> \<turnstile> \<lbrace>ends UNIV\<rbrace> FIND P \<lbrace>ends {\<sigma>. P (min (\<sigma> (array (\<sigma> OT))) (\<sigma> (array (\<sigma> ET))))}\<rbrace>"
   apply (simp add: FIND_def)
   apply (rule_tac x = "ends {\<sigma>. \<sigma> OT = LEN}" in sequential)
   apply (rule assignment_var)
@@ -467,15 +564,68 @@ lemma "1, \<langle>UNIV\<rangle>\<^sup>\<star> \<turnstile> \<lbrace>ends UNIV\<
   apply blast
   apply transfer
   apply force
-  apply (rule_tac x = "decreasing {OT} \<parallel> decreasing {ET}" in strengthen_guar)
-  defer defer
-  apply (rule_tac x = "decreasing {ET} \<sqinter> decreasing {OT}" in weaken_rely)
+  apply (rule_tac x = "decreasing {OT} \<sqinter> unchanged {ET, EC} \<parallel> decreasing {ET} \<sqinter> unchanged {OT, OC}" in strengthen_guar)
+  apply (metis (hide_lams, no_types) UNIV_rg_leq decreasing_RG rg_meet_closed rg_par_closed unchanged_RG)
+  apply transfer
+  apply force
+  apply (rule_tac x = "(decreasing {ET} \<sqinter> unchanged {OT, OC}) \<sqinter> (decreasing {OT} \<sqinter> unchanged {ET, EC})" in weaken_rely)
+  apply (metis RG_one_leq decreasing_RG inf.bounded_iff unchanged_RG)
+  apply (metis rg_unit)
+  apply (rule_tac x = "ends {\<sigma>. \<sigma> OT = LEN} \<sqinter> ends {\<sigma>. \<sigma> ET = LEN}" in weaken_precondition)
+  apply (metis (lifting) Collect_mono ends_mono inf.bounded_iff)
+  apply (rule_tac x = "ends {\<sigma>. (P (\<sigma> OT) \<and> (\<sigma> OT \<le> \<sigma> OC)) \<or> (\<sigma> ET \<le> \<sigma> OC)} \<sqinter> ends {\<sigma>. P (\<sigma> ET) \<or> (\<sigma> OT < \<sigma> ET)}" in strengthen_postcondition)
   defer
   defer
-  apply (rule_tac x = "ends {\<sigma>. \<sigma> OT = LEN \<and> \<sigma> ET = LEN} \<sqinter> ends {\<sigma>. \<sigma> OT = LEN \<and> \<sigma> ET = LEN}" in weaken_precondition)
   defer
-  apply (rule_tac x = "q \<sqinter> q" in strengthen_postcondition)
-  defer
+  (* Ready to apply parallel rule *)
   apply (rule parallel)
+  prefer 4 prefer 3
+  apply blast apply blast
+  (* First loop assignment *)
+  apply (rule_tac x = "ends {\<sigma>. \<sigma> OT = LEN \<and> \<sigma> OC = 0}" in sequential)
+  apply (rule assignment_var)
+  apply clarify
+  apply (simp add: OT_def OC_def)
+  apply (rule le_infI2)
+  apply (simp add: unchanged_def preserves_def)
+  apply (rule rg_iso)
+  apply (simp add: image_def)
+  apply auto
+  apply (rule order_trans[of _ "unchanged {OT}"])
+  apply (rule unchanged_antitone)
+  apply (simp add: OT_def OC_def)
+  apply (simp add: unchanged_def decreasing_def)
+  apply (rule rg_iso)
+  apply auto
+  apply (simp add: OC_def ET_def)
+  apply (simp add: OC_def EC_def)
+  defer
+  (* Second loop assignment *)
+  apply (rule_tac x = "ends {\<sigma>. \<sigma> ET = LEN \<and> \<sigma> EC = 1}" in sequential)
+  apply (rule assignment_var)
+  apply clarify
+  apply (simp add: ET_def EC_def)
+  apply (rule le_infI2)
+  apply (simp add: unchanged_def preserves_def)
+  apply (rule rg_iso)
+  apply (simp add: image_def)
+  apply auto
+  apply (rule order_trans[of _ "unchanged {ET}"])
+  apply (rule unchanged_antitone)
+  apply (simp add: ET_def EC_def)
+  apply (simp add: unchanged_def decreasing_def)
+  apply (rule rg_iso)
+  apply auto
+  apply (simp add: EC_def OT_def)
+  apply (simp add: OC_def EC_def)
+  prefer 3
+  defer
+  apply (rule while)
+  apply (rule ends_mono)
+  apply auto
+  apply (rule ends_mono)
+  apply auto
+  sledgehammer
+  (* First loop while *)
 
 end
