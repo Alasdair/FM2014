@@ -37,9 +37,9 @@
 \tikzstyle{line} = [draw,thick, -latex']
 \tikzstyle{rel} = [draw,thin,dashed, -latex']
 
-\title{Algebraic Principles for Concurrency Verification Tools}
+\title{Algebraic Principles for Rely-Guarantee Style Concurrency Verification Tools}
 
-\author{Alasdair Armstrong \and Victor B.~F.~Gomes\thanks{Sponsored by CNPq, Brazil}  \and Georg Struth}
+\author{Alasdair Armstrong \and Victor B.~F.~Gomes \and Georg Struth}
 
 \institute{Department of Computer Science, University of Sheffield, UK\\
 \email{$\{$a.armstrong,v.gomes,g.struth$\}$@dcs.shef.ac.uk}}
@@ -47,14 +47,15 @@
 \maketitle
 
 \begin{abstract}
-  We investigate equational laws for the derivation of rely-guarantee
-  style inference and refinement rules in the minimalistic setting of
-  semirings. This algebraic level is linked with concrete programming
-  models based on languages and execution traces. The approach has
-  been implemented in Isabelle/HOL where the link between algebras and
-  models supports reasoning about both the control and data flow of
-  concurrent programs at varying levels of abstraction. Finally, we
-  illustrate our approach via simple program verification examples.
+  We provide simple equational principles for deriving
+  rely-guarantee-style inference rules and refinement laws based on
+  idempotent semirings. We link the algebraic layer with concrete
+  models of programs based on languages and execution traces. We have
+  implemented the approach in Isabelle/HOL as a lightweight
+  concurrency verification tool that supports reasoning about the
+  control and data flow of concurrent programs with shared variables
+  at different levels of abstraction. This is illustrated on two
+  simple verification examples.
 \end{abstract}
 
 \pagestyle{plain}
@@ -62,179 +63,304 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Introduction}
 
-x
+We aim to develop tools which support reasoning about concurrent
+programs at varying levels of abstraction. At the highest level,
+abstract algebra provides a framework for the prototyping of new
+inference and refinement rules, whereas at the lowest level concrete
+models of program stores allow for fine-grained reasoning about
+program data flow. We have implemented this approach is the
+Isabelle/HOL interactive theorem prover. Isabelle/HOL not only
+provides us with a high degree of confidence in the correctness of our
+theorems, but also supports the construction of custom proof tactics
+and tools for program verification tasks. Our approach differs from
+existing frameworks for rely-guarantee reasoning in
+Isabelle~\cite{nieto}, both by making the link between concrete
+programs and algebras explicit, but also by allowing arbitrary nested
+parallelism.
 
-x
+For sequential programs the applicability of algebra, and Kleene
+algebra in particular, has been known for over a decade. Kleene
+algebra provides operations for non-deterministic choice, sequential
+composition and finite iteration, in addition to skip and abort. With
+appropriate extensions, Kleene algebras support Hoare-style program
+verification, and allow the derivation of program equivalences and
+refinement rules. Furthermore, Kleene algebra has been applied in many
+applications, such as compiler
+optimisation~\cite{kozen_certification_2000}, program construction,
+transformation and termination analysis, and static analysis.
 
-x
+Algebra has also been applied in the study of separation logic, for
+example, as the separation algebras in~\cite{ohearn}, or in algebraic
+separation logic.
 
-x
+\fbox{Algebraic Separation Logic}
 
-x
+\fbox{Concurrent Kleene Algebra}
 
-x
+Rely-guarantee is a so called \emph{compositional} method, where the
+verification of a large program is reduced the independent
+verification of individual subprograms, with the interference from
+other subprograms being abstractly captured by \emph{rely} and
+\emph{guarantee} conditions. This form of compositionality is,
+however, weaker than the strong notion of compositionality inherent in
+algebra, where full congruence rules exist for every operator.
 
-x
+In this paper, we investigate algebraic principles for rely-guarantee
+style reasoning. This has been explored previously, for example
+in~\cite{cka}, but we extend this approach by considering a minimal
+set of rules sufficient to derive the standard rely-guarantee
+inference rules. Furthermore, we explore how the algebraic
+compositionality of this approach can be broken in just the right way,
+so as to capture the ideas of abstract interference conditions in
+rely-guarantee reasoning.
 
-x
+The verification and construction of actual concurrent programs often
+requires complex semantics involving synchronisation, termination
+analysis and complicated data structures.
 
-x
+\fbox{We verify simple programs}
 
-x
+\fbox{Coherent framework for programs}
 
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-x
-
-\newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Semirings and Kleene Algebra}
+\section{Algebraic Preliminaries}
 \label{sec:KA}
 
-A \emph{semiring} is an structure
-$(D,+,\cdot,0,1)$ satisfying the following laws,
-\begin{align*}
-  x(y + z) &= xy + xz, &\qquad (x + y)z &= xz + yz,\\
-  (x + y) + z &= x + (y + z), &\qquad (xy)z &= x(yz),\\
-  x + y &= y + x, &\qquad 0 + x &= x,\\
-  1x &= x, &\qquad x1 &= x,\\
-  0x &= 0, &\qquad x0 &= 0.
-\end{align*}
-A semiring is \emph{idempotent} if $x + x = x$, and \emph{weak} if $x0
-= 0$ does not hold. The natural partial order $\le$ is defined as $x
-\le y $ iff $x + y = y$. In an idempotent semiring $(D,+,0)$ therefore
-forms a join semilattice with least element $0$. Idempotent semirings
-are also called \emph{dioids}. In some contexts, it is also useful to
-add a meet operation $\sqcap$, such that $(D,+,\sqcap)$ is a lattice.
+\fbox{define weak trioid!}
 
-In the context of programs, one typically thinks of $\cdot$ as being
-sequential composition, $+$ as non-deterministic choice, $0$ as the
-abortive action and $1$ as skip. For concurrent software, it is
-natural to extend the notion of a dioid to that of a \emph{trioid}
-with operators for both sequential and parallel composition. Formally,
-a trioid is a structure $(D,+,\cdot,\|,0,1)$ where $(D,+,\cdot,0,1)$
-is a dioid and,
-\begin{align*}
-  x\|(y + z) &= x\|y + x\|z, &\qquad x\|y &= y\|x,\\
-  (x\|y)\|z &= x\|(y\|z), &\qquad x\|1 &= x,\\
-  0\|x &= x.
-\end{align*}
+Rely-guarantee algebras, which are introduced in the following
+section, are based on dioids and Kleene algebras. A \emph{semiring} is
+a structure $(S,+,\cdot,0,1)$ such that $(S,+,0)$ is a commutative
+monoid, $(S,\cdot, 1)$ is a monoid and the distributivity laws $x\cdot
+(y+z)=x\cdot z + y \cdot z$ and $(x+y)\cdot z = x\cdot z+y\cdot z$ as
+well as the annihilation laws $x\cdot 0=0$ and $0\cdot x=0$ hold. A
+\emph{dioid} is a semiring in which addition is idempotent:
+$x+x=x$. Hence $(S,+,0)$ forms a join semilattice with least element
+$0$ and partial order defined, as usual, as $x\le y\Leftrightarrow
+x+y=y$. The operations of addition and multiplication are isotone with
+respect to the order, that is, $x \le y $ implies $z+x\le z+y$,
+$z\cdot x \le z\cdot y$ and $x\cdot z \le y\cdot z$. A dioid is
+\emph{commutative} if multiplication is: $x\cdot y = y \cdot x$.
 
-In a trioid there are no laws governing the interaction between
-sequential and parallel composition. One law which has been considered
-in previous papers is the \emph{exchange} law~\cite{hoare_concurrent_2011,hoare_locality_2011}
-\begin{align*}
-  (w \| x) \cdot (y \| z) \le (w \cdot z) \| (x \cdot y).
-\end{align*}
+In the context of sequential programs, one typically thinks of $\cdot$
+as sequential composition, $+$ as nondeterministic choice, $0$ as the
+abortive action and $1$ as skip.  In this context it is essential that
+multiplication is not commutative.  More formally, it is well known
+that (regular) languages with language union as $+$ and language
+product as $\cdot$, the empty language as $0$ and the empty word
+language $\{\varepsilon\}$ as $1$ form dioids. Another model is formed
+by binary relations with the union of relations as $+$, the product of
+relations as $\cdot$, the empty relation as $0$ and the identity
+relation as $1$. A model of commutative dioids is formed by sets of
+(finite) multisets or Parikh vectors with multiset addition as
+multiplication.
 
-The exchange law is initially appealing as it provides a way to derive
-many properties of parallel composition from a single law. For example
-one can show that $\|$ must be commutative, or that $x\cdot y \le
-x\|y$. However, there are many interesting models which do not satisfy
-this law. First, one could consider fair parallel composition
-$x\parallel_f y$ in a model with infinite, or non-terminating
-programs. In this model, $x \cdot y \not\leq x \parallel_f y$ in the
-case where $x$ is non-terminating. A second example would be
-predicate-transformer style models for separation logic, where $\|$ is
-interpreted as separating conjunction. In such models, $\|$ and
-$\cdot$ have different units, which, in the presence of the exchange
-law, implies that $\cdot$ is equal to $\|$.
+It is well known that commutative dioids can be used for modelling the
+interaction between concurrent composition and nondeterministic
+choice. The following definition serves as a basis for models of
+concurrency in which sequential and concurrent composition
+interact.\fbox{should we write $;$ instead of $\cdot$?} 
 
-A Kleene algebra~\cite{kozen_completeness_1994} expands a dioid with a star operation satisfying the laws
-\begin{align*}
-  1 + xx^* &\le x^*, &\qquad z + xy \le y &\implies x^*z \le y,\\
-  1 + x^*x &\le x^*, &\qquad z + yx \le y &\implies zx^* \le y.
-\end{align*}
+A \emph{trioid} is a structure $(S,+,\cdot,||,0,1)$ such that
+$(S,+,\cdot,0,1)$ is a dioid and $(S,\cdot,||,0,1)$ a commutative
+dioid. In a trioid there is no interaction between the sequential
+composition $\cdot$ and the parallel composition $||$. On the one
+hand, Gischer has shown that trioids are sound and complete for the
+equational theory of series-parallel pomset languages~\cite{Gischer},
+which form a well studied model of true concurrency. On the other
+hand, he has also obtained a completeness result with respect to a
+notion of pomset subsumption for trioids with the additional
+\emph{interchange axiom} $(w \| x) \cdot (y \| z) \le (w \cdot y) \|
+(x \cdot z)$ and it is well known that this additional axiom also
+holds for (regular) languages in which $||$ is interpreted as the
+shuffle or interleaving operation~\cite{Gischer}.
 
-For programs, the star represents finite iteration of a program $x$
-zero or more times. For iteration where $x$ must be executed at least
-once, we write $x^+$. One can similarly axiomatise a parallel star
-operation.
+Formally, the \emph{shuffle} $\sha$ of two finite words is defined
+inductively as
+\begin{equation*}
+\epsilon \sha s = \{s\}, \qquad s \sha \epsilon = \{s\},\qquad
+as \sha bt = a(s \sha bt) \cup b(as \sha t),
+\end{equation*}
+which is then lifted to the shuffle product of languages $X$ and $Y$
+as
+\begin{equation*}
+X \sha Y = \{x \sha y:\; x \in X \land x \in Y\}.
+\end{equation*}
+\fbox{I would use $||$ here}
 
-A Kleene algebra expanded with a parallel composition operator such
-that $(K,+,\cdot,\|,0,1)$ is a trioid in which the exchange law holds
-is called a \emph{concurrent Kleene algebra}~\cite{hoare_concurrent_2011}.
+For logics of programs, notions of iteration or recursion are
+essential. A \emph{Kleene algebra} is a dioid expaned with a star
+operation which satisfies the \emph{left unfold axiom} $1 + x\cdot
+x^*\le x^*$ and the \emph{left} and \emph{right induction axiom} $z+x
+\cdot y \le y\Rightarrow x^*\cdot z \le y$ and $z + y\cdot x \le y
+z\cdot \Rightarrow x^* \le y$. It follows that $1+x\cdot x^* = x^*$
+and that the right unfold axiom $1+x^*\cdot x=x^*$ is derivable as
+well. Thus iteration $x^\ast$ is modelled as the least fixpoint of the
+function $\lambda y. 1+x\cdot y$, which is the same as the least
+fixpoint of $\lambda y.1+ y\cdot x$. A \emph{commutative Kleene
+  algebra} is a Kleene algebra in which multiplication is commutative.
 
-In a (concurrent) Kleene algebra Hoare triples can be encoded \`a la
-Tarlecki as $\{x\}y\{z\} \iff xy \le z$. Assume residuals axiomatised
-by Galois connections
-\begin{align*}
- x \le z \leftarrow y \iff xy \le z \iff y \le x \rightarrow z,
-\end{align*}
-exist, as in Pratt's \emph{action
-  algebra}~\cite{pratt_action_1990}. Then the Hoare triple
-$\{x\}y\{z\}$ is equivalent to $x \le z \leftarrow y$, where $z
-\leftarrow y$ can be seen as $\wlp(y,z)$.
+It is well known that (regular) languages form Kleene algebras and
+that (regular) sets of multisets form commutative Kleene algebras. In
+fact, Kleene algebras are complete with respect to the equational
+theory of regular languages as well as the equational theory of binary
+relations with the reflexive transitive closure operation as the
+star~\cite{Kozen}. Moreover, commutative Kleene algebras are
+complete with respect to the equational theory of regular languages
+over multisets~\cite{Conway}. It follows that equations in
+(commutative) Kleene algebras are decidable.
 
-For sequential programs, Hoare logic can also be encoded algebraically by
-expanding a Kleene algebra with a Boolean test subalgebra. A
-\emph{Kleene algebra with tests} (KAT)~\cite{kozen_kleene_1997} is structure
-$(K,B,+,\cdot,\phantom{|}^\star,\overline{\phantom{x}},0,1)$ where
-$(K,+,\cdot,\phantom{|}^\star,0,1)$ is a Kleene algebra and
-$(B,+,\cdot,\overline{\phantom{x}},0,1)$ is a Boolean algebra such
-that $B \subseteq K$. The $\overline{\phantom{x}}$ operator is only
-defined on elements of the Boolean subalgebra. We denote arbitrary
-elements of $K$ by $x,y,z$ and tests by $p,q,r$.
+A \emph{bi-Kleene algebra} is a structure
+$(K,+,\cdot,||,0,1,^*,^{(*)})$ such that $(K,+,\cdot,0,1,^*)$ is a
+Kleene algebra and $(K,+,||,0,1,^{(*)})$ a commutative Kleene
+algebra. Bi-Kleene algebras are sound and complete with respect to the
+equational theory of regular series-parallel pomset languages, and the
+equational theory is again decidable~\cite{LaurenceStruth}. A
+\emph{concurrent Kleene algebra} is a bi-Kleene algebra which
+satisfies the interchange law~\cite{Hoareetal}. It can be shown that
+shuffle languages and regular series-parallel pomset languages with a
+suitable notion of pomset subsumption form concurrent Kleene algebras.
 
-In KAT Hoare triples are defined in the following (equivalent) ways
-\begin{align*}
-\{p\}x\{q\} \iff px \le xq \iff px = pxq \iff px\overline{q} = 0.
-\end{align*}
-Using these encodings all the rules of Hoare logic excluding the
-assignment rule can be derived.
+In some contexts, it is also useful to add a meet operation $\sqcap$,
+such that $(D,+,\sqcap)$ is a lattice. \fbox{expand}
 
-\newpage
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Generalised Hoare Logics  in Kleene Algebra}
+
+It is well known that the inference rules for sequential Hoare logic
+(except the assignment axiom) can be derived in expansions of Kleene
+algebras. One approach is as follows~\cite{MoellerStruth}. Suppose a
+suitable Boolean algebra $B$ of \emph{tests} has been embedded into a
+Kleene algebra $K$ such that $0$ and $1$ are the minimal and maximal
+element of $B$, $+$ corresponds to join and $\cdot$ to
+meet. Complements $-$ are defined only on $B$. Suppose further that a
+\emph{backward diamond operator} $\langle x|p$ has been defined for
+each $x\in K$ and $p\in B$, which models the set of all states to
+which each terminating execution of program $x$ may lead from states
+$q$. Finally suppose that a \emph{forward box operator} $|x]p$ has
+been defined which models the (largest) set of states from which every
+terminating execution of $x$ must end up in states $q$ and that boxes
+and diamonds are adjoints of the Galois connection
+\begin{equation*}
+  \langle x|p \le q \Leftrightarrow p \le |x]q,
+\end{equation*}
+for all $x\in K$ and $p,q\in B$. It is then evident from the above
+explanations that validity of a Hoare triple $\vdash \{p\}x\{q\}$ can
+be encoded as $\langle x|p \le q$ and the weakest liberal precodition
+operator $\mathsf{wlp}(x,q)$ as $|x]p$. Hence the relationship between
+the proof theory and the semantics of Hoare logic is captured by the
+Galois connection $ \vdash\{p\}x\{q\} \Leftrightarrow p \le
+\mathsf{wlp}(x,q)$. It has been shown that the relational semantics of
+sequential while-programs can be encoded in these \emph{modal Kleene
+  algebras} and that the inference rules of Hoare logic can be
+derived~\cite{MoellerStruth}.
+
+In the context of concurrency, this relational approach is no longer
+appropriate. Here, the following approach by
+Tarlecki~\cite{tarlecki_language_1985} can be used instead. One can
+now encode validity of a Hoare triple as
+\begin{equation*}
+  \vdash \{x\}y\{z\} \Leftrightarrow x \cdot y \le z
+\end{equation*}
+for arbitrary elements of a Kleene algebra $K$. Nevertheless all the
+rules of sequential Hoare logic except the assignment axiom can still
+be derived in this setting~\cite{Hoareetal}.  Tarlecki's motivating
+explanations carry over to the algebraic approach. 
+
+As an example we show the derivation of a generalised while
+rule. Suppose $x\cdot t\cdot y\le x$. Then $x\cdot (t\cdot y)^\ast \le
+x$ by the right induction axiom of Kleene algebra and therefore
+$x\cdot (t\cdot y)^\ast t'\le x\cdot t'$ for arbitrary element $t'$ by
+isotonicity of multiplication. This derives the while rule
+\begin{equation*}
+  \frac{\{x\cdot t\}y\{x\}}{\{x\}(t\cdot y)^\ast\{t'\cdot x\}}
+\end{equation*}
+for a generalised while loop $(t\cdot y)^\ast\cdot t'$, which
+specialises to the conventional rule when $t$ and $t'$ are, in some
+sense, complements.
+
+The correspondence to a wlp-style semantics, as in model Kleene
+algebra, now requires a generalisation of the Galois connection for
+boxes and diamonds to multiplication and an upper adjoint in the form
+of residuation.  This can be achieved in the context of \emph{action
+  algebras}~\cite{pratt}, which expand Kleene algebras by operations
+of left and right residuation defined by the Galois connections
+\begin{equation*}
+  xy\le z\Leftrightarrow x\le z\leftarrow y,\qquad xy\le z \Leftrightarrow y\le z\rightarrow x.
+\end{equation*}
+\fbox{please check that I didn't confuse these arrows} These
+residuals, and now even the Kleene star can be axiomatised
+equationally in action algebras. For a comprehensive list of the
+properties of action algebras and their most important models
+see~\cite{archive}, including the language and the relational
+model. In analogy to the development in model Kleene algebra we can
+now stipulate $ \wlp(x,y)=y\leftarrow x$ and obtain the Galois
+connection
+\begin{equation*}
+  \vdash \{x\}y\{z\} \Leftrightarrow x\le \wlp(y,z)
+\end{equation*}
+with the characteristic properties $\vdash \{\wlp(y,z)\}y\{z\}$ and $x\le
+\wlp(y,z)\Rightarrow \ \vdash \{x\}y\{z\}$. Moreover, if the action algebra is
+also a quantale, and infinite sums exist, it follows that $
+\wlp(y,z)=\sum\{x:\ \vdash \{x\}y\{z\}\}$.  It is obvious that this definition
+makes sense in all models of action algebras and
+quantales. Intuitively, suppose $p$ stands for the set of all
+behaviours of a system, for instance the set of all execution traces,
+that end in state $p$, and likewise for $q$. Then $\{p\}x\{q\}$ states
+that all executions ending in $p$ can be extended by $x$ to executions
+ending in $q$. $\wlp(x,q)$ is the most general behaviour, that is the
+set of all executions $p$ after which all executions of $x$ must end
+in $q$.
+
+In the context of concurrent Kleene algebra, even without the parallel
+star, additional inference rules can be derived, in particular 
+\begin{equation*}
+  \frac{\vdash\{x\}y\{z\}}{\vdash\{w||x\}y\{w||z\}}\qquad \frac{\vdash\{x_1\}y_1\{z_1\}\quad\vdash\{x_2\}y_2\{z_2\}}{\vdash\{x_1||x_2\}y_1||y_2\{z_1||z_2\}}
+\end{equation*}
+which correspond to the frame rule and the concurrency rule of
+concurrent separation logic~\cite{} when $||$ is interpreted as
+separating conjunction. In fact, the second inference rule is, in any
+bi-Kleene algebra equivalent to the interchange axiom and the frame
+rule is derivable from this axiom as well~\cite{Hoareetal}. The
+precise connection between concurrent separation logic, a variant of
+concurrent Kleene algebra and a resource transformer model has been
+elaborated in~\cite{localitypaper}.
+
+A residuation for concurrent composition can be considered as well:
+\begin{equation*}
+x\|y \le z \Leftrightarrow y \le x/z.
+\end{equation*}
+The residual $x/z$ represents the weakest program such that when
+placed in parallel with $x$, the parallel composition behaves as $z$.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Algebra for Rely-Guarantee}
+\section{A  Rely-Guarantee Algebra}
 \label{sec:RG}
+
+In this section we show how bi-Kleene algebras can be expanded into a
+simple algebra that supports the derivation of rely-guarantee-style
+inference rules. This development does \emph{not} use the interchange
+law for several reasons. First, this law fails for fair parallel
+composition $x\parallel_f y$ in a model with possibly infinite, or
+non-terminating programs. In this model, $x \cdot y \not\leq
+x \parallel_f y$ in the case whenever $x$ is non-terminating. Second,
+it is not needed for deriving the usual concurrency laws. Third,
+whereas it may be assumed in the models outlined in Section *** it
+fails for the Aczel trace model in Section ***. \fbox{is that true?}
+
+\fbox{this needs to be reworked. two letters for a set are not good}
+
+\fbox{ the set RG doesn't need to be named in the algebra I think.}
+
+\fbox{we can just start with a bi-KA and say that elements are relies/guarantees if they satisfy properties}
+
+\fbox{what is a weak trioid?}
+
+\fbox{say that we don't consider the parallel star}
+
+\fbox{should we call relies and guarantees more generically
+  ``conditions'' can call them $c$?}
 
 A rely-guarantee algebra is a structure
 $(K,RG,+,\sqcap,\cdot,\|,^\star,0,1)$, where $(K,+,\sqcap)$ is a
@@ -248,14 +374,7 @@ r\|xy &= (r\|x)(r\|y), \label{rg3}\\
 r\|x^+ &\le (r\|x)^+ \label{rg4}.
 \end{align}
 By convention, we use $r$ and $g$ to refer to elements of $RG$, and
-$x,y,z$ for arbitrary elements of $K$. Some elementary consequences of these rules are as follows
-\begin{align*}
-1 &\le r,\\
-r^\star = rr &= r = r\|r,\\
-r\|x^+ &= (r\|x)^+.
-\end{align*}
-
-%% Could use better explanations.
+$x,y,z$ for arbitrary elements of $K$. 
 
 Axiom (\ref{rg1}) states that interference from a rely condition being
 run twice in parallel is no different from just the interference from
@@ -265,6 +384,17 @@ interference from itself and another rely condition. Axiom (\ref{rg3})
 allows a rely or guarantee to be split across sequential
 programs. Axiom (\ref{rg4}) is similar to Axiom (\ref{rg3}) in intent,
 except it deals with finite iteration.
+
+Some elementary consequences of these rules are as follows
+\begin{align*}
+1 &\le r,\\
+r^\star = rr &= r = r\|r,\\
+r\|x^+ &= (r\|x)^+.
+\end{align*}
+
+%% Could use better explanations.
+
+
 
 Axioms (\ref{rg1}), (\ref{rg2}) and (\ref{rg3}) are independent. To
 show this, we use Isabelle's
@@ -360,23 +490,6 @@ rules, as shown in Figure \ref{fig:rgrules}. Thus equations
 (\ref{rg1}) to (\ref{rg4}), which are all necessary to derive these
 rules, somehow represent a minimal set of axioms from which these
 inference rules can be derived.
-
-If we expand our rely-guarantee algebras to have residuals axiomatised
-by Galois connections for both parallel and sequential composition,
-i.e.
-\begin{align}
-xy \le z &\iff y \le x \rightarrow z, \label{res1}\\
-xy \le z &\iff x \le z \leftarrow y, \label{res2}\\
-x\|y \le z &\iff y \le x/z \label{res3},
-\end{align}
-then for sequential composition, (\ref{res1}) and (\ref{res2}) provide
-a link between weakest-precondition style semantics and hoare
-logic. As mentioned in Section \ref{sec:KA}, the triple $\{p\} c
-\{q\}$ can be encoded as $pc \le q$, while $q \leftarrow c$ represents
-$wlp(c,q)$. Equation (\ref{res2}) can thus be written as $\{p\} c
-\{q\} \iff p \le wlp(c,q)$. The parallel residual $x/z$ can be
-understood similarly as follows; it is the weakest program such that
-when placed in parallel with $x$, the composition behaves as $z$.
 
 By using these residuals quintuples can be encoded in the following way,
 which is equivalent to the encoding in Equation (\ref{quin}).
@@ -814,6 +927,8 @@ The interesting part of this proof is the verification
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusion}
+
+CNPq EPSRC
 
 \bibliography{paper}{}
 \bibliographystyle{plain}
