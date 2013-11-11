@@ -24,6 +24,8 @@
 \DeclareMathOperator{\wlp}{wlp}
 \DeclareMathOperator{\test}{test}
 \DeclareMathOperator{\eval}{eval}
+\DeclareMathOperator{\Id}{Id}
+\DeclareMathOperator{\edn}{end}
 
 \newcommand{\udagger}{\text{$\rotatebox[origin=c]{180}{$\dagger$}$}}
 
@@ -184,7 +186,7 @@ case where $x$ is non-terminating. A second example would be
 predicate-transformer style models for separation logic, where $\|$ is
 interpreted as separating conjunction. In such models, $\|$ and
 $\cdot$ have different units, which, in the presence of the exchange
-law implies that $\cdot$ is equal to $\|$.
+law, implies that $\cdot$ is equal to $\|$.
 
 A Kleene algebra~\cite{kozen_completeness_1994} expands a dioid with a star operation satisfying the laws
 \begin{align*}
@@ -195,9 +197,7 @@ A Kleene algebra~\cite{kozen_completeness_1994} expands a dioid with a star oper
 For programs, the star represents finite iteration of a program $x$
 zero or more times. For iteration where $x$ must be executed at least
 once, we write $x^+$. One can similarly axiomatise a parallel star
-operation, but in practice this seems to be a less useful operation,
-although one could see it as an operator that spawns an arbitrary but
-finite number of processes.
+operation.
 
 A Kleene algebra expanded with a parallel composition operator such
 that $(K,+,\cdot,\|,0,1)$ is a trioid in which the exchange law holds
@@ -230,15 +230,6 @@ In KAT Hoare triples are defined in the following (equivalent) ways
 \end{align*}
 Using these encodings all the rules of Hoare logic excluding the
 assignment rule can be derived.
-
-One might be tempted to add a test subalgbra to concurrent Kleene
-algebra in the style of KAT. In such an algebra, can the Kozen-style
-encoding of hoare triples above can be used to derive Owicki-Gries
-style concurrency rules? The answer seems to be no---an algebraic
-approach imposes strong compositionality requirements (a point we will
-return to later), so it should come as no suprise that a
-non-compositional method such as Owicki-Gries cannot be so easily be
-done algebraically.
 
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -506,7 +497,10 @@ x^* \sqcap c &\le (x \sqcap c)^* \sqcap c, \label{con1}\\
 xy \sqcap c &\le (x \sqcap c)(y \sqcap c) \sqcap c. \label{con2}
 \end{align}
 
-TODO: Define algebra w/ c.
+As such we redefine our rely-guarantee algebra from section
+\ref{sec:RG} as a structure $(K,RG,+,\sqcap,\cdot,\|,^\star,0,1,c)$
+which, in addition to the rules in section \ref{sec:RG} satisfies both
+(\ref{con1}) and (\ref{con2}).
 
 All the rules in Figure \ref{fig:rgrules} can be derived with this
 algebra, and moreover their proofs remain the same, mutatis
@@ -567,11 +561,17 @@ above properties are enough to show that $(\mathcal{P}((\Sigma\times\Sigma)^*),
 The rely-guarantee elements in this model are sets containing all the
 words which can be built from some set of state pairs in
 $\Sigma\times\Sigma$. We define a function $\langle R\rangle$ which
-lifts a relation $R$ to a language containing length 1 words for each
-pair in $R$. The set of rely-guaratee elements RG is then defined as
-$\{r.\; \exists R. r = \langle R\rangle^*\}$. We can show that
+lifts a relation $R$ to a language containing words of length one for
+each pair in $R$. The set of rely-guaratee elements RG is then defined
+as $\{r.\; \exists R. r = \langle R\rangle^*\}$. We can show that
 $(\mathcal{P}((\Sigma\times\Sigma)^*), RG, \cup, \cdot,\sha,
 \emptyset, \{\epsilon\}, C)$ is a rely-guarantee algebra.
+
+Since $\langle R\rangle$ is atomic, it satisfies several useful properties, such as,
+\begin{align*}
+\langle R\rangle^\star \| \langle S\rangle &= \langle R\rangle^\star; \langle S\rangle; \langle R\rangle^\star\\
+\langle R\rangle^\star \| \langle S\rangle^\star &= (\langle R\rangle^\star; \langle S\rangle^\star)^\star
+\end{align*}
 
 To demonstrate how this model works, consider the graphical
 representation of a language shown below.
@@ -618,10 +618,10 @@ The language contains the following six words
 (\sigma_1,\sigma_2)(\sigma_3,\sigma_2)(\sigma_2,\sigma_3), \qquad
 (\sigma_2,\sigma_2)(\sigma_3,\sigma_2)(\sigma_2,\sigma_3),
 \end{align*}
-but only the first,
+where only the first,
 $(\sigma_1,\sigma_1)(\sigma_1,\sigma_2)(\sigma_2,\sigma_3)$ is
 consistent. This word is highlighted with solid arrows in the
-diagram above. Now imagine we place the single state pair $(\sigma_2,
+diagram above. Now if we shuffle the single state pair $(\sigma_2,
 \sigma_3)$ into the above language, we might end up with a language as
 below:
 
@@ -666,41 +666,150 @@ below:
 
 By performing this shuffle action, we no longer have a consistent word
 from $\sigma_1$ to $\sigma_3$, but instead a consistent word from
-$\sigma_2$ to $\sigma_3$ and $\sigma_1$ to $\sigma_3$. The new
-consistent word was constructed by making a previously inconsistent
-word consistent by `filling in the gaps' in that word. This shows that
-the shuffle operator can take two inconsistent words and shuffle them
-together in such a way that it generates many consistent words. If we
-only considered consistent words, we would be unable to define such a
-shuffle operator, and would instead have to rely on some operational
-semantics to generate traces instead, which would be less
-algebraic. This also clearly demonstrates why shuffle is not well
-defined on the subalgebra we get by intersecting with $C$.
-
-\newpage
+$\sigma_2$ to $\sigma_3$ and $\sigma_1$ to $\sigma_3$. These new
+consistent words were constructed from previously inconsistent
+words---the shuffle operator can take two inconsistent words and
+shuffle them together in such a way to generate many consistent
+words. If we only considered consistent words, \'a la Aczel traces, we
+would be unable to define such a shuffle operator directly on the
+traces themselves, and would instead have to rely on some operational
+semantics to generate traces.
 
 Following~\cite{brookes_full_1993} and~\cite{dingel_refinement_2002},
-we inductively generate the stutter/mumble language $w^\dagger$ for a
-word $w$ in a language over $\Sigma^2$ as follows: Assume $R,S,T \in
-\Sigma^2$ and $u,v,w \in (\Sigma^2)^*$. First, $Iw \in
-w^\dagger$. Secondly, if $uRv \in x^\dagger$ then $uIRv \in
-x^\dagger$ and $uRIv \in x^\dagger$ (\emph{stuttering}). Thirdly, if
-$uRSv \in w^\dagger$ then $u(R;S)v \in w^\dagger$
-(\emph{mumbling}). The stutter/mumble closure of a language is
-thus defined by lifting this operation to languages.
+we inductively generate the mumble language $w^\dagger$ for a word $w$
+in a language over $\Sigma^2$ as follows: Assume $R,S,T \in \Sigma^2$
+and $u,v,w \in (\Sigma^2)^*$. First, $w \in w^\dagger$. Secondly, if
+$uRSv \in w^\dagger$ then $u(R;S)v \in w^\dagger$. This operation is
+lifted to languages in the obvious way as
 \begin{align*}
-X^\dagger = \bigcup\{x^\dagger.\; x \in X\}
+X^\dagger = \bigcup\{x^\dagger.\; x \in X\}.
 \end{align*}
+Stuttering is represented as a rely condition $\langle \Id\rangle^\star$
+where $\Id$ is the identity relation. Two languages $X$ and $Y$ are
+equal under stuttering if $\langle \Id\rangle^\star \| X =_\pi \langle
+\Id\rangle^\star \| Y$.
+
+Stuttering and mumbling are important for defining \emph{tests}. A
+test is any language $P$ where $P \le \langle \Id\rangle$. We
+write $\test(P)$ for $\langle \Id_P\rangle$. Without any
+stuttering and mumbling the traces $\test(P); \test(Q)$ and
+$\test(P \cap Q)$ are incomparable, as all words in the former have
+length two, while all the words in the latter have length one. With mumbling we have that
+\begin{align*}
+\test(P \cap Q) \le_\pi \test(P); \test(Q)
+\end{align*}
+as the longer words in $\test(P);\test(Q)$ can be mumbled down into
+the shorter words of $\test(P\cap Q)$, whereas with stuttering we
+have the opposite,
+\begin{align*}
+\langle I\rangle^\star \| (\test(P);\test(Q)) \le_\pi \langle I\rangle^\star \| \test(P \cap Q).
+\end{align*}
+For the rest of the paper, we assume that all languages are
+implicitly mumble closed.
+
+Using tests, we can encoding common program statements such as if
+statements and while loops as in Kozen's Kleene algebra with tests.
+\begin{align*}
+\text{if } P \text{ \{ } X \text { \} else \{ } Y \text{ \}} &= \test(P); X + \test(- P); Y\\
+\text{while } P \text{ \{ } X \text{ \}} &= (\test(P);X)^\star;\test(- P)
+\end{align*}
+Finally, we define the operator $\edn(P)$ which is contains all the
+words which end in a state satisfying $P$. Some useful properties of $\edn$ include
+\begin{align*}
+\edn(P); \test{Q} &\le_\pi \edn(P \cap Q),\\
+\test(P) &\le \edn(Q),\\
+\text{range}(\Id_P \circ R) \le P \implies \edn(P); \langle R\rangle^\star &\le_\pi \edn(P).
+\end{align*}
+
+In the trace model, assignment is defined as
+\begin{align*}
+  x := e = \bigcup v.\,\test\{\sigma.\,\eval(\sigma,e) = v\} \cdot x \leftarrow v
+\end{align*}
+where $x \leftarrow v$ denotes the atomic command which assigns the
+value $v$ to $x$. The $\eval$ function evaluates an expression $e$ in
+the state $\sigma$. Using this definition of assignment we can derive
+the assignment rule
+\begin{align*}
+&\text{unchanged}(\text{vars}(e)) \cap \text{preserves}(P) \cap \text{preserves}(P[x/e]),\\
+&\text{unchanged}(- {x})\\
+&\vdash \{\edn(P)\} x := e \{\edn(P[x/e])\}.
+\end{align*}
+
+The rely condition states that the environment is not allowed to
+modify any of the variables used when evaluating $e$, i.e. those
+variables must remain unchanged, and also that the environment must
+preserve the precondition and postcondition of the assignment
+statement. In turn, the assignment statement itself guarantees that it
+leaves every variable other than $x$ unchanged. Preserves and unchanged are defined as
+\begin{align*}
+\text{preserves}(P) &= \langle \{(\sigma,\sigma').\; P(\sigma) \implies P(\sigma')\}\rangle^\star,\\
+\text{unchanged}(X) &= \langle \{(\sigma,\sigma').\; \forall v\in X.\; \sigma(v) = \sigma'(v)\}\rangle^\star.
+\end{align*}
+We also defined two futher rely conditions, increasing and decreasing,
+which are defined much like unchanged except they only require that variables
+increase or decrease, rather than stay the same.
 
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Example}
 
-In the trace model, assignment is defined as
+Figure \ref{fig:findp} shows the classic FINDP program, which has been
+used by numerous authors including Owicki~\cite{owicki},
+Jones~\cite{jones}, de Roever~\cite{derover} and
+Hayes~\cite{hayes}. The program finds the least element of an array
+satisfying the predicate $P$. The index of the first element
+satisfying $p$ is placed in the variable $f$. If there are no elements
+of the array satisfying $P$ then $f$ will be set to the length of the
+array. The program has two subprograms, $A$ and $B$, which run in
+parallel, one of which searches the even indices while the other
+searches the odd indices. A speedup over a sequential implementation
+is acheived as $A$ will terminate when $B$ finds an element of the
+array satisfying $P$ which is less than $i_A$.
+
+\begin{figure}
+\[
+\begin{aligned}
+&f_A := \text{len}(\text{array});\\
+&f_B := \text{len}(\text{array});\\
+&\left(
+\begin{aligned}
+&i_A = 0\\
+&\text{while } i_A < f_A \land i_A < f_B \text{ \{ }\\
+&\qquad\text{if } P(\text{array}[i_A]) \text{ \{}\\
+&\qquad\qquad f_A := i_A\\
+&\qquad\text{\} else \{}\\
+&\qquad\qquad i_A := i_A + 2\\
+&\qquad\text{\}}\\
+&\text{\}}
+\end{aligned}
+\middle\|
+\begin{aligned}
+&i_B = 1\\
+&\text{while } i_B < f_A \land i_B < f_B \text{ \{}\\
+&\qquad\text{if } P(\text{array}[i_B]) \text{ \{}\\
+&\qquad\qquad f_B := i_B\\
+&\qquad\text{\} else \{}\\
+&\qquad\qquad i_B := i_B + 2\\
+&\qquad\text{\}}\\
+&\text{\}}
+\end{aligned}
+\right);\\
+&f = \text{min}(f_A,f_B)
+\end{aligned}
+\]
+\caption{FINDP Program}
+\label{fig:findp}
+\end{figure}
+
+To prove the correctness of FINDP, we must show that
 \begin{align*}
-  x := e = \bigsqcup v.\,\test\{\sigma.\,\eval(\sigma,e) = v\} \cdot x \leftarrow v
+\text{FINDP} \le_\pi \text{ends}\{\sigma.\; \text{leastp}(\sigma, f)\} + \text{ends}\{\sigma.\; \sigma(f) = \text{len}(\text{array})\}.
 \end{align*}
-where $x \leftarrow v$ denotes the atomic command which assigns the value $v$ to $x$.
+where
+\begin{align*}
+\text{leastp}(\sigma, x) =  (\forall v<\sigma(x). \lnot P(\sigma(\text{array}[v])))\land P(\sigma(\text{array}[\sigma(x)])).
+\end{align*}
+The interesting part of this proof is the verification 
 
 \newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

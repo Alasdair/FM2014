@@ -306,9 +306,12 @@ lemma weaken_precondition: "p \<le> x \<Longrightarrow> r, g \<turnstile> \<lbra
   apply (auto simp add: quintuple_def proj_leq_def)
   by (metis mult_isor proj_leq_def proj_leq_trans2)
 
+lemma strengthen_postcondition_proj: "x \<le>\<^sub>\<pi> q \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>x\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>q\<rbrace>"
+  by (auto simp add: quintuple_def proj_leq_def)
+
 lemma strengthen_postcondition: "x \<le> q \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>x\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>q\<rbrace>"
   apply (auto simp add: quintuple_def proj_leq_def)
-  by (metis mult_isor proj_leq_def proj_leq_trans2)
+  by (metis order.trans proj_iso)
 
 lemma ends_mono: "P \<subseteq> Q \<Longrightarrow> ends P \<le> ends Q"
   apply transfer
@@ -359,7 +362,7 @@ lemma [simp]: "{\<sigma>. \<sigma> i = n}\<lbrakk>i := Val m\<rbrakk> = {\<sigma
   apply simp
   by auto
 
-lemma [simp]: "ends P \<sqinter> ends Q = ends (P \<inter> Q)"
+lemma ends_inter [simp]: "ends P \<sqinter> ends Q = ends (P \<inter> Q)"
   sorry
 
 lemma [intro!]: "x\<cdot>0 = 0 \<Longrightarrow> x \<le> \<langle>UNIV\<rangle>\<^sup>\<star>"
@@ -407,9 +410,10 @@ definition OT :: "nat" where "OT = 0"
 definition ET :: "nat" where "ET = 1"
 definition OC :: "nat" where "OC = 2"
 definition EC :: "nat" where "EC = 3"
+
 definition LEN :: "nat" where "LEN = 10"
 
-definition array :: "nat \<Rightarrow> nat" where "array x = x + 10"
+definition array :: "nat \<Rightarrow> nat" where "array x = undefined"
 
 definition while_inv :: "'a set \<Rightarrow> 'b \<Rightarrow> 'a trace \<Rightarrow> 'a trace" ("WHILE _ //INVARIANT _ //DO _ //WEND" [64,64,64] 63) where
   "WHILE b INVARIANT i DO p WEND = (test b ; p)\<^sup>\<star> ; test b"
@@ -417,23 +421,30 @@ definition while_inv :: "'a set \<Rightarrow> 'b \<Rightarrow> 'a trace \<Righta
 definition if_then_else :: "'a set \<Rightarrow> 'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" ("IF _ //THEN _ //ELSE _" [64,64,64] 64) where
   "IF b THEN  p ELSE q = test b \<cdot> p + test b \<cdot> q"
 
+definition loop1_inv :: "(nat \<Rightarrow> bool) \<Rightarrow> state set" where
+  "loop1_inv p = {\<sigma>. (\<forall>v. even v \<and> v < \<sigma> OC \<longrightarrow> \<not> p (array v)) \<and> even (\<sigma> OC) \<and> ((p (array (\<sigma> OT)) \<and> \<sigma> OT \<le> LEN) \<or> \<sigma> OT = LEN)}"
+
+definition loop2_inv :: "(nat \<Rightarrow> bool) \<Rightarrow> state set" where
+  "loop2_inv p = {\<sigma>. (\<forall>v. odd v \<and> v < \<sigma> EC \<longrightarrow> \<not> p (array v)) \<and> odd (\<sigma> EC) \<and> ((p (array (\<sigma> ET)) \<and> \<sigma> ET \<le> LEN) \<or> \<sigma> ET = LEN)}"
+  
+
 definition FIND :: "(nat \<Rightarrow> bool) \<Rightarrow> state trace" where
   "FIND p \<equiv>
   OT := Val LEN;
   ET := Val LEN;
   ( OC := Val 0;
     WHILE {\<sigma>. \<sigma> OC < \<sigma> OT \<and> \<sigma> OC < \<sigma> ET}
-    INVARIANT {\<sigma>. \<forall>v. v < \<sigma> OC \<longrightarrow> \<not> p (\<sigma> (array (\<sigma> v)))}
+    INVARIANT loop1_inv p
     DO
-      IF {\<sigma>. p (\<sigma> (array (\<sigma> OC)))}
+      IF {\<sigma>. p (array (\<sigma> OC))}
       THEN OT := Var OC
       ELSE OC := BinOp op + (Var OC) (Val 2)
     WEND
   \<parallel> EC := Val 1;
     WHILE {\<sigma>. \<sigma> EC < \<sigma> OT \<and> \<sigma> EC < \<sigma> ET}
-    INVARIANT (UNIV :: state set)
+    INVARIANT loop2_inv p
     DO
-      IF {\<sigma>. p (\<sigma> (array (\<sigma> EC)))}
+      IF {\<sigma>. p (array (\<sigma> EC))}
       THEN ET := Var EC
       ELSE EC := BinOp op + (Var EC) (Val 2)
     WEND)"
@@ -443,11 +454,30 @@ definition LOOP1 :: "(nat \<Rightarrow> bool) \<Rightarrow> state trace" where
     WHILE {\<sigma>. \<sigma> OC < \<sigma> OT \<and> \<sigma> OC < \<sigma> ET}
     INVARIANT {\<sigma>. \<forall>v. v < \<sigma> OC \<longrightarrow> \<not> p (\<sigma> (array (\<sigma> v)))}
     DO
-      IF {\<sigma>. p (\<sigma> (array (\<sigma> OC)))}
+      IF {\<sigma>. p (array (\<sigma> OC))}
       THEN OT := Var OC
       ELSE OC := BinOp op + (Var OC) (Val 2)
     WEND"
 
+lemma postcon: "loop1_inv p \<inter> loop2_inv p \<inter> - {\<sigma>. \<sigma> OC < \<sigma> OT \<and> \<sigma> OC < \<sigma> ET} \<inter> - {\<sigma>. \<sigma> EC < \<sigma> OT \<and> \<sigma> EC < \<sigma> ET}
+    \<subseteq> {\<sigma>. p (array (min (\<sigma> OT) (\<sigma> ET))) \<or> (\<sigma> OT = LEN \<and> \<sigma> ET = LEN)}"
+    apply (auto simp add: loop1_inv_def loop2_inv_def)
+    apply (metis less_irrefl less_linear min_less_iff_disj)
+    apply (metis less_irrefl less_linear min_less_iff_disj)
+    apply (metis dual_order.strict_trans less_irrefl less_linear min_less_iff_disj)
+    apply (metis dual_order.strict_trans less_irrefl less_linear min_less_iff_disj)
+    apply (metis dual_order.strict_trans less_irrefl less_linear min_less_iff_disj)
+    apply (metis dual_order.strict_trans less_irrefl less_linear min_less_iff_disj)
+    apply (metis dual_order.strict_trans less_irrefl less_linear min_less_iff_disj)
+    apply (metis dual_order.strict_trans less_irrefl less_linear min_less_iff_disj)
+    apply (metis min_max.inf_absorb2 min_max.inf_commute)
+    apply (metis min_max.inf_absorb2 min_max.inf_commute)
+    apply (metis min_max.inf_absorb2 min_max.inf_commute)
+    apply (metis min_max.inf_absorb2 min_max.inf_commute)
+    apply (metis min_max.inf_absorb2)
+    apply (metis min_max.inf_absorb2)
+    apply (metis min_max.inf_absorb2)
+    by (metis min_max.inf_absorb2)
 
 lemma (in left_kleene_algebra) star_leq: "x \<le> y \<Longrightarrow> x \<le> y\<^sup>\<star>"
   by (metis dual_order.trans star_ext)
@@ -461,8 +491,6 @@ lemma tests_preserve_all: "test X \<le> preserves Y"
 lemma seq_preserves: "X \<le> preserves Z \<Longrightarrow> Y \<le> preserves Z \<Longrightarrow> X ; Y \<le> preserves Z"
   apply (auto simp add: preserves_def)
   by (metis prod_star_closure)
-
-lemma "\<not> (x \<longrightarrow> y) \<longleftrightarrow> x \<and> \<not> y"
 
 lemma sequential: "r, g \<turnstile> \<lbrace>p\<rbrace> c1 \<lbrace>x\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>x\<rbrace> c2 \<lbrace>q\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> c1 \<cdot> c2 \<lbrace>q\<rbrace>"
   sorry
@@ -505,6 +533,8 @@ lemma [simp]: "{(\<sigma>, \<sigma>'). \<sigma> OT = LEN \<longrightarrow> \<sig
 lemma trancl_leq: "x \<subseteq> y \<Longrightarrow> x \<subseteq> y\<^sup>+"
   by (metis r_into_trancl' subsetI subset_trans)
 
+
+
 lemma
   assumes "(\<forall>v. even v \<and> v < oc \<longrightarrow> \<not> P (A(v))) \<and> even oc \<and> (P (A(ot)) \<or> ot = len)"
   and "ot \<le> oc \<or> et \<le> oc"
@@ -525,22 +555,16 @@ lemma if_then_else:
   shows "r, g \<turnstile> \<lbrace>ends p\<rbrace> IF b THEN c1 ELSE c2 \<lbrace>ends q\<rbrace>"
   sorry
 
-lemma test: "decreasing {ET} \<sqinter> unchanged {OT, OC},
-      decreasing {OT} \<sqinter> unchanged {ET, EC}
-      \<turnstile> \<lbrace>ends {\<sigma>. \<sigma> OT = LEN \<and> \<sigma> OC = 0}\<rbrace> LOOP1 P \<lbrace>ends Q\<rbrace>"
-  apply (simp add: LOOP1_def)
-  apply (rule while)
-  apply (rule ends_mono)
-  apply auto
-  defer
-  apply (rule if_then_else)
-  apply (rule assignment_var)
-  apply (rule order_trans[of _ "{\<sigma>. \<forall>v<\<sigma> OC. \<not> P (\<sigma> (array (\<sigma> v)))}\<lbrakk>OT := Var OC\<rbrakk>"])
-  apply (intro order_refl le_infI1 image_mono)
+lemma "ends P \<sqinter> ends Q \<le> ends (P \<sqinter> Q)"
+sorry
 
-thm test
+lemma preserves_inter_leq: "x \<le> preserves X \<Longrightarrow> x \<le> preserves Y \<Longrightarrow> x \<le> preserves (X \<inter> Y)"
+  sorry
 
-lemma "1, \<langle>UNIV\<rangle>\<^sup>\<star> \<turnstile> \<lbrace>ends UNIV\<rbrace> FIND P \<lbrace>ends {\<sigma>. P (min (\<sigma> (array (\<sigma> OT))) (\<sigma> (array (\<sigma> ET))))}\<rbrace>"
+lemma if_bran_eq: "(if P then x else x) = y \<longleftrightarrow> x = y"
+  by auto
+
+lemma "1, \<langle>UNIV\<rangle>\<^sup>\<star> \<turnstile> \<lbrace>ends UNIV\<rbrace> FIND P \<lbrace>ends {\<sigma>. P (array (min (\<sigma> OT) (\<sigma> ET))) \<or> (\<sigma> OT = LEN \<and> \<sigma> ET = LEN)}\<rbrace>"
   apply (simp add: FIND_def)
   apply (rule_tac x = "ends {\<sigma>. \<sigma> OT = LEN}" in sequential)
   apply (rule assignment_var)
@@ -573,10 +597,10 @@ lemma "1, \<langle>UNIV\<rangle>\<^sup>\<star> \<turnstile> \<lbrace>ends UNIV\<
   apply (metis rg_unit)
   apply (rule_tac x = "ends {\<sigma>. \<sigma> OT = LEN} \<sqinter> ends {\<sigma>. \<sigma> ET = LEN}" in weaken_precondition)
   apply (metis (lifting) Collect_mono ends_mono inf.bounded_iff)
-  apply (rule_tac x = "ends {\<sigma>. (P (\<sigma> OT) \<and> (\<sigma> OT \<le> \<sigma> OC)) \<or> (\<sigma> ET \<le> \<sigma> OC)} \<sqinter> ends {\<sigma>. P (\<sigma> ET) \<or> (\<sigma> OT < \<sigma> ET)}" in strengthen_postcondition)
-  defer
-  defer
-  defer
+  apply (rule_tac x = "ends (loop1_inv P \<inter> - {\<sigma>. \<sigma> OC < \<sigma> OT \<and> \<sigma> OC < \<sigma> ET}) \<sqinter> ends (loop2_inv P \<inter> - {\<sigma>. \<sigma> EC < \<sigma> OT \<and> \<sigma> EC < \<sigma> ET})" in strengthen_postcondition)
+  apply (subst ends_inter)
+  apply (rule ends_mono)
+  apply (metis (mono_tags) inf_assoc inf_commute inf_left_commute postcon)
   (* Ready to apply parallel rule *)
   apply (rule parallel)
   prefer 4 prefer 3
@@ -618,14 +642,98 @@ lemma "1, \<langle>UNIV\<rangle>\<^sup>\<star> \<turnstile> \<lbrace>ends UNIV\<
   apply auto
   apply (simp add: EC_def OT_def)
   apply (simp add: OC_def EC_def)
-  prefer 3
   defer
+  (* First while loop *)
   apply (rule while)
   apply (rule ends_mono)
-  apply auto
+  apply (simp add: loop1_inv_def)
+  apply clarify
+  apply simp
+  apply (rule ends_mono)
+  apply blast
+  defer
+  (* Second while loop *)
+  apply (rule while)
+  apply (rule ends_mono)
+  apply (simp add: loop2_inv_def)
+  apply clarify
+  apply simp
+  apply (rule ends_mono)
+  apply blast
+  defer
+  (* First inner loop body *)
+  apply (rule if_then_else)
+  apply (rule_tac x = "ends (loop1_inv P \<inter> {\<sigma>. \<sigma> OC \<le> \<sigma> OT} \<inter> {\<sigma>. P (array (\<sigma> OC))})" in weaken_precondition)
   apply (rule ends_mono)
   apply auto
+  apply (rule assignment_var)
+  apply (simp add: loop1_inv_def)
+  apply clarify
+  apply simp
+  apply (metis dual_order.trans)
+  apply (simp add: vars_def)
+  apply safe
+  apply (metis inf.coboundedI2 subset_insertI unchanged_antitone)
+  apply (simp add: decreasing_def unchanged_def preserves_def)
+  apply (subst trancl_id, simp add: trans_def)
+  apply (subst trancl_id, simp add: trans_def)
+  apply (rule rg_iso)
+  apply (simp add: loop1_inv_def)
+  apply force
+  apply (simp add: decreasing_def unchanged_def preserves_def)
+  apply (subst trancl_id, simp add: trans_def)
+  apply (subst trancl_id, simp add: trans_def)
+  apply (rule rg_iso)
+  apply (simp add: image_def)
+  apply (simp add: loop1_inv_def)
+  apply safe
+  apply simp
+  apply (rule_tac x = b in bexI)
+  apply (rule ext)
+  apply simp
+  apply metis
+  apply safe
+  apply metis
+  apply metis
+  apply (metis dual_order.trans)
+  apply (simp only: eval.simps if_bran_eq)
+  apply (simp only: eval.simps if_bran_eq)
+  apply (simp only: eval.simps if_bran_eq)
+  apply simp
+  apply (rule_tac x = b in bexI)
+  apply metis
+  apply auto
+  defer
+  apply (simp add: OT_def ET_def)
+  apply (simp add: OT_def EC_def)
+  apply (rule_tac x = "ends ({\<sigma>. (\<forall>v. even v \<and> v < \<sigma> OC \<longrightarrow> \<not> P (array v)) \<and> even (\<sigma> OC) \<and> \<sigma> OT = LEN} \<inter> - {\<sigma>. P (array (\<sigma> OC))})" in weaken_precondition)
+  apply (rule ends_mono)
+  apply (simp add: loop1_inv_def)
+  apply auto
   sledgehammer
-  (* First loop while *)
-
+  apply (rule_tac x = "ends {\<sigma>. (\<forall>v. even v \<and> v < \<sigma> OC \<longrightarrow> \<not> P (array v)) \<and> even (\<sigma> OC) \<and> \<sigma> OT = LEN}" in strengthen_postcondition)
+  apply (rule ends_mono)
+  apply (simp add: loop1_inv_def)
+  apply blast
+  apply (rule assignment_var)
+  apply (simp add: loop1_inv_def)
+  apply auto
+  apply (metis even_Suc nat_neq_iff not_less_eq)
+  sledgehammer
+  apply (metis even_Suc nat_neq_iff not_less_eq)
+  apply (metis Nat.add_0_right OC_def OT_def add_2_eq_Suc' div2_Suc_Suc n_not_Suc_n)
+  apply (metis Nat.add_0_right OC_def OT_def add_2_eq_Suc' div2_Suc_Suc n_not_Suc_n)
+  apply (metis inf.coboundedI2 subset_insertI unchanged_antitone)
+  apply (simp add: preserves_def decreasing_def unchanged_def)
+  apply (subst trancl_id, simp add: trans_def)
+  apply (subst trancl_id, simp add: trans_def)
+  apply (rule rg_iso)
+  apply (simp add: loop1_inv_def)
+  apply auto
+  apply (simp add: preserves_def unchanged_def decreasing_def)
+  apply (subst trancl_id, simp add: trans_def)
+  apply (subst trancl_id, simp add: trans_def)
+  apply (rule rg_iso)
+  apply (auto simp add: image_def loop1_inv_def)
+  sledgehammer
 end
