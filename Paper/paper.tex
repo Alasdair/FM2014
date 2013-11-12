@@ -34,6 +34,7 @@
 \newcommand{\udagger}{\text{$\rotatebox[origin=c]{180}{$\dagger$}$}}
 
 \newtheorem{lem}{Lemma}
+\newtheorem{thm}{Theorem}
 
 \begin{document}
 
@@ -205,7 +206,7 @@ essential. A \emph{Kleene algebra} is a dioid expaned with a star
 operation which satisfies the \emph{left unfold axiom} $1 + x\cdot
 x^*\le x^*$ and the \emph{left} and \emph{right induction axiom} $z+x
 \cdot y \le y\Rightarrow x^*\cdot z \le y$ and $z + y\cdot x \le y
-z\cdot \Rightarrow x^* \le y$. It follows that $1+x\cdot x^* = x^*$
+\Rightarrow z\cdot x^* \le y$. It follows that $1+x\cdot x^* = x^*$
 and that the right unfold axiom $1+x^*\cdot x=x^*$ is derivable as
 well. Thus iteration $x^\ast$ is modelled as the least fixpoint of the
 function $\lambda y. 1+x\cdot y$, which is the same as the least
@@ -363,10 +364,10 @@ non-terminating programs. In this model, $x \cdot y \not\leq x
 it is not needed for deriving the usual laws or rely-guarantee.
 
 A rely-guarantee algebra is a structure
-$(K,C,+,\sqcap,\cdot,\|,^\star,0,1)$, where $(K,+,\sqcap)$ is a
+$(K,I,+,\sqcap,\cdot,\|,^\star,0,1)$, where $(K,+,\sqcap)$ is a
 distributive lattice, $(K,+,\cdot,\|,0,1)$ is a trioid and
 $(K,+,\cdot,^\star,0,1)$ is a Kleene algebra. Note that we do not
-consider the parallel star. $C$ is a distinguished subset of rely and
+consider the parallel star. $I$ is a distinguished subset of rely and
 guarantee conditions or \emph{interference constraints} which satisfy
 the following axioms
 \begin{align}
@@ -375,17 +376,17 @@ r &\le r\|r', \label{rg2}\\
 r\|xy &= (r\|x)(r\|y), \label{rg3}\\
 r\|x^+ &\le (r\|x)^+ \label{rg4}.
 \end{align}
-By convention, we use $r$ and $g$ to refer to elements of $C$,
+By convention, we use $r$ and $g$ to refer to elements of $I$,
 depending on whether they are used as relies or guarantees, and
 $x,y,z$ for arbitrary elements of $K$. The operators $\|$ and $\sqcap$
-must be closed with respect to $C$.
+must be closed with respect to $I$.
 
-Axiom (\ref{rg1}) states that interference from a rely condition being
-run twice in parallel is no different from just the interference from
-that rely condition begin run once in parallel. Axiom (\ref{rg2})
-states that interference from a single rely condition is less than
-interference from itself and another rely condition. Axiom (\ref{rg3})
-allows a rely or guarantee to be split across sequential
+Axiom (\ref{rg1}) states that interference from a constraint being run
+twice in parallel is no different from just the interference from that
+constraint begin run once in parallel. Axiom (\ref{rg2}) states that
+interference from a single constraint is less than interference from
+itself and another interference constraint. Axiom (\ref{rg3}) allows
+an interference constraint to be split across sequential
 programs. Axiom (\ref{rg4}) is similar to Axiom (\ref{rg3}) in intent,
 except it deals with finite iteration.
 
@@ -396,40 +397,45 @@ r^\star = rr = r = r\|r,\qquad
 r\|x^+ = (r\|x)^+.
 \end{equation*}
 
-Axioms (\ref{rg1}), (\ref{rg2}) and (\ref{rg3}) are independent. To
-show this, we use Isabelle's
-\emph{Nitpick}~\cite{blanchette_nitpick:_2010} counterexample
-generator to construct models which violate each particular axiom
-while satisfying all others.
+\begin{thm}
+  Axioms (\ref{rg1}), (\ref{rg2}) and (\ref{rg3}) are independent.
+\end{thm}
+\begin{proof}
+  To show this, we use Isabelle's
+  \emph{Nitpick}~\cite{blanchette_nitpick:_2010} counterexample
+  generator to construct models which violate each particular axiom
+  while satisfying all others.
+\end{proof}
 
+\begin{thm}
 Axiom (\ref{rg4}) can be derived from (\ref{rg3}) by a simple
-inductive argument in quantales where the plus operation can be
-defined as a sum of powers $x^+=\sum_{i\ge 1} x^i$ where $x^1=x$
-and $x^{i+1}=x\cdot x^i$. In first-order Kleene algebras, however, it
-is independent, but it is impossible to find a counterexample with Nitpick because all such counterexamples are finite, but all finite Kleene algebras are a forteriori quantales.
+inductive argument in a quantale where $\|$ distributes over arbitrary suprema.
+\end{thm}
+\begin{proof}
+  In a quantale $x^+$ can be defined as a sum of powers
+  $x^+=\sum_{i\ge 1} x^i$ where $x^1=x$ and $x^{i+1}=x\cdot x^i$. By
+  induction on w$i$ we get $r\|x^i = (r\|x)^i$, hence
+  \begin{align*}
+    r\|x^+ = r\|\sum_{i\ge 1} x^i = \sum_{i\ge 1} r\|x^i = \sum_{i\ge 1} (r\|x)^i = (r\|x)^+.
+  \end{align*}
+\end{proof}
+
+In first-order Kleene algebras (\ref{rg3}) and (\ref{rg4}) are
+independent, but it is impossible to find a counterexample with
+Nitpick because it generates only finite counterexamples, and all
+finite Kleene algebras are a forteriori quantales.
 
 Jones quintuples can be encodeded in this setting as
 \begin{align}
 r, g \vdash \{p\} c \{q\} \iff p(r\|c) \le q \land c \le g. \label{quin}
 \end{align}
+
+\begin{thm}
 With this encoding we can derive the standard rely-guarantee inference
-rules, as shown in Figure \ref{fig:rgrules}. Thus equations
-(\ref{rg1}) to (\ref{rg4}), which are all necessary to derive these
-rules, somehow represent a minimal set of axioms from which these
-inference rules can be derived.
+rules, as shown in Figure \ref{fig:rgrules}.
+\end{thm}
 
-By using these residuals quintuples can be encoded in the following way,
-which is equivalent to the encoding in Equation (\ref{quin}).
-\begin{align}
-r, g \vdash \{p\} c \{q\} \iff c \le r/(p \rightarrow q) \sqcap g \label{refine}.
-\end{align}
-This encoding allows us to think in terms of program refinement~\cite{hayes_refining_2013}, as
-$r/(p \rightarrow q) \sqcap g$ defines the weakest program that when
-placed in parallel with interference from $r$, and guaranteeing
-interference at most $g$, goes from $p$ to $q$---a generic
-specification for a concurrent program.
-
-\begin{figure}[tbh]
+\begin{figure}[hbt]
 \centering
 \begin{prooftree}
 \RightLabel{Skip}
@@ -480,6 +486,23 @@ specification for a concurrent program.
 \label{fig:rgrules}
 \end{figure}
 
+Thus equations
+(\ref{rg1}) to (\ref{rg4}), which are all necessary to derive these
+rules, somehow represent a minimalistic set of axioms from which these
+inference rules can be derived.
+
+If we add residuals to our algebra quintuples can be encoded in the
+following way, which is equivalent to the encoding in Equation
+(\ref{quin}).
+\begin{align}
+r, g \vdash \{p\} c \{q\} \iff c \le r/(p \rightarrow q) \sqcap g \label{refine}.
+\end{align}
+This encoding allows us to think in terms of program refinement, as in~\cite{hayes_refining_2013}, since
+$r/(p \rightarrow q) \sqcap g$ defines the weakest program that when
+placed in parallel with interference from $r$, and guaranteeing
+interference at most $g$, goes from $p$ to $q$---a generic
+specification for a concurrent program.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Breaking Compositionality}
 \label{sec:INT}
@@ -497,52 +520,51 @@ be equal under all possible interference from any arbitrary $z$. At
 first sight, this might seem to preclude any reasoning about
 interference in a fine-grained way using purely algebra. This is not
 the case, but breaking such inherent compositionality in just the
-right way to capture interesting properties of concurrency requires
+right way to capture interesting properties of interference requires
 extra work.
 
 The most obvious way we can acheive this is by expanding our
 rely-guarantee algebra with an additional function $\pi$ and redefining
 our quintuples as,
 \begin{align*}
-r, g \vdash \{p\} c \{q\} \iff \pi(p(r\|c)) \le \pi(q) \land c \le g.
+r, g \vdash \{p\} x \{q\} \iff p(r\|c) \le_\pi q \land x \le g.
 \end{align*}
-Since for any operator $\bullet$, it is not required that
+Where $x \le_\pi y$ is $\pi(x) \le \pi(y)$. Since for any operator
+$\bullet$, it is not required that
 \begin{align*}
 \pi(x) = \pi(y) \implies \pi(x \bullet z) = \pi(y \bullet z),
 \end{align*}
 we can `break' compositionality in just the right way, provided we
-choose the correct properties for $\pi$. For example, if we consider
-the following seven axioms
+choose the correct properties for $\pi$. However, if we simply listed
+all properties that $\pi$ needs to satisfy we would end up with an
+overly long list of axioms to add to our algebra. Instead we define
+the function $\pi$ as $\lambda x.\; x \sqcap c$ where $c$ is the
+greatest $consistent$ element such that
 \begin{align}
-\pi(\pi(x)) &= \pi(x), \label{pi1}\\
-x \le y \implies \pi(x) &\le \pi(y), \label{pi2}\\
-\pi(x) &\le x, \label{pi3}\\
-\pi(x^*) &\le \pi(\pi(x)^*), \label{pi4}\\
-\pi(xy) &\le \pi(\pi(x)\pi(y)), \label{pi5}\\
-\pi(x \sqcap y) &= \pi(x) \sqcap \pi(y). \label{pi6}
+x^* &\le_\pi \pi(x)^*, \label{con1}\\
+xy &\le_\pi \pi(x)\pi(y). \label{con2}\\
+z + x\cdot y \le_\pi y &\implies x^*\cdot z \le_\pi y\label{con3}\\
+z + y\cdot x \le_\pi y &\implies z\cdot x^* \le_\pi y\label{con4}
 \end{align}
 
-Axioms (\ref{pi1}) to (\ref{pi3}) show that $\pi$ is an interior
-operator, while (\ref{pi4}) and (\ref{pi5}) allow us to introduce
-$\pi$ as needed around sequential composition and finite iteration,
-which allows us to substitute under those operators as required---we
-only want to break compositionality for $\|$.
-
-The above axioms indicate that we could define $\pi$ as a function
-$\lambda x.\; x \sqcap c$ where $c$ satisfies
-\begin{align}
-x^* \sqcap c &\le (x \sqcap c)^* \sqcap c, \label{con1}\\
-xy \sqcap c &\le (x \sqcap c)(y \sqcap c) \sqcap c. \label{con2}
-\end{align}
-
+For any operator $\bullet$, we write $x \bullet_\pi y$ for the
+operator $\pi(x\bullet y)$, and we write $x^\pi$ for
+$\pi(x^\star)$.
+\begin{thm}
+Axioms (\ref{con1}) to (\ref{con4}) induce a Kleene subalgebra.
+\begin{align*}
+(\{x\in K.\; \pi(x) = x\}, +_\pi, \cdot_\pi, \hphantom{}^\pi,0,1)
+\end{align*}
+\end{thm}
 As such we redefine our rely-guarantee algebra from section
-\ref{sec:RG} as a structure $(K,RG,+,\sqcap,\cdot,\|,^\star,0,1,c)$
+\ref{sec:RG} as a structure $(K,RG,+,\sqcap,\cdot,\|,\hphantom{}^\star,0,1,c)$
 which, in addition to the rules in section \ref{sec:RG} satisfies both
-(\ref{con1}) and (\ref{con2}).
-
+(\ref{con1}) to (\ref{con4}).
+\begin{thm}
 All the rules in Figure \ref{fig:rgrules} can be derived with this
 algebra, and moreover their proofs remain the same, mutatis
 mutandis.
+\end{thm}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Finite Language Model}
@@ -872,7 +894,12 @@ implemented in Isabelle.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusion}
 
-CNPq EPSRC
+We have...
+
+\paragraph*{Acknowledgements} This work was supported by funding from
+CNPq Brazil and the EPSRC.
+
+\newpage
 
 \bibliography{paper}{}
 \bibliographystyle{plain}
