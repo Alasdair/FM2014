@@ -14,18 +14,22 @@
 \DeclareFontFamily{U}{wncy}{}
 \DeclareFontShape{U}{wncy}{m}{n}{<->wncyss10}{}
 \DeclareSymbolFont{mcy}{U}{wncy}{m}{n}
-\DeclareMathSymbol{\sh}{\mathord}{mcy}{"78} 
+\DeclareMathSymbol{\sh}{\mathord}{mcy}{"78}
 \DeclareMathOperator{\sha}{\sh}
 \DeclareMathOperator{\tr}{Tr}
 \DeclareMathOperator{\fin}{finite}
 \DeclareMathOperator{\rely}{rely}
 \DeclareMathOperator{\guar}{guar}
 \DeclareMathOperator{\letters}{letters}
-\DeclareMathOperator{\wlp}{wlp}
-\DeclareMathOperator{\test}{test}
-\DeclareMathOperator{\eval}{eval}
-\DeclareMathOperator{\Id}{Id}
-\DeclareMathOperator{\edn}{end}
+
+\newcommand{\wlp}{\mathsf{wlp}}
+
+\newcommand{\test}{\mathsf{test}}
+\newcommand{\eval}{\mathsf{eval}}
+\newcommand{\Id}{\mathsf{Id}}
+\newcommand{\edn}{\mathsf{end}}
+\newcommand{\unchanged}{\mathsf{unchanged}}
+\newcommand{\preserves}{\mathsf{preserves}}
 
 \newcommand{\udagger}{\text{$\rotatebox[origin=c]{180}{$\dagger$}$}}
 
@@ -63,70 +67,78 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Introduction}
 
-We aim to develop tools which support reasoning about concurrent
-programs at varying levels of abstraction. At the highest level,
-abstract algebra provides a framework for the prototyping of new
-inference and refinement rules, whereas at the lowest level concrete
-models of program stores allow for fine-grained reasoning about
-program data flow. We have implemented this approach is the
-Isabelle/HOL interactive theorem prover. Isabelle/HOL not only
-provides us with a high degree of confidence in the correctness of our
-theorems, but also supports the construction of custom proof tactics
-and tools for program verification tasks. Our approach differs from
-existing frameworks for rely-guarantee reasoning in
-Isabelle~\cite{nieto}, both by making the link between concrete
-programs and algebras explicit, but also by allowing arbitrary nested
-parallelism.
+We aim to develop lightweight formal methods which support
+rely-guarantee style reasoning about concurrent programs at varying
+levels of abstraction. At the most abstract level, we use algebras as
+a framework for reasoning about the control flow of programs as well
+as for deriving inference rules and refinement laws. At the lowest
+level, concrete models of program stores support fine-grained
+reasoning about program data flow and inteference. We have implemented
+this approach is the Isabelle/HOL interactive theorem proving
+environment. Isabelle not only provides us with a high degree of
+confidence in the correctness of our development and tool prototype,
+it also supports the construction of custom proof tactics and
+procedures for program verification and refinement tasks. Our approach
+differs from existing frameworks for rely-guarantee reasoning in
+Isabelle~\cite{nieto_rely-guarantee_2003}, both by making the link
+between concrete programs and algebras explicit, and by allowing
+arbitrary nested parallelism.
 
-For sequential programs the applicability of algebra, and Kleene
+For sequential programs, the applicability of algebra, and Kleene
 algebra in particular, has been known for over a decade. Kleene
 algebra provides operations for non-deterministic choice, sequential
 composition and finite iteration, in addition to skip and abort. With
 appropriate extensions, Kleene algebras support Hoare-style program
 verification, and allow the derivation of program equivalences and
-refinement rules. Furthermore, Kleene algebra has been applied in many
-applications, such as compiler
-optimisation~\cite{kozen_certification_2000}, program construction,
-transformation and termination analysis, and static analysis.
+refinement rules~\cite{kozen_kleene_1997,hoare_concurrent_2011}. Kleene algebras have
+been applied in applications including compiler
+optimisation~\cite{kozen_certification_2000}, program
+construction~\cite{berghammer_automated_2010}, transformation and
+termination analysis~\cite{desharnais_algebraic_2011}, and static
+analysis~\cite{fernandes_describing_2007}. Formalisations and tools are
+available in interactive theorem provers such as Coq~\cite{pous_kleene_2013} and
+Isabelle~\cite{armstrong_kleene_2013,armstrong_program_2013,armstrong_algebras_2014}.
 
-Algebra has also been applied in the study of separation logic, for
-example, as the separation algebras in~\cite{ohearn}, or in algebraic
-separation logic.
+Algebra also plays a role in the study of separation logic, for
+example, as the separation algebras in~\cite{calcagno_local_2007}, and in algebraic
+separation logic~\cite{dang_algebraic_2011}. More recently,
+concurrent Kleene algebras have given an algebraic account of some
+aspects of concurrent separation logic~\cite{hoare_concurrent_2011,hoare_locality_2011} and
+the first steps towards an algebraic description of rely-guarantee
+based reasoning have been undertaken~\cite{hoare_concurrent_2011}.
 
-\fbox{Algebraic Separation Logic}
-
-\fbox{Concurrent Kleene Algebra}
-
-Rely-guarantee is a so called \emph{compositional} method, where the
-verification of a large program is reduced the independent
-verification of individual subprograms, with the interference from
-other subprograms being abstractly captured by \emph{rely} and
-\emph{guarantee} conditions. This form of compositionality is,
-however, weaker than the strong notion of compositionality inherent in
-algebra, where full congruence rules exist for every operator.
+One main characteristic of the rely-guarantee method is
+compositionality. The verification of large concurrent programs is
+reduced to the independent verification of individual subprograms,
+where the effect of interferences from other subprograms are captured
+by \emph{rely} and \emph{guarantee} conditions, which constrain the
+behaviour of subprograms. This form of compositionality is, however,
+weaker than the strong notion of compositionality inherent in algebra,
+where full congruence rules exist for every operator and refinement is
+usually based on monotonicity.
 
 In this paper, we investigate algebraic principles for rely-guarantee
-style reasoning. This has been explored previously, for example
-in~\cite{cka}, but we extend this approach by considering a minimal
-set of rules sufficient to derive the standard rely-guarantee
-inference rules. Furthermore, we explore how the algebraic
-compositionality of this approach can be broken in just the right way,
-so as to capture the ideas of abstract interference conditions in
-rely-guarantee reasoning.
+style reasoning. First step have already been taken, for example,
+in~\cite{hoare_concurrent_2011}, but we extend this approach by extracting a minimal set
+of axioms for relies and guarantees sufficient to derive the standard
+rely-guarantee inference rules. Furthermore, we explore how the
+algebraic compositionality of this approach can be broken in just the
+right way, so as to capture the ideas of abstract interference
+conditions in rely-guarantee reasoning.
 
 The verification and construction of actual concurrent programs often
 requires complex semantics involving synchronisation, termination
-analysis and complicated data structures.
-
-\fbox{We verify simple programs}
-
-\fbox{Coherent framework for programs}
+analysis and intricate data structures. For simplicity, in this paper
+we eschew such models in favor of relatively simple language and trace
+based semantics. Despite the simplicity of this model, we demonstrate
+and evaluate our prototypical verification tool implemented in
+Isabelle by verifiying simple two examples from the literature. Beyond
+that our approach provides a coherent framework from which more
+complex and detailed models can be integrated in the future.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Algebraic Preliminaries}
 \label{sec:KA}
-
-\fbox{define weak trioid!}
 
 Rely-guarantee algebras, which are introduced in the following
 section, are based on dioids and Kleene algebras. A \emph{semiring} is
@@ -144,12 +156,13 @@ $z\cdot x \le z\cdot y$ and $x\cdot z \le y\cdot z$. A dioid is
 
 In the context of sequential programs, one typically thinks of $\cdot$
 as sequential composition, $+$ as nondeterministic choice, $0$ as the
-abortive action and $1$ as skip.  In this context it is essential that
-multiplication is not commutative.  More formally, it is well known
-that (regular) languages with language union as $+$ and language
-product as $\cdot$, the empty language as $0$ and the empty word
-language $\{\varepsilon\}$ as $1$ form dioids. Another model is formed
-by binary relations with the union of relations as $+$, the product of
+abortive action and $1$ as skip. In this context it is essential that
+multiplication is not commutative. Often we use $;$ in place of
+$\cdot$ when discussing programs. More formally, it is well known that
+(regular) languages with language union as $+$ and language product as
+$\cdot$, the empty language as $0$ and the empty word language
+$\{\varepsilon\}$ as $1$ form dioids. Another model is formed by
+binary relations with the union of relations as $+$, the product of
 relations as $\cdot$, the empty relation as $0$ and the identity
 relation as $1$. A model of commutative dioids is formed by sets of
 (finite) multisets or Parikh vectors with multiset addition as
@@ -159,34 +172,33 @@ It is well known that commutative dioids can be used for modelling the
 interaction between concurrent composition and nondeterministic
 choice. The following definition serves as a basis for models of
 concurrency in which sequential and concurrent composition
-interact.\fbox{should we write $;$ instead of $\cdot$?} 
+interact.
 
 A \emph{trioid} is a structure $(S,+,\cdot,||,0,1)$ such that
 $(S,+,\cdot,0,1)$ is a dioid and $(S,\cdot,||,0,1)$ a commutative
 dioid. In a trioid there is no interaction between the sequential
 composition $\cdot$ and the parallel composition $||$. On the one
 hand, Gischer has shown that trioids are sound and complete for the
-equational theory of series-parallel pomset languages~\cite{Gischer},
+equational theory of series-parallel pomset languages~\cite{gischer_equational_1988},
 which form a well studied model of true concurrency. On the other
 hand, he has also obtained a completeness result with respect to a
 notion of pomset subsumption for trioids with the additional
 \emph{interchange axiom} $(w \| x) \cdot (y \| z) \le (w \cdot y) \|
 (x \cdot z)$ and it is well known that this additional axiom also
 holds for (regular) languages in which $||$ is interpreted as the
-shuffle or interleaving operation~\cite{Gischer}.
+shuffle or interleaving operation~\cite{gischer_shuffle_1981}.
 
-Formally, the \emph{shuffle} $\sha$ of two finite words is defined
+Formally, the \emph{shuffle} $\|$ of two finite words is defined
 inductively as
 \begin{equation*}
-\epsilon \sha s = \{s\}, \qquad s \sha \epsilon = \{s\},\qquad
-as \sha bt = a(s \sha bt) \cup b(as \sha t),
+\epsilon \| s = \{s\}, \qquad s \| \epsilon = \{s\},\qquad
+as \| bt = a(s \| bt) \cup b(as \| t),
 \end{equation*}
 which is then lifted to the shuffle product of languages $X$ and $Y$
 as
 \begin{equation*}
-X \sha Y = \{x \sha y:\; x \in X \land x \in Y\}.
+X \| Y = \{x \| y:\; x \in X \land x \in Y\}.
 \end{equation*}
-\fbox{I would use $||$ here}
 
 For logics of programs, notions of iteration or recursion are
 essential. A \emph{Kleene algebra} is a dioid expaned with a star
@@ -205,24 +217,27 @@ that (regular) sets of multisets form commutative Kleene algebras. In
 fact, Kleene algebras are complete with respect to the equational
 theory of regular languages as well as the equational theory of binary
 relations with the reflexive transitive closure operation as the
-star~\cite{Kozen}. Moreover, commutative Kleene algebras are
-complete with respect to the equational theory of regular languages
-over multisets~\cite{Conway}. It follows that equations in
-(commutative) Kleene algebras are decidable.
+star~\cite{kozen_completeness_1994}. Moreover, commutative Kleene
+algebras are complete with respect to the equational theory of regular
+languages over multisets~\cite{conway_regular_1971}. It follows that
+equations in (commutative) Kleene algebras are decidable.
 
 A \emph{bi-Kleene algebra} is a structure
-$(K,+,\cdot,||,0,1,^*,^{(*)})$ such that $(K,+,\cdot,0,1,^*)$ is a
-Kleene algebra and $(K,+,||,0,1,^{(*)})$ a commutative Kleene
+$(K,+,\cdot,||,0,1,\hphantom{}^*,\hphantom{}^{(*)})$ where
+$(K,+,\cdot,0,1,\hphantom{}^*)$ is a Kleene algebra and
+$(K,+,||,0,1,\hphantom{}^{(*)})$ is a commutative Kleene
 algebra. Bi-Kleene algebras are sound and complete with respect to the
 equational theory of regular series-parallel pomset languages, and the
 equational theory is again decidable~\cite{LaurenceStruth}. A
 \emph{concurrent Kleene algebra} is a bi-Kleene algebra which
-satisfies the interchange law~\cite{Hoareetal}. It can be shown that
+satisfies the interchange law~\cite{hoare_concurrent_2011}. It can be shown that
 shuffle languages and regular series-parallel pomset languages with a
 suitable notion of pomset subsumption form concurrent Kleene algebras.
 
 In some contexts, it is also useful to add a meet operation $\sqcap$,
-such that $(D,+,\sqcap)$ is a lattice. \fbox{expand}
+such that $(D,+,\sqcap)$ is a distributive lattice. This is
+particularly needed in the context of refinement, where we typically
+want to represent specifications as well as programs.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -230,7 +245,7 @@ such that $(D,+,\sqcap)$ is a lattice. \fbox{expand}
 
 It is well known that the inference rules for sequential Hoare logic
 (except the assignment axiom) can be derived in expansions of Kleene
-algebras. One approach is as follows~\cite{MoellerStruth}. Suppose a
+algebras. One approach is as follows~\cite{moller_algebras_2006}. Suppose a
 suitable Boolean algebra $B$ of \emph{tests} has been embedded into a
 Kleene algebra $K$ such that $0$ and $1$ are the minimal and maximal
 element of $B$, $+$ corresponds to join and $\cdot$ to
@@ -254,7 +269,7 @@ Galois connection $ \vdash\{p\}x\{q\} \Leftrightarrow p \le
 \mathsf{wlp}(x,q)$. It has been shown that the relational semantics of
 sequential while-programs can be encoded in these \emph{modal Kleene
   algebras} and that the inference rules of Hoare logic can be
-derived~\cite{MoellerStruth}.
+derived~\cite{moller_algebras_2006}.
 
 In the context of concurrency, this relational approach is no longer
 appropriate. Here, the following approach by
@@ -265,8 +280,8 @@ now encode validity of a Hoare triple as
 \end{equation*}
 for arbitrary elements of a Kleene algebra $K$. Nevertheless all the
 rules of sequential Hoare logic except the assignment axiom can still
-be derived in this setting~\cite{Hoareetal}.  Tarlecki's motivating
-explanations carry over to the algebraic approach. 
+be derived in this setting~\cite{hoare_concurrent_2011}. Tarlecki's motivating
+explanations carry over to the algebraic approach.
 
 As an example we show the derivation of a generalised while
 rule. Suppose $x\cdot t\cdot y\le x$. Then $x\cdot (t\cdot y)^\ast \le
@@ -274,7 +289,7 @@ x$ by the right induction axiom of Kleene algebra and therefore
 $x\cdot (t\cdot y)^\ast t'\le x\cdot t'$ for arbitrary element $t'$ by
 isotonicity of multiplication. This derives the while rule
 \begin{equation*}
-  \frac{\{x\cdot t\}y\{x\}}{\{x\}(t\cdot y)^\ast\{t'\cdot x\}}
+  \frac{\vdash \{x\cdot t\}y\{x\}}{\vdash \{x\}(t\cdot y)^\ast\{t'\cdot x\}}
 \end{equation*}
 for a generalised while loop $(t\cdot y)^\ast\cdot t'$, which
 specialises to the conventional rule when $t$ and $t'$ are, in some
@@ -284,16 +299,15 @@ The correspondence to a wlp-style semantics, as in model Kleene
 algebra, now requires a generalisation of the Galois connection for
 boxes and diamonds to multiplication and an upper adjoint in the form
 of residuation.  This can be achieved in the context of \emph{action
-  algebras}~\cite{pratt}, which expand Kleene algebras by operations
+  algebras}~\cite{pratt_action_1990}, which expand Kleene algebras by operations
 of left and right residuation defined by the Galois connections
 \begin{equation*}
-  xy\le z\Leftrightarrow x\le z\leftarrow y,\qquad xy\le z \Leftrightarrow y\le z\rightarrow x.
+  x\cdot y\le z\Leftrightarrow x\le z\leftarrow y,\qquad x\cdot y\le z \Leftrightarrow y\le x\rightarrow z.
 \end{equation*}
-\fbox{please check that I didn't confuse these arrows} These
-residuals, and now even the Kleene star can be axiomatised
+These residuals, and now even the Kleene star can be axiomatised
 equationally in action algebras. For a comprehensive list of the
 properties of action algebras and their most important models
-see~\cite{archive}, including the language and the relational
+see~\cite{armstrong_kleene_2013}, including the language and the relational
 model. In analogy to the development in model Kleene algebra we can
 now stipulate $ \wlp(x,y)=y\leftarrow x$ and obtain the Galois
 connection
@@ -314,7 +328,7 @@ set of all executions $p$ after which all executions of $x$ must end
 in $q$.
 
 In the context of concurrent Kleene algebra, even without the parallel
-star, additional inference rules can be derived, in particular 
+star, additional inference rules can be derived, in particular
 \begin{equation*}
   \frac{\vdash\{x\}y\{z\}}{\vdash\{w||x\}y\{w||z\}}\qquad \frac{\vdash\{x_1\}y_1\{z_1\}\quad\vdash\{x_2\}y_2\{z_2\}}{\vdash\{x_1||x_2\}y_1||y_2\{z_1||z_2\}}
 \end{equation*}
@@ -322,10 +336,10 @@ which correspond to the frame rule and the concurrency rule of
 concurrent separation logic~\cite{} when $||$ is interpreted as
 separating conjunction. In fact, the second inference rule is, in any
 bi-Kleene algebra equivalent to the interchange axiom and the frame
-rule is derivable from this axiom as well~\cite{Hoareetal}. The
+rule is derivable from this axiom as well~\cite{hoare_concurrent_2011}. The
 precise connection between concurrent separation logic, a variant of
 concurrent Kleene algebra and a resource transformer model has been
-elaborated in~\cite{localitypaper}.
+elaborated in~\cite{hoare_locality_2011}.
 
 A residuation for concurrent composition can be considered as well:
 \begin{equation*}
@@ -335,6 +349,7 @@ The residual $x/z$ represents the weakest program such that when
 placed in parallel with $x$, the parallel composition behaves as $z$.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \section{A  Rely-Guarantee Algebra}
 \label{sec:RG}
 
@@ -343,38 +358,27 @@ simple algebra that supports the derivation of rely-guarantee-style
 inference rules. This development does \emph{not} use the interchange
 law for several reasons. First, this law fails for fair parallel
 composition $x\parallel_f y$ in a model with possibly infinite, or
-non-terminating programs. In this model, $x \cdot y \not\leq
-x \parallel_f y$ in the case whenever $x$ is non-terminating. Second,
-it is not needed for deriving the usual concurrency laws. Third,
-whereas it may be assumed in the models outlined in Section *** it
-fails for the Aczel trace model in Section ***. \fbox{is that true?}
-
-\fbox{this needs to be reworked. two letters for a set are not good}
-
-\fbox{ the set RG doesn't need to be named in the algebra I think.}
-
-\fbox{we can just start with a bi-KA and say that elements are relies/guarantees if they satisfy properties}
-
-\fbox{what is a weak trioid?}
-
-\fbox{say that we don't consider the parallel star}
-
-\fbox{should we call relies and guarantees more generically
-  ``conditions'' can call them $c$?}
+non-terminating programs. In this model, $x \cdot y \not\leq x
+\parallel_f y$ in the case whenever $x$ is non-terminating. Secondly,
+it is not needed for deriving the usual laws or rely-guarantee.
 
 A rely-guarantee algebra is a structure
-$(K,RG,+,\sqcap,\cdot,\|,^\star,0,1)$, where $(K,+,\sqcap)$ is a
-distributive lattice, $(K,+,\cdot,\|,0,1)$ is a weak trioid and
-$(K,+,\cdot,^\star,0,1)$ is a Kleene algebra. $RG$ is a distinguished
-subset of relys and guarantees which satisfy the following axioms
+$(K,C,+,\sqcap,\cdot,\|,^\star,0,1)$, where $(K,+,\sqcap)$ is a
+distributive lattice, $(K,+,\cdot,\|,0,1)$ is a trioid and
+$(K,+,\cdot,^\star,0,1)$ is a Kleene algebra. Note that we do not
+consider the parallel star. $C$ is a distinguished subset of rely and
+guarantee conditions or \emph{interference constraints} which satisfy
+the following axioms
 \begin{align}
 r\|r &\le r, \label{rg1}\\
 r &\le r\|r', \label{rg2}\\
 r\|xy &= (r\|x)(r\|y), \label{rg3}\\
 r\|x^+ &\le (r\|x)^+ \label{rg4}.
 \end{align}
-By convention, we use $r$ and $g$ to refer to elements of $RG$, and
-$x,y,z$ for arbitrary elements of $K$. 
+By convention, we use $r$ and $g$ to refer to elements of $C$,
+depending on whether they are used as relies or guarantees, and
+$x,y,z$ for arbitrary elements of $K$. The operators $\|$ and $\sqcap$
+must be closed with respect to $C$.
 
 Axiom (\ref{rg1}) states that interference from a rely condition being
 run twice in parallel is no different from just the interference from
@@ -385,101 +389,24 @@ allows a rely or guarantee to be split across sequential
 programs. Axiom (\ref{rg4}) is similar to Axiom (\ref{rg3}) in intent,
 except it deals with finite iteration.
 
-Some elementary consequences of these rules are as follows
-\begin{align*}
-1 &\le r,\\
-r^\star = rr &= r = r\|r,\\
-r\|x^+ &= (r\|x)^+.
-\end{align*}
-
-%% Could use better explanations.
-
-
+Some elementary consequences of these rules are
+\begin{equation*}
+1 \le r,\qquad
+r^\star = rr = r = r\|r,\qquad
+r\|x^+ = (r\|x)^+.
+\end{equation*}
 
 Axioms (\ref{rg1}), (\ref{rg2}) and (\ref{rg3}) are independent. To
 show this, we use Isabelle's
-\emph{Nitpick}~\cite{blanchette_nitpick:_2010} counterexample generator
-to construct models which violate each of these axioms, yet satisfy
-all others. The models thus constructed for (\ref{rg1}) and
-(\ref{rg3}) are shown in Figures \ref{fig:rg1} and \ref{fig:rg3}
-respectively. The model constructed for (\ref{rg2}) is just the two
-element rely-guarantee algebra with $0$ and $1$.
+\emph{Nitpick}~\cite{blanchette_nitpick:_2010} counterexample
+generator to construct models which violate each particular axiom
+while satisfying all others.
 
-\begin{figure}[H]
-\centering
-\begin{minipage}{0.24\textwidth}
-\begin{tikzpicture}[x=1.5cm,y=1.5cm,auto]
-  \node (center) {};
-  \node [elem] (r1) at (90:1) {$r_1$};
-  \node [elem] (one) at (200:1) {$1$};
-  \node [elem] (r2) at (20:1) {$r_2$};
-  \node [elem] (zero) at (-90:1) {$0$};
-
-  \path [line] (r1) -- (r2);
-  \path [line] (r1) -- (one);
-  \path [line] (r1) -- (zero);
-  \path [line] (r2) -- (one);
-  \path [line] (r2) -- (zero);
-  \path [line] (one) -- (zero);
-\end{tikzpicture}
-\end{minipage}
-\begin{minipage}{0.24\textwidth}
-\begin{align*}
-r_1 \| r_1 &= r_1\\
-r_1 \| r_2 &= r_1\\
-r_2 \| r_1 &= r_1\\
-r_2 \| r_2 &= r_1
-\end{align*}
-\end{minipage}
-\begin{minipage}{0.24\textwidth}
-\begin{align*}
-r_1r_1 &= r_1\\
-r_1r_2 &= r_1\\
-r_2r_1 &= r_1\\
-r_2r_2 &= r_2
-\end{align*}
-\end{minipage}
-\begin{minipage}{0.24\textwidth}
-\begin{align*}
-r_1^\star &= r_1\\
-r_2^\star &= r_2
-\end{align*}
-\end{minipage}
-\caption{4 element counterexample for $r \in RG \implies r\|r \le r$}
-\label{fig:rg1}
-\end{figure}
-
-Axiom (\ref{rg4}) can be derived from (\ref{rg3}) in all finite
-models. This is because any finite $K$ is complete, and in a complete
-setting fixpoint laws can be used to show $r\|x^+ \le (r\|x)^+$. Thus
-it is impossible to construct a finite model demonstrating that
-(\ref{rg4}) is independent from (\ref{rg1}) -- (\ref{rg3}).
-
-\begin{figure}[t]
-\centering
-\begin{minipage}{0.24\textwidth}
-\begin{tikzpicture}[x=1.5cm,y=1.5cm,auto]
-  \node (center) {};
-  \node [elem] (r1) at (90:1) {$r_1$};
-  \node [elem] (one) at (0:1) {$1$};
-  \node [elem] (zero) at (-90:1) {$0$};
-
-  \path [line] (r1) -- (one);
-  \path [line] (r1) -- (zero);
-  \path [line] (r1) -- (zero);
-  \path [line] (one) -- (zero);
-\end{tikzpicture}
-\end{minipage}
-\begin{minipage}{0.24\textwidth}
-\begin{align*}
-r_1 \| r_1 &= r_1\\
-r_1 r_1 &= r_1\\
-r_1^\star &= r_1
-\end{align*}
-\end{minipage}
-\caption{3 element counterexample for $r \in RG \implies r\|xy = (r\|x)(r\|y)$}
-\label{fig:rg3}
-\end{figure}
+Axiom (\ref{rg4}) can be derived from (\ref{rg3}) by a simple
+inductive argument in quantales where the plus operation can be
+defined as a sum of powers $x^+=\sum_{i\ge 1} x^i$ where $x^1=x$
+and $x^{i+1}=x\cdot x^i$. In first-order Kleene algebras, however, it
+is independent, but it is impossible to find a counterexample with Nitpick because all such counterexamples are finite, but all finite Kleene algebras are a forteriori quantales.
 
 Jones quintuples can be encodeded in this setting as
 \begin{align}
@@ -496,7 +423,7 @@ which is equivalent to the encoding in Equation (\ref{quin}).
 \begin{align}
 r, g \vdash \{p\} c \{q\} \iff c \le r/(p \rightarrow q) \sqcap g \label{refine}.
 \end{align}
-This encoding allows us to think in terms of program refinement, as
+This encoding allows us to think in terms of program refinement~\cite{hayes_refining_2013}, as
 $r/(p \rightarrow q) \sqcap g$ defines the weakest program that when
 placed in parallel with interference from $r$, and guaranteeing
 interference at most $g$, goes from $p$ to $q$---a generic
@@ -552,8 +479,6 @@ specification for a concurrent program.
 \caption{Rely-guarantee inference rules}
 \label{fig:rgrules}
 \end{figure}
-
-% Or should this be weak?
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Breaking Compositionality}
@@ -642,44 +567,33 @@ example, $(\sigma_1,\sigma_2)(\sigma_2,\sigma_3)$ is consistent, while
 $(\sigma_1,\sigma_2)(\sigma_3,\sigma_3)$ is inconsistent. Sets of
 consistent words are essentially \emph{Aczel
   traces}~\cite{boer_formal_1999}, but lack the usual process
-labels. We denote the set of all consistent words by $C$.
+labels. We denote the set of all consistent words by $T$.
 
-As usual, the product of two languages X and Y is defined as
-\begin{align*}
-XY = \{x\frown y.\; x \in X \land y \in Y\}.
-\end{align*}
-The language product is associative, and distributes over arbitrary
-joins from both the left and the right, i.e.
-\begin{align*}
-X(\bigcup Y) = \bigcup\{XZ.\; Z \in Y\} \qquad \text{and} \qquad (\bigcup Y)X = \bigcup\{ZX.\; Z \in Y\}.
-\end{align*}
-The shuffle $\sha$ on a pair
-of finite words is defined inductively as
-\begin{align*}
-\epsilon \sha s = \{s\}, \qquad s \sha \epsilon = \{s\},\\
-as \sha bt = a(s \sha bt) \cup b(as \sha t),
-\end{align*}
-which is then lifted to languages X and Y as the shuffle product,
-\begin{align*}
-X \sha Y = \bigcup\{x \sha y.\; x \in X \land x \in Y\}.
-\end{align*}
-The shuffle product is associative, commutative, and distributes over
-arbitrary joins. Both products share the same unit, $\{\epsilon\}$ and
-zero, $\emptyset$. Proving properties of shuffle is suprisingly
-tricky (especially if one considers infinite words). For a in-depth
-treatment of the shuffle product see~\cite{shufflethings}. The
-above properties are enough to show that $(\mathcal{P}((\Sigma\times\Sigma)^*),
-\cup, \cdot,\sha, \emptyset, \{\epsilon\})$ forms a weak trioid.
+Sequential composition in this model is language product, as per
+usual. Concurrent composition is the shuffle product defined in
+section \ref{sec:KA}. The shuffle product is associative, commutative,
+and distributes over arbitrary joins. Both products share the same
+unit, $\{\epsilon\}$ and zero, $\emptyset$. Proving properties of
+shuffle is suprisingly tricky (especially if one considers infinite
+words). For a in-depth treatment of the shuffle product
+see~\cite{mateescu_shuffle-like_1997}.
+
+\begin{lem}
+$(\mathcal{P}((\Sigma\times\Sigma)^*), \cup, \cdot,\sha, \emptyset,
+  \{\epsilon\})$ forms a trioid.
+\end{lem}
 
 The rely-guarantee elements in this model are sets containing all the
 words which can be built from some set of state pairs in
 $\Sigma\times\Sigma$. We define a function $\langle R\rangle$ which
 lifts a relation $R$ to a language containing words of length one for
-each pair in $R$. The set of rely-guaratee elements RG is then defined
-as $\{r.\; \exists R. r = \langle R\rangle^*\}$. We can show that
-$(\mathcal{P}((\Sigma\times\Sigma)^*), RG, \cup, \cdot,\sha,
-\emptyset, \{\epsilon\}, C)$ is a rely-guarantee algebra.
+each pair in $R$. The set of rely-guaratee conditions $C$ is then defined
+as $\{r.\; \exists R. r = \langle R\rangle^*\}$.
 
+\begin{lem}
+$(\mathcal{P}((\Sigma\times\Sigma)^*), C, \cup, \cdot,\sha,
+  \emptyset, \{\epsilon\}, T)$ is a rely-guarantee algebra.
+\end{lem}
 Since $\langle R\rangle$ is atomic, it satisfies several useful properties, such as,
 \begin{align*}
 \langle R\rangle^\star \| \langle S\rangle &= \langle R\rangle^\star; \langle S\rangle; \langle R\rangle^\star\\
@@ -790,7 +704,7 @@ semantics to generate traces.
 
 Following~\cite{brookes_full_1993} and~\cite{dingel_refinement_2002},
 we inductively generate the mumble language $w^\dagger$ for a word $w$
-in a language over $\Sigma^2$ as follows: Assume $R,S,T \in \Sigma^2$
+in a language over $\Sigma^2$ as follows: Assume $R,S \in \Sigma^2$
 and $u,v,w \in (\Sigma^2)^*$. First, $w \in w^\dagger$. Secondly, if
 $uRSv \in w^\dagger$ then $u(R;S)v \in w^\dagger$. This operation is
 lifted to languages in the obvious way as
@@ -823,8 +737,8 @@ implicitly mumble closed.
 Using tests, we can encoding common program statements such as if
 statements and while loops as in Kozen's Kleene algebra with tests.
 \begin{align*}
-\text{if } P \text{ \{ } X \text { \} else \{ } Y \text{ \}} &= \test(P); X + \test(- P); Y\\
-\text{while } P \text{ \{ } X \text{ \}} &= (\test(P);X)^\star;\test(- P)
+\mathsf{if } P \text{ \{ } X \text { \} \textsf{else} \{ } Y \text{ \}} &= \test(P); X + \test(- P); Y\\
+\mathsf{while } P \text{ \{ } X \text{ \}} &= (\test(P);X)^\star;\test(- P)
 \end{align*}
 Finally, we define the operator $\edn(P)$ which is contains all the
 words which end in a state satisfying $P$. Some useful properties of $\edn$ include
@@ -843,33 +757,39 @@ value $v$ to $x$. The $\eval$ function evaluates an expression $e$ in
 the state $\sigma$. Using this definition of assignment we can derive
 the assignment rule
 \begin{align*}
-&\text{unchanged}(\text{vars}(e)) \cap \text{preserves}(P) \cap \text{preserves}(P[x/e]),\\
-&\text{unchanged}(- {x})\\
+&\unchanged(\mathsf{vars}(e)) \cap \preserves(P) \cap \preserves(P[x/e]),\\
+&\unchanged(- \{x\})\\
 &\vdash \{\edn(P)\} x := e \{\edn(P[x/e])\}.
 \end{align*}
 
-The rely condition states that the environment is not allowed to
-modify any of the variables used when evaluating $e$, i.e. those
-variables must remain unchanged, and also that the environment must
-preserve the precondition and postcondition of the assignment
-statement. In turn, the assignment statement itself guarantees that it
-leaves every variable other than $x$ unchanged. Preserves and unchanged are defined as
+The rely condition states the following: First, the environment is not
+allowed to modify any of the variables used when evaluating $e$,
+i.e. those variables must remain unchanged. Second, that the
+environment must preserve the precondition. Third, that postcondition
+of the assignment statement is also preserved. In turn, the assignment
+statement itself guarantees that it leaves every variable other than
+$x$ unchanged. Preserves and unchanged are defined as
 \begin{align*}
-\text{preserves}(P) &= \langle \{(\sigma,\sigma').\; P(\sigma) \implies P(\sigma')\}\rangle^\star,\\
-\text{unchanged}(X) &= \langle \{(\sigma,\sigma').\; \forall v\in X.\; \sigma(v) = \sigma'(v)\}\rangle^\star.
+\preserves(P) &= \langle \{(\sigma,\sigma').\; P(\sigma) \implies P(\sigma')\}\rangle^\star,\\
+\unchanged(X) &= \langle \{(\sigma,\sigma').\; \forall v\in X.\; \sigma(v) = \sigma'(v)\}\rangle^\star.
 \end{align*}
 We also defined two futher rely conditions, increasing and decreasing,
-which are defined much like unchanged except they only require that variables
-increase or decrease, rather than stay the same.
+which are defined much like unchanged except they only require that
+variables increase or decrease, rather than stay the same. Note that
+we can easily define other useful assignment rules---if we know things
+about $P$ and $e$, we can make stronger guarantees about what $x := e$
+can do. For example the assignment $x := x - 2$ can also guarantee
+that $x$ will always decrease.
 
-\newpage
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Example}
+\section{Examples}
+
+\fbox{Simple assignment example}
 
 Figure \ref{fig:findp} shows the classic FINDP program, which has been
-used by numerous authors including Owicki~\cite{owicki},
-Jones~\cite{jones}, de Roever~\cite{derover} and
-Hayes~\cite{hayes}. The program finds the least element of an array
+used by numerous authors including Owicki~\cite{owicki_axiomatic_1975},
+Jones~\cite{jones_development_1981}, de Roever~\cite{de_roever_concurrency_2001} and
+Hayes~\cite{hayes_refining_2013}. The program finds the least element of an array
 satisfying the predicate $P$. The index of the first element
 satisfying $p$ is placed in the variable $f$. If there are no elements
 of the array satisfying $P$ then $f$ will be set to the length of the
@@ -878,19 +798,18 @@ parallel, one of which searches the even indices while the other
 searches the odd indices. A speedup over a sequential implementation
 is acheived as $A$ will terminate when $B$ finds an element of the
 array satisfying $P$ which is less than $i_A$.
-
 \begin{figure}
 \[
 \begin{aligned}
-&f_A := \text{len}(\text{array});\\
-&f_B := \text{len}(\text{array});\\
+&f_A := \mathsf{len}(\mathsf{array});\\
+&f_B := \mathsf{len}(\mathsf{array});\\
 &\left(
 \begin{aligned}
 &i_A = 0\\
-&\text{while } i_A < f_A \land i_A < f_B \text{ \{ }\\
-&\qquad\text{if } P(\text{array}[i_A]) \text{ \{}\\
+&\text{\textsf{while} } i_A < f_A \land i_A < f_B \text{ \{ }\\
+&\qquad\text{\textsf{if} } P(\mathsf{array}[i_A]) \text{ \{}\\
 &\qquad\qquad f_A := i_A\\
-&\qquad\text{\} else \{}\\
+&\qquad\text{\} \textsf{else} \{}\\
 &\qquad\qquad i_A := i_A + 2\\
 &\qquad\text{\}}\\
 &\text{\}}
@@ -898,10 +817,10 @@ array satisfying $P$ which is less than $i_A$.
 \middle\|
 \begin{aligned}
 &i_B = 1\\
-&\text{while } i_B < f_A \land i_B < f_B \text{ \{}\\
-&\qquad\text{if } P(\text{array}[i_B]) \text{ \{}\\
+&\text{\textsf{while} } i_B < f_A \land i_B < f_B \text{ \{}\\
+&\qquad\text{\textsf{if} } P(\mathsf{array}[i_B]) \text{ \{}\\
 &\qquad\qquad f_B := i_B\\
-&\qquad\text{\} else \{}\\
+&\qquad\text{\} \textsf{else} \{}\\
 &\qquad\qquad i_B := i_B + 2\\
 &\qquad\text{\}}\\
 &\text{\}}
@@ -914,17 +833,42 @@ array satisfying $P$ which is less than $i_A$.
 \label{fig:findp}
 \end{figure}
 
+Here, we sketch the main outline of the correctness proof, and comment
+on its implementation in Isabelle. We don't attempt to give a fully
+detailed proof, as this has been done many times previously.
+
 To prove the correctness of FINDP, we must show that
 \begin{align*}
-\text{FINDP} \le_\pi \text{ends}\{\sigma.\; \text{leastp}(\sigma, f)\} + \text{ends}\{\sigma.\; \sigma(f) = \text{len}(\text{array})\}.
+\text{FINDP} \le_\pi \edn(\mathsf{leastP}(f)) + \edn(f = \mathsf{len}(\text{array})).
 \end{align*}
-where
-\begin{align*}
-\text{leastp}(\sigma, x) =  (\forall v<\sigma(x). \lnot P(\sigma(\text{array}[v])))\land P(\sigma(\text{array}[\sigma(x)])).
-\end{align*}
-The interesting part of this proof is the verification 
+where $\mathsf{leastP(f)}$ is the set of states where $f$ is the least
+index satisfying $P$, and $f = len(array)$ is the set of states where
+$f$ is the length of the array. In other words, either we find the
+least element, or no elements in the array satisfy $P$, in which case
+$f$ remains the same as the length of the array.
 
-\newpage
+To prove the parallel part of the program, subprogram $A$ guarantees
+that it does not modify any of the variables used by subprogram $B$,
+except for $f_A$, which it guarantees will only ever
+decrease. Subprogram $B$ makes effectively the same guarantee to
+$A$. Under these interference constraints we then prove that $A$ or
+$B$ will find the lowest even or odd index which satisfies $P$
+respectively---or they do not find it, in which case $f_A$ or $f_B$
+will remain equal to the length of the array.
+
+Despite the seemingly straightforward nature of this proof, this turns
+out to be suprising difficult to prove in Isabelle. Each atomic step
+needs to be shown to satisfy the guarantee of its containing
+subprogram, as well as any goals relating to it's pre and post
+conditions. This invariably leads to a proliferation of many numerous
+proof goals, even for such a small program. More work needs to be done
+to manage the complexity of such proofs within interactive theorem
+provers. Existing work on combining rely-guarantee with separation
+logic~\cite{vafeiadis_modular_2008} may proof useful here. Our language model is
+sufficiently generic such that arbitrary models of stores may be used,
+including those common in separation logic, which have already been
+implemented in Isabelle.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusion}
 
