@@ -59,6 +59,7 @@ class rely_guarantee_trioid = weak_star_trioid + semilattice_inf +
   and rg2: "r \<in> RG \<Longrightarrow> s \<in> RG \<Longrightarrow> r \<le> r \<parallel> s"
   and rg3: "r \<in> RG \<Longrightarrow> r\<parallel>(x\<cdot>y) = (r\<parallel>x)\<cdot>(r\<parallel>y)"
   and rg4: "r \<in> RG \<Longrightarrow> r\<parallel>(x\<^sup>\<star>\<cdot>x) \<le> (r\<parallel>x)\<^sup>\<star>\<cdot>(r\<parallel>x)"
+  and rg5: "r \<in> RG \<Longrightarrow> r\<parallel>(x\<^sup>\<star>\<cdot>x) \<le> (r\<parallel>x)\<cdot>(r\<parallel>x)\<^sup>\<star>"
   and rg_unit: "1 \<in> RG"
   and rg_meet_closed: "\<lbrakk>r \<in> RG; s \<in> RG\<rbrakk> \<Longrightarrow> (r \<sqinter> s) \<in> RG"
   and rg_par_closed: "\<lbrakk>r \<in> RG; s \<in> RG\<rbrakk> \<Longrightarrow> (r \<parallel> s) \<in> RG"
@@ -109,6 +110,12 @@ begin
     thus "y + z \<le> x"
       by (metis add_lub)
   qed
+
+  lemma "(x \<sqinter> C) \<le> (y \<sqinter> C) \<longleftrightarrow> ((x + y) \<sqinter> C) = (y \<sqinter> C)"
+    apply default
+    defer
+    apply (metis eq_refl inf_mono sup_ge1)
+    by (metis inf_commute inf_sup_distrib1 sup_absorb2)
 
   lemma proj_plus [simp]: "\<pi> (x + y) = \<pi> x + \<pi> y"
     by (simp add: proj_def) (metis inf_commute inf_sup_distrib1)
@@ -275,6 +282,27 @@ begin
 
   lemma proj_add_lub [simp]: "x + y \<le>\<^sub>\<pi> z \<longleftrightarrow> x \<le>\<^sub>\<pi> z \<and> y \<le>\<^sub>\<pi> z"
     by (auto simp add: proj_leq_def)
+
+  lemma helper: "r\<parallel>x\<^sup>\<star> = r + r\<parallel>x\<cdot>x\<^sup>\<star>"
+    by (metis par_distl par_unitr star_unfoldl_eq)
+
+  thm star_inductr
+
+  lemma proj_star_inductl: "\<pi> (z + y \<cdot> x) \<le> \<pi> y \<Longrightarrow> \<pi> (z \<cdot> x\<^sup>\<star>) \<le> \<pi> y"
+    sorry
+
+  lemma star_rule: "p\<cdot>r \<le>\<^sub>\<pi> p \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>p\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> c\<^sup>\<star> \<lbrace>p\<rbrace>"
+    apply (auto simp add: quintuple_def proj_leq_def)
+    defer
+    apply (metis boffa par_unitl rg2 rg_idem_mult rg_unit star_rtc_least_eq sup_absorb1 sup_commute sup_id_star2 sup_left_commute)
+    apply (subst helper)
+    apply (simp add: distrib_left)
+    apply (rule order_trans[of _ "\<pi> (p \<cdot> (r \<parallel> c) \<cdot> (r \<parallel> c)\<^sup>\<star>)"])
+    apply (metis mult_assoc pmult_def proj.mult_isol rg5 star_slide_var)
+    apply (rule order_trans[of _ "\<pi> (p \<cdot> (r \<parallel> c)\<^sup>\<star>)"])
+    apply (metis mult_assoc pmult_def proj.mult_isol star_1l)
+    apply (rule proj_star_inductl)
+    by (metis eq_iff inf_commute inf_sup_distrib1 proj_def sup_absorb2 sup_commute)
 
 end
 

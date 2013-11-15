@@ -368,6 +368,9 @@ begin
       apply (rule Mumble_iso)
       by (metis eq_iff rely_l_prod rely_star)
 
+    from r_rg show "r \<parallel> x\<^sup>\<star>\<cdot>x \<le> (r \<parallel> x) \<cdot> (r \<parallel> x)\<^sup>\<star>"
+      sorry
+
     assume s_rg: "s \<in> RG"
 
     from r_rg and s_rg show "r \<parallel> s \<in> RG"

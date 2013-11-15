@@ -40,7 +40,6 @@ definition assign :: "nat \<Rightarrow> expr \<Rightarrow> state trace" (infix "
 definition preserves :: "'a set \<Rightarrow> 'a trace" where
   "preserves P = \<langle>{(\<sigma>, \<sigma>'). \<sigma> \<in> P \<longrightarrow> \<sigma>' \<in> P}\<rangle>\<^sup>\<star>"
 
-
 lemma preserves_RG [intro]: "preserves X \<in> RG"
   by (simp add: preserves_def, transfer, auto)
 
@@ -231,7 +230,7 @@ lemma [simp]: "ends P \<cdot> 0 = 0"
   by transfer (auto simp add: l_prod_def FIN_def Mumble_def)
 
 lemma assignment:
-  shows "(unchanged (vars e) \<sqinter> preserves P \<sqinter> preserves (P\<lbrakk>x := e\<rbrakk>)), (unchanged (- {x})) \<turnstile> \<lbrace>ends P\<rbrace> x := e \<lbrace>ends (P\<lbrakk>x := e\<rbrakk>)\<rbrace>"
+  shows "(unchanged (vars e) \<sqinter> preserves P \<sqinter> preserves (P\<lbrakk>x := e\<rbrakk>)), unchanged {x} \<turnstile> \<lbrace>ends P\<rbrace> x := e \<lbrace>ends (P\<lbrakk>x := e\<rbrakk>)\<rbrace>"
 proof (auto simp only: quintuple_def)
   let ?U = "{(\<sigma>, \<sigma>'). (\<forall>v\<in>vars e. \<sigma> v = \<sigma>' v)}"
   let ?P = "{(\<sigma>, \<sigma>'). \<sigma> \<in> P \<longrightarrow> \<sigma>' \<in> P}"
@@ -413,7 +412,8 @@ definition EC :: "nat" where "EC = 3"
 
 definition LEN :: "nat" where "LEN = 10"
 
-definition array :: "nat \<Rightarrow> nat" where "array x = undefined"
+definition array :: "nat \<Rightarrow> nat" where
+  "array n = n"
 
 definition while_inv :: "'a set \<Rightarrow> 'b \<Rightarrow> 'a trace \<Rightarrow> 'a trace" ("WHILE _ //INVARIANT _ //DO _ //WEND" [64,64,64] 63) where
   "WHILE b INVARIANT i DO p WEND = (test b ; p)\<^sup>\<star> ; test b"
@@ -426,7 +426,6 @@ definition loop1_inv :: "(nat \<Rightarrow> bool) \<Rightarrow> state set" where
 
 definition loop2_inv :: "(nat \<Rightarrow> bool) \<Rightarrow> state set" where
   "loop2_inv p = {\<sigma>. (\<forall>v. odd v \<and> v < \<sigma> EC \<longrightarrow> \<not> p (array v)) \<and> odd (\<sigma> EC) \<and> ((p (array (\<sigma> ET)) \<and> \<sigma> ET \<le> LEN) \<or> \<sigma> ET = LEN)}"
-  
 
 definition FIND :: "(nat \<Rightarrow> bool) \<Rightarrow> state trace" where
   "FIND p \<equiv>
