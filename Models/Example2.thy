@@ -237,7 +237,10 @@ lemma preserves_empty [simp]: "preserves {} = \<langle>UNIV\<rangle>\<^sup>\<sta
 lemma rg_inter: "trans X \<Longrightarrow> trans Y \<Longrightarrow> \<langle>X\<rangle>\<^sup>\<star> \<sqinter> \<langle>Y\<rangle>\<^sup>\<star> = \<langle>X \<inter> Y\<rangle>\<^sup>\<star>"
   by transfer (metis Mumble_atomic Mumble_atomic_star rely_inter trancl_id)
 
-lemma "1, \<langle>UNIV\<rangle>\<^sup>\<star> \<turnstile> \<lbrace>ends UNIV\<rbrace> FIND P \<lbrace>ends {\<sigma>. P (array (min (lookup \<sigma> FA) (lookup \<sigma> FB))) \<or> (lookup \<sigma> FA = LEN \<and> lookup \<sigma> FB = LEN)}\<rbrace>"
+lemma findp_correctness:
+  assumes "FA := Var IA \<le> decreasing {FA}" (* We need an atomic command that combine's a test with an assignment (a guarded assignment *)
+  and "FB := Var IB \<le> decreasing {FB}"
+  shows "1, \<langle>UNIV\<rangle>\<^sup>\<star> \<turnstile> \<lbrace>ends UNIV\<rbrace> FIND P \<lbrace>ends {\<sigma>. P (array (min (lookup \<sigma> FA) (lookup \<sigma> FB))) \<or> (lookup \<sigma> FA = LEN \<and> lookup \<sigma> FB = LEN)}\<rbrace>"
   apply (simp add: FIND_def)
 
   (* First two assignments *)
@@ -489,6 +492,6 @@ lemma "1, \<langle>UNIV\<rangle>\<^sup>\<star> \<turnstile> \<lbrace>ends UNIV\<
   (* Simple atomic goals *)
   apply safe
   apply auto
-  defer
-  sorry
+  apply (metis assms(1))
+  by (metis assms(2))
 
