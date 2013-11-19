@@ -219,13 +219,17 @@ lemma [simp]: "unchanged {} = \<langle>UNIV\<rangle>\<^sup>\<star>"
   by auto
 
 lemma rg_mono: "X \<le> Y \<Longrightarrow> \<langle>X\<rangle>\<^sup>\<star> \<le> \<langle>Y\<rangle>\<^sup>\<star>"
-  sorry
+  by (intro star_iso[rule_format] atomic_iso) assumption
 
 lemma [intro]: "x \<notin> V \<Longrightarrow> x := v \<le> unchanged V"
   sorry
 
-lemma [intro]: "x \<notin> V \<Longrightarrow> x := v \<le> decreasing V"
-  sorry
+lemma [intro]: "X \<le> unchanged {x} \<Longrightarrow> X \<le> decreasing {x}"
+  apply (subgoal_tac "unchanged {x} \<le> decreasing {x}")
+  apply auto
+  apply (simp add: unchanged_def decreasing_def)
+  apply (rule rg_mono)
+  by auto
 
 lemma preserves_empty [simp]: "preserves {} = \<langle>UNIV\<rangle>\<^sup>\<star>"
   by (auto intro: arg_cong simp add: preserves_def)
@@ -484,6 +488,7 @@ lemma "1, \<langle>UNIV\<rangle>\<^sup>\<star> \<turnstile> \<lbrace>ends UNIV\<
 
   (* Simple atomic goals *)
   apply safe
+  apply auto
   defer
   sorry
 
