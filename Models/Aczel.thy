@@ -266,8 +266,59 @@ lemma Aczel_inf [simp]: "\<pi> (x\<cdot>{}) = (\<pi> x)\<cdot>{}"
 lemma Aczel_one [simp]: "\<pi> {LNil} = {LNil}"
   by (auto simp add: Aczel_def Con_def)
 
+primrec proj_power :: "('a \<times> 'a) lan \<Rightarrow> nat \<Rightarrow> ('a \<times> 'a) lan" where
+  "proj_power x 0 = {LNil}"
+| "proj_power x (Suc n) = \<pi> (x \<cdot> proj_power x n)"
+
+definition proj_powers :: "('a \<times> 'a) lan \<Rightarrow> ('a \<times> 'a) lan set" where
+  "proj_powers x  = {y. (\<exists>i. y = proj_power x i)}"
+
+lemma power_to_proj: "\<pi> (power x i) = proj_power x i"
+  apply (induct i)
+  apply simp_all
+  by (metis Aczel_idem Aczel_l_prod)
+
+lemma proj_power_proj: "proj_power x i = proj_power (\<pi> x) i"
+  apply (induct i)
+  apply simp_all
+  by (metis Aczel_l_prod Language.power.simps(2) power_to_proj proj_power.simps(2))
+
+lemma powers_to_proj: "\<pi> ` powers x = proj_powers x"
+  apply (auto simp add: proj_powers_def powers_def image_def)
+  apply (metis power_to_proj)
+  by (metis power_to_proj)
+
+lemma proj_powers_proj: "proj_powers x = proj_powers (\<pi> x)"
+  apply (auto simp add: proj_powers_def)
+  apply (metis proj_power_proj)
+  by (metis proj_power_proj)
+  
+
+lemma "\<Union>{\<pi> X |X. X \<in> powers (x \<inter> FIN)} = \<Union>{X. X \<in> \<pi> ` powers (x \<inter> FIN)}"
+  by (auto simp add: image_def)
+
+lemma Aczel_fin_star_lem: "\<Union>{\<pi> X |X. X \<in> powers (x \<inter> FIN)} = \<Union>{\<pi> X |X. X \<in> powers (\<pi> (x \<inter> FIN))}"
+proof -
+  have "\<Union>{\<pi> X |X. X \<in> powers (x \<inter> FIN)} = \<Union>{X. X \<in> \<pi> ` powers (x \<inter> FIN)}"
+    by (auto simp add: image_def)
+  also have "... = \<Union>{X. X \<in> proj_powers (x \<inter> FIN)}"
+    by (metis powers_to_proj)
+  also have "... = \<Union>{X. X \<in> proj_powers (\<pi> (x \<inter> FIN))}"
+    by (metis proj_powers_proj)
+  also have "... =  \<Union>{X. X \<in> \<pi> ` powers (\<pi> (x \<inter> FIN))}"
+    by (metis powers_to_proj)
+  also have "... = \<Union>{\<pi> X |X. X \<in> powers (\<pi> (x \<inter> FIN))}"
+    by (auto simp add: image_def)
+  finally show ?thesis .
+qed
+
 lemma Aczel_fin_star: "\<pi> ((x \<inter> FIN)\<^sup>\<star>) \<le> \<pi> ((\<pi> (x \<inter> FIN))\<^sup>\<star>)"
-  sorry
+  apply (subst star_power_fin)
+  apply simp
+  apply (subst star_power_fin)
+  apply (metis Aczel_coextensive inf.bounded_iff)
+  apply (subst Aczel_continuous)+
+  by (metis Aczel_fin_star_lem subset_refl)
 
 lemma Aczel_star1: "\<pi> (x\<^sup>\<star>) \<le> \<pi> (\<pi> x\<^sup>\<star>)"
 proof -

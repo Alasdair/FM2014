@@ -1405,7 +1405,7 @@ definition powers_up_to :: "nat \<Rightarrow> 'a lan \<Rightarrow> 'a lan set" w
 
 text {* We now show that $x^*$ can be defined as the sum of the powers of $x$. *}
 
-lemma star_power: assumes finite_x: "x \<subseteq> FIN" shows "x\<^sup>\<star> = \<Union>(powers x)"
+lemma star_power_fin: assumes finite_x: "x \<subseteq> FIN" shows "x\<^sup>\<star> = \<Union>(powers x)"
 proof -
   let ?STAR_FUN = "\<lambda>y. {LNil} \<union> x\<cdot>y"
   have "\<mu> ?STAR_FUN = \<Union>{iter ?STAR_FUN n {} |n. True}"
@@ -1477,6 +1477,31 @@ proof -
   ultimately show ?thesis
     by (metis star_def)
 qed
+
+lemma strict_inf_star: "x \<cdot> {} = x \<Longrightarrow> x\<^sup>\<star> = {LNil} \<union> x"
+  apply (rule antisym)
+  apply (rule seq.star_inductl_one[rule_format])
+  apply (metis l_prod_zero seq.mult_assoc set_eq_subset)
+  by (metis par.add_lub_var seq.star_ext seq.star_ref)
+
+lemma infinite_power: "X \<cdot> {} = X \<Longrightarrow> xs \<in> Language.power X i \<Longrightarrow> xs \<notin> X \<Longrightarrow> xs = LNil"
+  apply (induct i arbitrary: xs)
+  apply simp
+  apply auto
+  by (metis l_prod_zero seq.mult_assoc)
+
+lemma star_power_inf: "x \<cdot> {} = x \<Longrightarrow> x\<^sup>\<star> = \<Union>(powers x)"
+  apply (subst strict_inf_star)
+  apply assumption
+  apply (simp add: powers_def)
+  apply safe
+  apply simp_all
+  apply (rule_tac x = "power x 0" in exI)
+  apply simp
+  apply (rule_tac x = 0 in exI)
+  apply simp
+  apply (metis Language.power.simps(2) l_prod_zero seq.mult_assoc)
+  by (metis infinite_power)
 
 lemma [simp]: "X \<subseteq> FIN \<Longrightarrow> (X \<parallel> Y \<cdot> {}) = (X \<parallel> Y) \<cdot> {}"
   apply (auto simp add: l_prod_def shuffle_def FIN_def)

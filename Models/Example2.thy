@@ -2,6 +2,8 @@ theory Example2
   imports Trace
 begin
 
+(* Some lemmas sorried out where proven in other files *)
+
 datatype state = State nat nat nat nat
 
 datatype variable = IA | FA | IB | FB
@@ -114,7 +116,6 @@ definition loop1_inv :: "(nat \<Rightarrow> bool) \<Rightarrow> state set" where
 definition loop2_inv :: "(nat \<Rightarrow> bool) \<Rightarrow> state set" where
   "loop2_inv p = {\<sigma>. (\<forall>v. odd v \<and> v < lookup \<sigma> IB \<longrightarrow> \<not> p (array v)) \<and> odd (lookup \<sigma> IB) \<and> ((p (array (lookup \<sigma> FB)) \<and> lookup \<sigma> FB \<le> LEN) \<or> lookup \<sigma> FB = LEN)}"
 
-
 definition FIND :: "(nat \<Rightarrow> bool) \<Rightarrow> state trace" where
   "FIND p \<equiv>
   FA := Val LEN;
@@ -204,14 +205,31 @@ lemma strengthen_postcondition: "x \<le> q \<Longrightarrow> r, g \<turnstile> \
   apply (auto simp add: quintuple_def proj_leq_def)
   by (metis order.trans proj_iso)
 
+lemma mumble_LCons_not_LNil: "ys \<in> mumble (LCons (\<sigma>, \<sigma>') xs) \<Longrightarrow> ys \<noteq> LNil"
+  by (induct rule: mumble.induct) auto
+
+lemma mumble_llast: "ys \<in> mumble (LCons (\<sigma>, \<sigma>') xs) \<Longrightarrow> snd (llast (LCons (\<sigma>, \<sigma>') xs)) \<in> P \<Longrightarrow> snd (llast ys) \<in> P"
+  apply (induct rule: mumble.induct)
+  apply auto
+  by (metis llast_LCons llast_lappend llist.distinct(1) snd_conv)
+
+lemma [simp]: "LNil \<in> mumble (LCons (\<sigma>, \<sigma>') xs) \<longleftrightarrow> False"
+  by (metis mumble_LCons_not_LNil)
+
 lemma ends_inter [simp]: "ends P \<sqinter> ends Q = ends (P \<inter> Q)"
-  sorry
+  apply transfer
+  apply (auto simp add: Mumble_def)
+  apply (rule_tac x = "mumble xs" in exI)
+  apply auto
+  apply (rule_tac x = xs in exI)
+  apply auto
+  by (metis mumble_llast)+
 
 lemma ends_mono: "P \<subseteq> Q \<Longrightarrow> ends P \<le> ends Q"
-  sorry
+  by transfer (auto simp add: Mumble_def)
 
 lemma [intro]: "x \<in> RG \<Longrightarrow> y \<in> RG \<Longrightarrow> x \<sqinter> y \<in> RG"
-  sorry
+  by (metis rg_meet_closed)
 
 lemma [simp]: "unchanged {} = \<langle>UNIV\<rangle>\<^sup>\<star>"
   apply (simp add: unchanged_def)
@@ -467,7 +485,7 @@ lemma findp_correctness:
       apply (subst rg_inter)
       apply (simp add: trans_def)
       apply (simp add: trans_def)
-      apply (rule rg_mono)      
+      apply (rule rg_mono)
       apply (simp add: loop2_inv_def)
       apply clarify
       apply (metis dual_order.strict_trans1)
