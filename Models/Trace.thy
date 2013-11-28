@@ -1,6 +1,6 @@
 theory Trace
   imports Aczel Mumble_Language Rely_Guarantee Algebra
-begin
+begin        
 
 no_notation shuffle (infixl "\<parallel>" 75)
 no_notation l_prod (infixl "\<cdot>" 80)

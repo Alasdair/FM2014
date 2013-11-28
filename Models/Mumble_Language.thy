@@ -1154,8 +1154,34 @@ proof (rule antisym)
     by (metis Mumble_ext Mumble_iso seq.mult_isol_var)
 qed
 
+lemma Mumble_l_prod1 [simp]: "(X \<cdot> Y\<^sup>\<dagger>)\<^sup>\<dagger> = (X \<cdot> Y)\<^sup>\<dagger>"
+  by (metis Mumble_idem Mumble_l_prod)
+
+lemma Mumble_l_prod2 [simp]: "(X\<^sup>\<dagger> \<cdot> Y)\<^sup>\<dagger> = (X \<cdot> Y)\<^sup>\<dagger>"
+  by (metis Mumble_idem Mumble_l_prod)
+
+lemma mumble_LNil: "xs \<in> mumble LNil \<Longrightarrow> xs = LNil"
+  by (induct rule: mumble.induct) auto
+
+lemma Mumble_LNil [simp]: "{LNil}\<^sup>\<dagger> = {LNil}"
+  by (simp add: Mumble_def) (metis Set.set_insert ex_in_conv insertI2 mumble.self mumble_LNil)
+
+lemma Mumble_star_lfp: "(\<mu> y. {LNil} \<union> x \<cdot> y)\<^sup>\<dagger> = (\<mu> y. {LNil} \<union> (x \<cdot> y)\<^sup>\<dagger>)"
+  apply (rule fixpoint_fusion)
+  apply (subst lower_is_jp)
+  apply (simp add: join_preserving_def Mumble_continuous)
+  apply blast
+  apply (metis (lifting) insert_def insert_mono l_prod_isor monoI singleton_conv)
+  apply (metis (lifting) Mumble_iso insert_def insert_mono l_prod_isor monoI singleton_conv)
+  apply (simp only: o_def Mumble_union Mumble_LNil)
+  apply (rule ext)
+  by (metis Mumble_l_prod1)
+
+lemma Mumble_star1: "(x\<^sup>\<dagger>\<^sup>\<star>)\<^sup>\<dagger> \<subseteq> (x\<^sup>\<star>)\<^sup>\<dagger>"
+  by (simp only: star_def Mumble_star_lfp Mumble_l_prod2)
+
 lemma Mumble_star [simp]: "((x\<^sup>\<dagger>)\<^sup>\<star>)\<^sup>\<dagger> = (x\<^sup>\<star>)\<^sup>\<dagger>"
-  sorry
+  by (rule antisym, metis Mumble_star1, metis Mumble_ext Mumble_iso seq.star_iso)
 
 lemma Mumble_Inter [simp]: "(\<Inter>(Mumble ` A))\<^sup>\<dagger> = \<Inter>(Mumble ` A)"
   apply (simp add: Mumble_def image_def)
