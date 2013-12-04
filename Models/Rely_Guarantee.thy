@@ -65,7 +65,7 @@ next
 qed
 
 lemma rely_def: "\<langle>R\<rangle>\<^sup>\<star> = {xs. lfinite xs \<and> lset xs \<subseteq> R}"
-  apply (subst star_power)
+  apply (subst star_power_fin)
   apply (auto simp add: powers_def)
   apply (metis rely_power1)
   apply (metis rely_power2)
@@ -127,7 +127,7 @@ lemma lmap_unr_Inr: "(\<forall>x\<in>lset xs. is_right x) \<Longrightarrow> lmap
   by (metis is_right.simps(2) obj_sumE unr.simps(1))
 
 lemma lmap_subid: "(\<forall>x\<in>lset xs. f x = x) \<Longrightarrow> lmap f xs = xs"
-  sorry
+  by auto
 
 lemma lfilter_to_lfilter_left [symmetric]: "lfilter P xs = \<ll> (lmap (\<lambda>x. if P x then Inl x else Inr x) xs)"
   apply (auto simp add: lefts_def)
@@ -180,6 +180,7 @@ next
       defer
       apply (subst rights_interleave_llength)
       apply auto
+      apply (simp add: rights_def)
       sorry
     also have "... \<subseteq> \<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>S\<rangle>\<^sup>\<star>"
       apply (auto simp add: rely_def shuffle_def)
