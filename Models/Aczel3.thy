@@ -2,7 +2,6 @@ theory Aczel3
   imports Language
 begin
 
-
 fun pre :: "'a \<times> 'b \<times> 'c \<Rightarrow> 'a" where
   "pre (x, y, z) = x"
 
@@ -13,7 +12,6 @@ coinductive consistent :: "('a \<times> 'b \<times> 'a) llist \<Rightarrow> bool
   EqNil [intro!]: "consistent LNil"
 | EqSingle [intro!]: "consistent (LCons \<sigma> LNil)"
 | EqPair [intro!]: "post \<sigma> = pre \<sigma>' \<Longrightarrow> consistent (LCons \<sigma>' t) \<Longrightarrow> consistent (LCons \<sigma> (LCons \<sigma>' t))"
-
 
 lemma consistent_LConsD [dest]: "consistent (LCons \<sigma> t) \<Longrightarrow> consistent t"
   by (erule consistent.cases) auto

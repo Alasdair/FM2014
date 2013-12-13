@@ -203,7 +203,8 @@ lemma galois_comp: assumes g1: "galois_connection F G" and g2 :"galois_connectio
   shows "galois_connection (F \<circ> H) (K \<circ> G)"
   by (smt g1 g2 galois_connection_def o_apply)
 
-lemma galois_id: "galois_connection id id" sorry
+lemma galois_id: "galois_connection id id"
+  by (simp add: galois_connection_def)
 
 lemma galois_isotone1: "galois_connection f g \<Longrightarrow> mono (g \<circ> f)"
   by (smt galois_connection_def inflation monoD mono_def o_apply order_trans upper_iso)
@@ -217,8 +218,8 @@ lemma point_id1: "galois_connection f g \<Longrightarrow> id \<sqsubseteq> g \<c
 lemma point_id2: "galois_connection f g \<Longrightarrow> f \<circ> g \<sqsubseteq> id"
   by (metis deflation id_apply o_apply pleq_def)
 
-lemma point_cancel: assumes g: "galois_connection f g" shows "f \<circ> g \<sqsubseteq> g \<circ> f"
-  sorry
+lemma point_cancel: assumes g: "galois_connection f g" shows "f \<circ> g \<sqsubseteq> g \<circ> f" using g
+  by (simp add: galois_connection_def o_def pleq_def) (metis g monoE order_refl upper_iso)
 
 lemma cancel: assumes g: "galois_connection f g" shows "f (g x) \<le> g (f x)"
   by (metis assms deflation inflation order_trans)
