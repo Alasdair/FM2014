@@ -202,12 +202,6 @@ text {* The @{term traj} function takes an @{typ "('a + 'b) llist"} and returns 
 lemma [simp]: "(case x of () \<Rightarrow> y) = y"
   by (metis (full_types) unit.cases unit.exhaust)
 
-find_consts name:llist_corec
-
-find_consts name:unfold
-
-find_theorems llist_unfold
-
 definition interleave :: "(unit + unit) llist \<Rightarrow> 'a llist \<Rightarrow> 'b llist \<Rightarrow> ('a + 'b) llist" where
   "interleave t l r \<equiv> llist_unfold
      (\<lambda>(t, l, r). t = LNil)
@@ -1179,11 +1173,6 @@ definition omega :: "'a lan \<Rightarrow> 'a lan" ("_\<^sup>\<omega>" [101] 100)
 definition star :: "'a lan \<Rightarrow> 'a lan" ("_\<^sup>\<star>" [101] 100) where
   "X\<^sup>\<star> = (\<mu> Y. {LNil} \<union> X\<cdot>Y)"
 
-(*
-definition star2 :: "'a lan \<Rightarrow> 'a lan" where
-  "star2 X = (\<mu> Y. {LNil} \<union> Y\<cdot>X)"
-*)
-
 definition loop :: "'a lan \<Rightarrow> 'a lan" ("_\<^sup>\<infinity>" [101] 100) where
   "X\<^sup>\<infinity> = X\<^sup>\<star> \<union> X\<^sup>\<omega>"
 
@@ -1612,5 +1601,7 @@ lemma [simp]: "X \<subseteq> FIN \<Longrightarrow> (X \<parallel> Y \<cdot> {}) 
 
 lemma zero_mid [simp]: "X \<cdot> {} \<cdot> Z = X \<cdot> {}"
   by (metis l_prod_zero seq.mult_assoc)
+
+find_theorems interleave
 
 end
