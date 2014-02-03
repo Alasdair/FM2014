@@ -38,7 +38,24 @@ lemma atomic_iso: "X \<le> Y \<Longrightarrow> \<langle>X\<rangle> \<le> \<langl
   by transfer auto
 
 lemma ends_test: "ends P \<cdot> test Q \<le>\<^sub>\<pi> ends (P \<inter> Q)"
-  sorry
+  apply (simp add: proj_leq_def test_def proj_def)
+  apply transfer
+  apply simp
+  apply (rule Mumble_iso)
+  apply (subst fin_l_prod)
+  apply (simp add: FIN_def)
+  apply (metis (lifting) Collect_mono)
+  apply auto
+  apply (simp add: atomic_def image_def)
+  apply auto
+  apply (simp add: atomic_def image_def)
+  apply (erule bexE)
+  apply simp
+  apply (smt Con_def Id_onD' lappend_code(2) lappend_consistent lfinite.simps llast_LCons llast_lappend_LCons mem_Collect_eq)
+  apply (simp add: atomic_def image_def)
+  apply (erule bexE)
+  apply simp
+  by (metis Id_onD' Id_on_fst lappend_code(2) lfinite_LCons llast_lappend llast_singleton llist.distinct(1))
 
 lemma test_ends: "test P \<le> ends P"
   apply (simp add: test_def)
@@ -100,7 +117,7 @@ no_notation par (infixl "\<parallel>" 69)
 notation par (infixr "//\<parallel>" 62)
 
 definition while_inv :: "'a set \<Rightarrow> 'a set \<Rightarrow> 'a trace \<Rightarrow> 'a trace" ("WHILE _ //INVARIANT _ //DO _ //WEND" [64,64,64] 63) where
-  "WHILE b INVARIANT i DO p WEND = (test b ; p)\<^sup>\<star> ; test b"
+  "WHILE b INVARIANT i DO p WEND = (test b ; p)\<^sup>\<star> ; test (- b)"
 
 definition if_then_else :: "'a set \<Rightarrow> 'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" ("IF _ //THEN _ //ELSE _" [64,64,64] 64) where
   "IF b THEN  p ELSE q = test b \<cdot> p + test b \<cdot> q"
@@ -138,7 +155,7 @@ definition FIND :: "(nat \<Rightarrow> bool) \<Rightarrow> state trace" where
     WEND)"
 
 lemma sequential: "r, g \<turnstile> \<lbrace>p\<rbrace> c1 \<lbrace>x\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>x\<rbrace> c2 \<lbrace>q\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> c1 \<cdot> c2 \<lbrace>q\<rbrace>"
-  sorry
+  by (metis sequential)
 
 lemma while:
   assumes "ends p \<le> ends i"
@@ -160,23 +177,32 @@ lemma lookup_update [simp]: "lookup (update v x n) v = x"
   by (induct v) (induct n, simp)+
 
 lemma [intro]: "1 \<le> unchanged V"
-  sorry
+  apply (simp add: unchanged_def)
+  by (smt star_ref)
 
 lemma [intro]: "1 \<le> preserves X"
-  sorry
+  apply (simp add: preserves_def)
+  by (smt star_ref)
 
 lemma [intro]: "1 \<le> decreasing X"
-  sorry
+  apply (simp add: decreasing_def)
+  by (smt star_ref)
 
-lemma [intro]: "decreasing V \<in> RG"
-  sorry
+find_theorems "op \<in>" "op `"
 
 lemma [intro]: "\<langle>X\<rangle>\<^sup>\<star> \<in> RG"
-  sorry
+  apply transfer
+  apply simp
+  apply (intro Set.imageI)
+  by auto
+
+lemma [intro]: "decreasing V \<in> RG"
+  by (auto simp add: decreasing_def)
 
 lemma [intro]: "1 \<in> RG"
-  sorry
+  by (metis rg_unit)
 
+(* This example only considers finite traces *)
 lemma [intro]: "x \<le> \<langle>UNIV\<rangle>\<^sup>\<star>"
   sorry
 
@@ -239,8 +265,50 @@ lemma [simp]: "unchanged {} = \<langle>UNIV\<rangle>\<^sup>\<star>"
 lemma rg_mono: "X \<le> Y \<Longrightarrow> \<langle>X\<rangle>\<^sup>\<star> \<le> \<langle>Y\<rangle>\<^sup>\<star>"
   by (intro star_iso[rule_format] atomic_iso) assumption
 
+lemma helper_var_lem: "x \<notin> V \<Longrightarrow> va \<in> V \<Longrightarrow> lookup xb va = lookup (update x v xb) va"
+  apply (induct xb)
+  apply (induct va)
+  apply (induct x)
+  apply simp_all
+  apply (induct x)
+  apply simp_all
+  apply (induct x)
+  apply simp_all
+  apply (induct x)
+  by simp_all
+
+lemma atomic_assign_unchanged: "x \<notin> V \<Longrightarrow> x \<leftharpoondown> v \<le> unchanged V"
+  apply (simp add: unchanged_def assign_value_def)
+  apply transfer
+  apply simp
+  apply (rule Mumble_iso)
+  apply auto
+  apply (intro atomic_star_elemI)
+  apply auto
+  by (metis helper_var_lem)
+
 lemma [intro]: "x \<notin> V \<Longrightarrow> x := v \<le> unchanged V"
-  sorry
+  apply (simp add: unchanged_def assign_def)
+  apply (simp only: SUP_def)
+  apply (rule Sup_least)
+  apply auto
+  apply (simp add: test_def assign_value_def)
+  apply transfer
+  apply simp
+  apply (rule Mumble_iso)
+  apply (subst fin_l_prod)
+  apply (simp add: atomic_def image_def FIN_def)
+  apply force
+  apply (simp add: image_def)
+  apply auto
+  apply (intro atomic_star_elemI)
+  apply (simp_all add: image_def atomic_def)
+  apply (erule bexE)
+  apply simp
+  apply (erule bexE)
+  apply safe
+  apply force
+  by (metis helper_var_lem lmember_code(1) lmember_code(2) lset_lmember prod.inject)
 
 lemma [intro]: "X \<le> unchanged {x} \<Longrightarrow> X \<le> decreasing {x}"
   apply (subgoal_tac "unchanged {x} \<le> decreasing {x}")

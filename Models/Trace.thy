@@ -189,7 +189,7 @@ lemma [transfer_rule]: "(op = ===> pcr_trace op = ===> op =) (\<lambda>x y. x = 
 
 lemma atomic_star_lfinite: "xs \<in> star (atomic R) \<Longrightarrow> lfinite xs"
   apply (erule rev_mp)
-  apply (subst star_power)
+  apply (subst star_power_fin)
   apply (auto simp add: powers_def)
   by (metis rely_power1)
 
@@ -206,7 +206,7 @@ next
   thus ?case
     apply auto
     apply (erule rev_mp)+
-    apply (subst star_power, metis atom_finite)+
+    apply (subst star_power_fin, metis atom_finite)+
     apply (auto simp add: powers_def)
     apply (rule_tac x = "Language.power (atomic R) (Suc i)" in exI)
     apply auto

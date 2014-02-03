@@ -1,5 +1,5 @@
 theory Termination
-  imports Aczel3
+  imports Aczel3 Mumble_Language
 begin
 
 definition terminates :: "('a \<times> bool \<times> 'a) llist \<Rightarrow> bool" where
@@ -40,8 +40,6 @@ lemma right_lappend_left:
   apply simp
   apply (subst interleave_right)
   by auto
-
-find_theorems lset lnth
 
 lemma lset_member_to_lnth: "x \<in> lset t \<Longrightarrow> (\<exists>n. lnth t n = x \<and> enat n < llength t)"
   using lset_ex_lnth[where P = "op = x", simplified]
@@ -108,33 +106,66 @@ qed
 lemma
   assumes "llength (\<ll> t) = llength (LCons x xs)"
   and "llength (\<rr> t) = llength ys"
-  shows "\<exists>n m. (LCons x xs \<triangleright> t \<triangleleft> ys) = (LCons x LNil \<triangleright> ltake n t \<triangleleft> ltake m ys) \<frown> (xs \<triangleright> ldrop n t \<triangleleft> ldrop m ys)"
+  shows "\<exists>n. (LCons x xs \<triangleright> t \<triangleleft> ys) = (LCons x LNil \<triangleright> ltake (eSuc n) t \<triangleleft> ltake n ys) \<frown> (xs \<triangleright> ldrop (eSuc n) t \<triangleleft> ldrop n ys)"
 proof -
   have "\<exists>n t'. t = llist_of (replicate n (Inr ())) \<frown> LCons (Inl ()) t'"
     by (rule replicate_right) (metis assms(1) llength_eq_0 llist.distinct(1))
-  then obtain n and t' where "t = llist_of (replicate n (Inr ())) \<frown> LCons (Inl ()) t'"
+  then obtain n and t' where t_def: "t = llist_of (replicate n (Inr ())) \<frown> LCons (Inl ()) t'"
     by auto
-  hence "LCons x xs \<triangleright> t \<triangleleft> ys = LCons x xs \<triangleright> llist_of (replicate n (Inr ())) \<frown> LCons (Inl ()) t' \<triangleleft> ltake (enat n) ys \<frown> ldrop (enat n) ys"
+  hence n_le_ys: "enat n \<le> llength ys"
+    apply (subst assms(2)[symmetric])
+    by (simp add: rights_def)
+  from t_def
+  have "LCons x xs \<triangleright> t \<triangleleft> ys = LCons x xs \<triangleright> llist_of (replicate n (Inr ())) \<frown> LCons (Inl ()) t' \<triangleleft> ltake (enat n) ys \<frown> ldrop (enat n) ys"
     by (metis lappend_ltake_ldrop)
   also have "... = lmap Inr (ltake (enat n) ys) \<frown> (LCons x xs \<triangleright> LCons (Inl ()) t' \<triangleleft> ldrop (enat n) ys)"
-    sorry
+    apply (subst interleave_append_llength)
+    apply (metis t_def assms(1))
+    apply (metis assms(2) lappend_ltake_ldrop t_def)
+    apply (rule arg_cong2) back back
+    defer
+    apply (rule arg_cong2) back back
+    apply (simp add: lefts_def)
+    apply (simp add: rights_def)
+    apply (simp add: lefts_def rights_def)
+    apply (insert n_le_ys)
+    apply (induct n arbitrary: ys)
+    apply simp
+    apply (metis zero_enat_def)
+    apply simp
+    apply (subgoal_tac "(\<exists>y' ys'. ys = LCons y' ys') \<or> ys = LNil")
+    apply (erule disjE)
+    apply (erule exE)+
+    apply (simp add: eSuc_enat[symmetric] interleave_right)
+    apply (metis ldropn_LNil ldropn_eq_LNil llength_enat_Suc llist.distinct(1) order_class.order.antisym)
+    by auto
   also have "... = lmap Inr (ltake (enat n) ys) \<frown> LCons (Inl x) (xs \<triangleright> t' \<triangleleft> ldrop (enat n) ys)"
     by (subst interleave_left) auto
   also have "... = lmap Inr (ltake (enat n) ys) \<frown> LCons (Inl x) LNil \<frown> (xs \<triangleright> t' \<triangleleft> ldrop (enat n) ys)"
     by (metis lappend_snocL1_conv_LCons2)
   also have "... = (LCons x LNil \<triangleright> llist_of (replicate n (Inr ())) \<frown> LCons (Inl ()) LNil \<triangleleft> ltake (enat n) ys) \<frown> (xs \<triangleright> t' \<triangleleft> ldrop (enat n) ys)"
-    apply (subst right_lappend_left)
-    apply auto
-    sorry
+    using n_le_ys by (subst right_lappend_left) (auto elim: min.orderE)
   finally show ?thesis
-    sorry
+    apply -
+    apply (erule ssubst)
+    apply (rule_tac x = "enat n" in exI)
+    apply (simp add: t_def)
+    apply (rule arg_cong2) back back
+    apply (rule arg_cong) back
+    apply (induct n)
+    apply simp
+    apply (metis zero_enat_def)
+    apply (simp add: eSuc_enat[symmetric])
+    apply (rule arg_cong) back
+    apply (induct n)
+    by (simp_all add: eSuc_enat[symmetric])
 qed
 
 lemma
   assumes "lfinite xs"
   and "llength (\<ll> t) = llength (xs \<frown> ys)"
   and "llength (\<rr> t) = llength zs"
-  shows "\<exists>n m. (xs \<frown> ys \<triangleright> t \<triangleleft> zs) = (xs \<triangleright> ltake n t \<triangleleft> ltake m zs) \<frown> (ys \<triangleright> ldrop n t \<triangleleft> ldrop m zs)" 
+  shows "\<exists>n m. (xs \<frown> ys \<triangleright> t \<triangleleft> zs) = (xs \<triangleright> \<up> n t \<triangleleft> \<up> m zs) \<frown> (ys \<triangleright> \<down> n t \<triangleleft> \<down> m zs)" 
 proof -
   from assms
   have ?thesis

@@ -1602,6 +1602,4 @@ lemma [simp]: "X \<subseteq> FIN \<Longrightarrow> (X \<parallel> Y \<cdot> {}) 
 lemma zero_mid [simp]: "X \<cdot> {} \<cdot> Z = X \<cdot> {}"
   by (metis l_prod_zero seq.mult_assoc)
 
-find_theorems interleave
-
 end
