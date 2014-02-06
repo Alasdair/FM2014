@@ -182,7 +182,8 @@ proof
   fix x
   assume "galois_connection f g"
   thus "(f \<circ> g \<circ> f) x = f x"
-    sorry
+    apply (simp add: galois_connection_def)
+    by (metis `galois_connection f g` lower_iso monoE order_class.order.antisym order_refl)
 qed
 
 lemma upper_comp: "galois_connection f g \<Longrightarrow> g \<circ> f \<circ> g = g"
@@ -190,7 +191,8 @@ proof
   fix x
   assume "galois_connection f g"
   thus "(g \<circ> f \<circ> g) x = g x"
-    sorry
+    apply (simp add: galois_connection_def)
+    by (metis `galois_connection f g` monoE order_class.order.antisym order_refl upper_iso)
 qed
 
 lemma upper_idempotency1: "galois_connection f g \<Longrightarrow> idempotent (f \<circ> g)"
@@ -345,6 +347,9 @@ begin
 
 lemma continuity_mono1: "(\<And>X. Sup (f ` X) = f (Sup X)) \<Longrightarrow> x \<le> y \<Longrightarrow> f x \<le> f y"
   by (metis Sup_le_iff antisym atMost_iff imageI order_refl)
+
+lemma continuity_mono2: "(\<And>X. Inf (f ` X) = f (Inf X)) \<Longrightarrow> x \<le> y \<Longrightarrow> f x \<le> f y"
+  by (metis (full_types) Inf_atLeastAtMost Inf_superset_mono atLeastatMost_subset_iff eq_refl image_mono)
 
 lemma scott_continuity_mono: "(\<And>X. directed X \<Longrightarrow> Sup (f ` X) = f (Sup X)) \<Longrightarrow> x \<le> y \<Longrightarrow> f x \<le> f y"
 proof -
@@ -676,6 +681,11 @@ lemma (in complete_lattice) Sup_eq_equiv: "Sup A = x \<longleftrightarrow> (\<fo
   apply (metis Sup_le_iff)
   by (metis (full_types) Sup_le_iff Sup_upper le_iff_inf less_infI2 less_le order_refl)
 
+lemma (in complete_lattice) Inf_eq_equiv: "Inf A = x \<longleftrightarrow> (\<forall>z. (z \<le> x \<longleftrightarrow> (\<forall>y\<in>A. z \<le> y)))"
+  apply default
+  apply (metis Inf_greatest Inf_lower order_trans)
+  by (metis Inf_atLeast Inf_lower Inf_superset_mono atLeast_def mem_Collect_eq order.antisym subsetI)
+
 lemma lower_adjoint_Sup:
   fixes f :: "'a::complete_lattice \<Rightarrow> 'b::complete_lattice"
   assumes "Sup X = x" and "lower_adjoint f" shows "Sup (f ` X) = f x" using assms
@@ -829,8 +839,68 @@ next
     by (metis (full_types) endo_lower_adjoint_def endo_suprema_galois)
 qed
 
-lemma endo_upper_is_mp: "endo_upper_adjoint f \<longleftrightarrow> endo_meet_preserving f"
-  sorry
+lemma endo_upper_adjoint_Inf: "Inf X = x \<Longrightarrow> endo_upper_adjoint f \<Longrightarrow> Inf (f ` X) = f x"
+  apply (simp add: Inf_eq_equiv endo_upper_adjoint_def)
+  apply (erule exE)
+  apply (simp add: endo_galois_ump2 isotone_def)
+  apply (erule conjE)+
+  by (metis order_trans)
+
+lemma endo_upper_preserves_meet: "endo_upper_adjoint f \<Longrightarrow> endo_meet_preserving f"
+  by (metis endo_meet_preserving_def endo_upper_adjoint_Inf)
+
+theorem endo_infima_galois: "endo_galois_connection f g = (endo_meet_preserving g \<and> (\<forall>y. Inf {x. y \<le> g x} = f y))"
+proof (intro iffI conjI)
+  assume "endo_galois_connection f g"
+  hence "endo_upper_adjoint g"
+    by (metis endo_upper_adjoint_def)
+  thus "endo_meet_preserving g"
+    by (rule endo_upper_preserves_meet)
+  from `endo_galois_connection f g`
+  show "\<forall>y. Inf {x. y \<le> g x} = f y"
+    by (simp add: Inf_eq_equiv endo_galois_ump1 isotone_def) (metis (full_types) order_trans)
+next
+  assume "endo_meet_preserving g \<and> (\<forall>y. Inf {x. y \<le> g x} = f y)"
+  hence f_jp: "endo_meet_preserving g" and a2: "\<And>y. Inf {x. y \<le> g x} = f y"
+    by auto
+  hence f_iso: "isotone g"
+    by (metis (mono_tags) continuity_mono2 endo_meet_preserving_def isotone_def)
+  show "endo_galois_connection f g"
+  proof (simp add: endo_galois_connection_def)
+    have "\<forall>x y. (x \<le> g y) \<longrightarrow> (f x \<le> y)"
+      using a2 by (metis Inf_lower mem_Collect_eq)
+    moreover have "\<forall>x y. (f x \<le> y) \<longrightarrow> (x \<le> g y)"
+    proof (intro impI allI)
+      fix x y
+      assume gr: "f x \<le> y"
+      thus "x \<le> g y"
+      proof -
+        have lem: "x \<le> Inf (g ` {y. x \<le> g y})"
+          by (metis (full_types) INF_def INF_greatest mem_Collect_eq)
+
+        also have "... \<le> g y"
+          by (metis (mono_tags) `endo_meet_preserving g \<and> (\<forall>y. Inf {x. y \<le> g x} = f y)` endo_meet_preserving_def f_iso gr isotoneD)
+
+        finally show ?thesis .
+      qed
+    qed
+    ultimately show "\<forall>x y. (f x \<le> y) = (x \<le> g y)"
+      by auto
+  qed
+qed
+
+(* Dual theorem *)
+lemma endo_upper_is_mp: "endo_upper_adjoint g \<longleftrightarrow> endo_meet_preserving g"
+proof
+  assume "endo_upper_adjoint g" thus "endo_meet_preserving g"
+    by (metis endo_upper_preserves_meet)
+next
+  assume "endo_meet_preserving g"
+  moreover hence "\<exists>f. \<forall>x. Inf {y. x \<le> g y} = f x"
+    by auto
+  ultimately show "endo_upper_adjoint g"
+    by (metis endo_infima_galois endo_upper_adjoint_def)
+qed
 
 end
 

@@ -180,8 +180,7 @@ next
       defer
       apply (subst rights_interleave_llength)
       apply auto
-      apply (simp add: rights_def)
-      sorry
+      by (simp_all add: lefts_def rights_def lfilter_lmap)
     also have "... \<subseteq> \<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>S\<rangle>\<^sup>\<star>"
       apply (auto simp add: rely_def shuffle_def)
       apply (rule_tac x = "lmap \<langle>id,id\<rangle> ` (lfilter (\<lambda>x. x \<in> R) xs \<sha> lfilter (\<lambda>x. x \<notin> R) xs)" in exI)

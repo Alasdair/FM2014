@@ -103,10 +103,11 @@ proof (auto simp add: lefts_def)
     by metis
 qed
 
-lemma
+lemma left_LCons_interleave:
   assumes "llength (\<ll> t) = llength (LCons x xs)"
   and "llength (\<rr> t) = llength ys"
-  shows "\<exists>n. (LCons x xs \<triangleright> t \<triangleleft> ys) = (LCons x LNil \<triangleright> ltake (eSuc n) t \<triangleleft> ltake n ys) \<frown> (xs \<triangleright> ldrop (eSuc n) t \<triangleleft> ldrop n ys)"
+  shows "\<exists>n. (LCons x xs \<triangleright> t \<triangleleft> ys) = (LCons x LNil \<triangleright> ltake (eSuc n) t \<triangleleft> ltake n ys) \<frown> (xs \<triangleright> ldrop (eSuc n) t \<triangleleft> ldrop n ys)
+           \<and> \<ll> (ltake (eSuc n) t) = LCons () LNil \<and> n < \<infinity>"
 proof -
   have "\<exists>n t'. t = llist_of (replicate n (Inr ())) \<frown> LCons (Inl ()) t'"
     by (rule replicate_right) (metis assms(1) llength_eq_0 llist.distinct(1))
@@ -149,6 +150,7 @@ proof -
     apply -
     apply (erule ssubst)
     apply (rule_tac x = "enat n" in exI)
+    apply (intro conjI)
     apply (simp add: t_def)
     apply (rule arg_cong2) back back
     apply (rule arg_cong) back
@@ -158,7 +160,17 @@ proof -
     apply (simp add: eSuc_enat[symmetric])
     apply (rule arg_cong) back
     apply (induct n)
-    by (simp_all add: eSuc_enat[symmetric])
+    apply (simp add: eSuc_enat[symmetric])
+    apply (simp add: eSuc_enat[symmetric])
+    apply (simp add: t_def)
+    apply (simp only: lefts_def o_def)
+    apply (subgoal_tac "LCons () LNil = lmap unl (LCons (Inl ()) LNil)")
+    apply (erule ssubst)
+    apply (rule arg_cong) back
+    apply auto
+    apply (induct n)
+    apply (simp add: enat_0)
+    by (simp add: eSuc_enat[symmetric])
 qed
 
 lemma
@@ -168,15 +180,50 @@ lemma
   shows "\<exists>n m. (xs \<frown> ys \<triangleright> t \<triangleleft> zs) = (xs \<triangleright> \<up> n t \<triangleleft> \<up> m zs) \<frown> (ys \<triangleright> \<down> n t \<triangleleft> \<down> m zs)" 
 proof -
   from assms
-  have ?thesis
-  proof (induct rule: lfinite.induct)
+  show ?thesis
+  proof (induct arbitrary: t zs rule: lfinite.induct)
     case lfinite_LNil
     show ?case
       by (rule_tac x = 0 in exI)+ simp
   next
-    assume "lfinite xs"
-    and "\<exists>n m. xs \<frown> ys \<triangleright> t \<triangleleft> zs = (xs \<triangleright> ltake n t \<triangleleft> ltake m zs) \<frown> (ys \<triangleright> ldrop n t \<triangleleft> ldrop m zs)"
-    then obtain n and m where "xs \<frown> ys \<triangleright> t \<triangleleft> zs = (xs \<triangleright> ltake n t \<triangleleft> ltake m zs) \<frown> (ys \<triangleright> ldrop n t \<triangleleft> ldrop m zs)"
+    case (lfinite_LConsI xs x t zs)
+    thm lfinite_LConsI
+
+    have "LCons x xs \<frown> ys \<triangleright> t \<triangleleft> zs = LCons x (xs \<frown> ys) \<triangleright> t \<triangleleft> zs"
+      by (metis lappend_code(2))
+    then obtain n' where "... = (LCons x LNil \<triangleright> ltake (eSuc n') t \<triangleleft> ltake n' zs) \<frown> (xs \<frown> ys \<triangleright> ldrop (eSuc n') t \<triangleleft> ldrop n' zs)"
+    and [simp]: "\<ll> (ltake (eSuc n') t) = LCons () LNil"
+    and "n' < \<infinity>"
+      apply (subgoal_tac "\<exists>n'. LCons x (xs \<frown> ys) \<triangleright> t \<triangleleft> zs = (LCons x LNil \<triangleright> ltake (eSuc n') t \<triangleleft> ltake n' zs) \<frown> (xs \<frown> ys \<triangleright> ldrop (eSuc n') t \<triangleleft> ldrop n' zs) \<and> \<ll> (ltake (eSuc n') t) = LCons () LNil \<and> n' < \<infinity>")
+      apply blast
+      apply (rule left_LCons_interleave)
+      apply (metis `llength (\<ll> t) = llength (LCons x xs \<frown> ys)` lappend_code(2))
+      by (metis `llength (\<rr> t) = llength zs`)
+
+    from lfinite_LConsI(3)
+    have "llength (LCons x xs \<frown> ys) = llength (\<ll> t)"
+      by metis
+    also have "... = llength (\<ll> (\<up> (eSuc n') t \<frown> \<down> (eSuc n') t))"
+      by (metis lappend_ltake_ldrop)
+    also have "... = llength (\<ll> (\<up> (eSuc n') t)) + llength (\<ll> (\<down> (eSuc n') t))"
+      apply (subst lefts_append)
+      apply simp_all
+      apply (metis `n' < \<infinity>` eSuc_mono enat_ord_simps(6) not_infinity_eq)
+      by (metis eSuc_plus monoid_add_class.add.left_neutral)
+    also have "... = eSuc (llength (\<ll> (\<down> (eSuc n') t)))"
+      apply simp
+      by (metis eSuc_plus monoid_add_class.add.left_neutral)
+    finally have "llength (xs \<frown> ys) = llength (\<ll> (\<down> (eSuc n') t))"
+      by (metis co.enat.inject lappend_code(2) llength_LCons)
+
+    from lfinite_LConsI(4)
+    have "llength (\<rr> (\<down> (eSuc n') t)) = llength (ldrop n' zs)"
+      sorry
+
+    show ?case
+      sorry
+  qed
+qed
 
 lemma terminates_shuffle:
   assumes "terminates xs"
@@ -189,3 +236,10 @@ proof -
 
   obtain ys1 and ys2 where "ys = ys1 \<frown> ys2" and "lfinite ys1" and "\<forall>(\<sigma>, l, \<sigma>')\<in>lset ys2. l = False"
     using assms(2) by (auto simp add: terminates_def)
+
+  have "zs = xs \<triangleright> traj zs \<triangleleft> ys"
+    by (metis (lifting, full_types) assms(3) mem_Collect_eq reinterleave tshuffle_words_def)
+
+  also have "... = xs1 \<frown> xs2 \<triangleright> traj zs \<triangleleft> ys1 \<frown> ys2"
+    by (metis `xs = xs1 \<frown> xs2` `ys = ys1 \<frown> ys2`)
+  then obtain n m where "... = (xs1 \<triangleright> \<up> n t \<triangleleft> \<up> m zs) \<frown> (ys \<triangleright> \<down> n t \<triangleleft> \<down> m zs)" 
