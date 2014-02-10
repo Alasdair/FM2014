@@ -286,8 +286,6 @@ begin
   lemma helper: "r\<parallel>x\<^sup>\<star> = r + r\<parallel>x\<cdot>x\<^sup>\<star>"
     by (metis par_distl par_unitr star_unfoldl_eq)
 
-  thm star_inductr
-
   lemma proj_star_inductl: "\<pi> (z + y \<cdot> x) \<le> \<pi> y \<Longrightarrow> \<pi> (z \<cdot> x\<^sup>\<star>) \<le> \<pi> y"
     sorry
 
