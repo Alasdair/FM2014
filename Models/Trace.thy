@@ -6,7 +6,7 @@ no_notation shuffle (infixl "\<parallel>" 75)
 no_notation l_prod (infixl "\<cdot>" 80)
 no_notation Aczel ("\<pi>")
 
-quotient_type 'a trace = "('a \<times> 'a) lan" / "\<lambda>X Y. X\<^sup>\<dagger> = Y\<^sup>\<dagger>"
+quotient_type 'a trace = "('a \<times> 'a) lan" / "\<lambda>X Y. (X \<inter> FIN)\<^sup>\<dagger> = (Y \<inter> FIN)\<^sup>\<dagger>"
   by (intro equivpI reflpI sympI transpI) auto
 
 (* traces form a dioid *)
@@ -14,21 +14,21 @@ quotient_type 'a trace = "('a \<times> 'a) lan" / "\<lambda>X Y. X\<^sup>\<dagge
 instantiation trace :: (type) dioid_one_zerol
 begin
 
-  lift_definition less_eq_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> bool" is "\<lambda>X Y. X\<^sup>\<dagger> \<subseteq> Y\<^sup>\<dagger>"
+  lift_definition less_eq_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> bool" is "\<lambda>X Y. (X \<inter> FIN)\<^sup>\<dagger> \<subseteq> (Y \<inter> FIN)\<^sup>\<dagger>"
     by simp
 
-  lift_definition less_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> bool" is "\<lambda>X Y. X\<^sup>\<dagger> \<subset> Y\<^sup>\<dagger>"
+  lift_definition less_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> bool" is "\<lambda>X Y. (X \<inter> FIN)\<^sup>\<dagger> \<subset> (Y \<inter> FIN)\<^sup>\<dagger>"
     by simp
 
   lift_definition zero_trace :: "'a trace" is "{}" done
 
   lift_definition one_trace :: "'a trace" is "{LNil}" done
 
-  lift_definition times_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" is "\<lambda>X Y. l_prod X\<^sup>\<dagger> Y\<^sup>\<dagger>"
+  lift_definition times_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" is "\<lambda>X Y. l_prod (X \<inter> FIN)\<^sup>\<dagger> (Y \<inter> FIN)\<^sup>\<dagger>"
     by simp
 
   lift_definition plus_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" is "op \<union>"
-    by simp
+    by (metis Mumble_union distrib_lattice_class.inf_sup_distrib2)
 
   instance
   proof
@@ -65,12 +65,14 @@ end
 instantiation trace :: (type) par_dioid
 begin
 
-  lift_definition par_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" is "\<lambda>X Y. (shuffle X\<^sup>\<dagger> Y\<^sup>\<dagger>)\<^sup>\<dagger>"
+  lift_definition par_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" is "\<lambda>X Y. (shuffle (X \<inter> FIN)\<^sup>\<dagger> (Y \<inter> FIN)\<^sup>\<dagger>)\<^sup>\<dagger>"
     by simp
 
   instance proof
     fix x y z :: "'a trace"
     show "x \<parallel> (y \<parallel> z) = x \<parallel> y \<parallel> z"
+      apply transfer
+      apply (simp add: shuffle_assoc)
       by transfer (simp add: shuffle_assoc)
     show "x \<parallel> y = y \<parallel> x"
       by transfer (metis shuffle_comm)

@@ -1191,5 +1191,28 @@ lemma Mumble_Inter [simp]: "(\<Inter>(Mumble ` A))\<^sup>\<dagger> = \<Inter>(Mu
   apply (auto simp add: Mumble_def)
   by (metis mumble_trans)
 
+lemma Mumble_FIN [simp]: "(x \<inter> FIN)\<^sup>\<dagger> = (x\<^sup>\<dagger>) \<inter> FIN"
+  by (auto simp add: Mumble_def FIN_def)
+
+lemma l_prod_FIN_simp1 [simp]: "((x \<inter> FIN) \<cdot> y) \<inter> FIN = (x \<cdot> y) \<inter> FIN"
+  by (auto simp add: l_prod_def FIN_def)
+
+lemma l_prod_FIN_simp2 [simp]: "(x \<cdot> (y \<inter> FIN)) \<inter> FIN = (x \<cdot> y) \<inter> FIN"
+  by (auto simp add: l_prod_def FIN_def)
+
+lemma shuffle_FIN_simp1 [simp]: "((x \<inter> FIN) \<parallel> y) \<inter> FIN = (x \<parallel> y) \<inter> FIN"
+  apply (auto simp add: FIN_def shuffle_def)
+  by (metis (lifting, full_types) imageI lfinite_lefts mem_Collect_eq tshuffle_words_def)
+
+lemma shuffle_FIN_simp2 [simp]: "(x \<parallel> (y \<inter> FIN)) \<inter> FIN = (x \<parallel> y) \<inter> FIN"
+  apply (auto simp add: FIN_def shuffle_def)
+  by (metis (lifting, full_types) imageI lfinite_rights mem_Collect_eq tshuffle_words_def)
+
+lemma [simp]: "(x \<union> y) \<inter> FIN = (x \<inter> FIN) \<union> (y \<inter> FIN)"
+  by auto
+
+lemma [simp]: "{}\<^sup>\<dagger> \<inter> FIN = {}\<^sup>\<dagger>"
+  by (auto simp add: Mumble_def FIN_def)
+
 end
 
