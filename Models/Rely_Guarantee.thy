@@ -397,7 +397,7 @@ lemma rely_star2: "(\<langle>R\<rangle>\<^sup>\<star> \<parallel> x)\<^sup>\<sta
 lemma rely_power: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> power x i \<cdot> x = power (\<langle>R\<rangle>\<^sup>\<star> \<parallel> x) i \<cdot> (\<langle>R\<rangle>\<^sup>\<star> \<parallel> x)"
   by (induct i) (simp_all add: seq.mult_assoc)
 
-lemma rely_star3:
+lemma rely_star:
   assumes "x \<subseteq> FIN"
   shows "\<langle>R\<rangle>\<^sup>\<star> \<parallel> (x\<^sup>\<star> \<cdot> x) = (\<langle>R\<rangle>\<^sup>\<star> \<parallel> x)\<^sup>\<star> \<cdot> (\<langle>R\<rangle>\<^sup>\<star> \<parallel> x)"
 proof -
@@ -430,59 +430,6 @@ proof -
     by (metis assms par.annir powers_def rely_l_prod star_power_inf)
   finally show ?thesis .
 qed
-
-lemma "i \<noteq> 0 \<Longrightarrow> power (x \<cdot> {}) i = x \<cdot> {} \<union> {}"
-  apply (induct i)
-  by auto
-
-lemma inf_power_Suc [simp]: "power (x \<cdot> {}) (Suc i) = x \<cdot> {} \<union> {}"
-  by auto
-
-lemma powers_inf: "\<Union>powers (x \<cdot> {}) = {LNil} \<union> x \<cdot> {}"
-  apply (simp add: powers_def)
-  apply auto
-  apply (metis infinite_power l_prod_zero seq.mult_assoc)
-  apply (metis Language.power.simps(1) insertI1)
-  by (metis inf_power_Suc par.add_0_right)
-
-lemma power_commute: "x \<cdot> power x i = power x i \<cdot> x"
-  apply (induct i)
-  apply simp_all
-  by (metis seq.mult_assoc)
-
-lemma star_power: "x\<^sup>\<star> = \<Union>powers x"
-proof -
-  have "x\<^sup>\<star> = (x \<inter> FIN \<union> x \<cdot> {})\<^sup>\<star>"
-    by (metis fin_inf_split)
-  also have "... = (x \<inter> FIN)\<^sup>\<star> \<cdot> (x \<cdot> {})\<^sup>\<star>"
-    by (simp only: seq.star_denest_var zero_mid rely_l_prod)
-  also have "... = \<Union>powers (x \<inter> FIN) \<cdot> \<Union>powers (x \<cdot> {})"
-    by (metis inf.cobounded2 l_prod_zero seq.mult_assoc star_power_fin star_power_inf)
-  also have "... = \<Union>powers (x \<inter> FIN) \<union> \<Union>powers (x \<inter> FIN) \<cdot> x \<cdot> {}"
-    by (metis calculation fin_inf_split inf.cobounded2 par.add_commute seq.inf_part_star star_power_fin)
-  also have "... = \<Union>powers (x \<inter> FIN) \<union> \<Union>{power (x \<inter> FIN) i \<cdot> x \<cdot> {} |i. True}"
-    sorry
-  also have "... = \<Union>powers x"
-    apply (auto simp add: powers_def)
-    apply (rule_tac x = "power x i" in exI)
-    apply (rule conjI)
-    apply blast
-    defer
-    apply (rule_tac x = "power x (Suc i)" in exI)
-    apply (rule conjI)
-    apply blast
-    apply simp
-    apply (subst power_commute)
-    defer
-    sledgehammer
-
-lemma rely_star: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> (x\<^sup>\<star> \<cdot> x) = (\<langle>R\<rangle>\<^sup>\<star> \<parallel> x)\<^sup>\<star> \<cdot> (\<langle>R\<rangle>\<^sup>\<star> \<parallel> x)"
-proof -
-  have "\<langle>R\<rangle>\<^sup>\<star> \<parallel> (x\<^sup>\<star> \<cdot> x) = \<langle>R\<rangle>\<^sup>\<star> \<parallel> ((x \<inter> FIN \<union> x \<cdot> {})\<^sup>\<star> \<cdot> x)"
-    by (metis fin_inf_split)
-  also have "... = (\<langle>R\<rangle>\<^sup>\<star> \<parallel> (x \<inter> FIN)\<^sup>\<star>) \<cdot> (\<langle>R\<rangle>\<^sup>\<star> \<parallel> (x \<cdot> {})\<^sup>\<star>) \<cdot> (\<langle>R\<rangle>\<^sup>\<star> \<parallel> x)"
-    by (simp only: seq.star_denest_var zero_mid rely_l_prod)
-  also have "... = 
 
 definition stutter :: "('a \<times> 'a) lan" where
   "stutter = \<langle>Id_on UNIV\<rangle>\<^sup>\<star>"

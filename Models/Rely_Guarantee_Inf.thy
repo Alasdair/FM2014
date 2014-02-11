@@ -452,7 +452,7 @@ next
       apply (rule_tac x = rs' in exI)
       apply (rule_tac x = rs'' in exI)
       apply simp
-      by (intro l_prod_isol tshuffle_image2)i
+      by (intro l_prod_isol tshuffle_image2)
     also have "... = \<Union>{(rs' \<sha> LCons z zs) \<cdot> (rs'' \<sha> ys) |rs' rs''. LCons r rs = rs' \<frown> rs''}"
       by simp
     finally show ?case .

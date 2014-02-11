@@ -1,8 +1,8 @@
-theory Rely_Guarantee
+theory Rely_Guarantee_Inf
   imports Language
 begin
 
-definition atomic :: "'a rel \<Rightarrow> ('a \<times> 'a) lan" ("\<langle>_\<rangle>" [0] 1000) where
+definition atomic :: "'a set \<Rightarrow> 'a lan" ("\<langle>_\<rangle>" [0] 1000) where
   "\<langle>R\<rangle> \<equiv> ((\<lambda>x. LCons x LNil) ` R)"
 
 lemma atomic_zero [simp]: "\<langle>{}\<rangle> = {}"
@@ -23,7 +23,7 @@ lemma [dest!]: "x \<in> lset (xs \<frown> ys) \<Longrightarrow> x \<in> lset xs 
 lemma rely_power1: "x \<in> power \<langle>R\<rangle> i \<Longrightarrow> lfinite x"
   by (induct i arbitrary: x) (auto simp add: l_prod_def atomic_def)
 
-lemma rely_power2: "x \<in> power \<langle>R\<rangle> i \<Longrightarrow> (a, b) \<in> lset x \<Longrightarrow> (a, b) \<in> R"
+lemma rely_power2: "x \<in> power \<langle>R\<rangle> i \<Longrightarrow> y \<in> lset x \<Longrightarrow> y \<in> R"
 proof (induct i arbitrary: x)
   case 0 thus ?case
     by simp
@@ -64,12 +64,140 @@ next
     by (simp add: atomic_def)
 qed
 
-lemma rely_def: "\<langle>R\<rangle>\<^sup>\<star> = {xs. lfinite xs \<and> lset xs \<subseteq> R}"
+lemma fin_rely_def: "\<langle>R\<rangle>\<^sup>\<star> = {xs. lfinite xs \<and> lset xs \<subseteq> R}"
   apply (subst star_power_fin)
   apply (auto simp add: powers_def)
   apply (metis rely_power1)
   apply (metis rely_power2)
   by (metis rely_power3)
+
+lemma power_star_leq: "power X n \<subseteq> X\<^sup>\<star>"
+  apply (induct n)
+  apply simp_all
+  apply (metis insert_subset seq.star_ref)
+  by (metis seq.prod_star_closure seq.star_ext)
+
+lemma omega_power: "X\<^sup>\<omega> = power X n \<cdot> X\<^sup>\<omega>"
+  apply (induct n)
+  apply simp_all
+  by (metis seq.mult_assoc seq.omega_unfold_eq)
+
+lemma atomic_power: "power \<langle>R\<rangle> n = {xs. llength xs = enat n \<and> lset xs \<subseteq> R}"
+  apply (induct n)
+  apply simp_all
+  defer
+  apply (subst fin_l_prod)
+  apply (metis atom_finite)
+  apply (auto simp add: atomic_def)
+  apply (metis eSuc_enat)
+  apply (rule_tac x = "LCons (lhd x) LNil" in exI)
+  apply (subgoal_tac "x \<noteq> LNil")
+  prefer 2
+  apply (metis Nat.diff_le_self Suc_n_not_le_n diff_Suc_Suc enat.inject idiff_enat_enat ldropn_LNil llength_ldropn)
+  apply (rule_tac x = "ltl x" in exI)
+  apply (intro conjI)
+  apply (metis lappend_code(1) lappend_code(2) llist.collapse)
+  apply (simp add: image_def)
+  apply (metis lhd_in_lset subsetD)
+  apply (subgoal_tac "\<exists>y ys. x = LCons y ys")
+  apply (erule exE)+
+  apply simp
+  apply (metis co.enat.inject eSuc_enat)
+  apply (metis neq_LNil_conv)
+  apply (metis dual_order.trans lset_ltl)
+  apply (metis zero_enat_def)
+  by (metis llength_eq_0 zero_enat_def)
+
+lemma atomic_omega_inf: "xs \<in> \<langle>R\<rangle>\<^sup>\<omega> \<Longrightarrow> \<not> lfinite xs"
+proof auto
+  assume "xs \<in> \<langle>R\<rangle>\<^sup>\<omega>"
+  and "lfinite xs"
+
+  then obtain n where "llength xs = enat n"
+    by (metis lfinite_llength_enat)
+
+  from `xs \<in> \<langle>R\<rangle>\<^sup>\<omega>` have "xs \<in> power \<langle>R\<rangle> (Suc n) \<cdot> \<langle>R\<rangle>\<^sup>\<omega>"
+    by (metis omega_power)
+
+  hence "xs \<in> {xs. llength xs = enat (Suc n) \<and> lset xs \<subseteq> R} \<cdot> \<langle>R\<rangle>\<^sup>\<omega>"
+    by (metis atomic_power omega_power)
+
+  hence "llength xs > enat n"
+    apply -
+    apply (erule rev_mp)
+    apply (subst fin_l_prod)
+    apply auto
+    apply (metis FIN_def lfinite_conv_llength_enat mem_Collect_eq)
+    by (metis enat_less_enat_plusI lessI)
+
+  from this and `llength xs = enat n` show False
+    by (metis less_irrefl)
+qed
+
+lemma LNil_atomic_omega: "LNil \<notin> \<langle>R\<rangle>\<^sup>\<omega>"
+  by (metis atomic_omega_inf lfinite_code(1))
+
+lemma lset_member_position: "x \<in> lset xs \<Longrightarrow> (\<exists>n. lnth xs n = x)"
+  by (rule lset_ex_lnth[where P = "\<lambda>y. y = x"]) blast
+
+lemma atomic_omega_lset: "xs \<in> \<langle>R\<rangle>\<^sup>\<omega> \<Longrightarrow> x \<in> lset xs \<Longrightarrow> x \<in> R"
+proof -
+  assume "xs \<in> \<langle>R\<rangle>\<^sup>\<omega>" and "x \<in> lset xs"
+  
+  then obtain n where "lnth xs n = x"
+    by (metis lset_member_position)
+
+  from `xs \<in> \<langle>R\<rangle>\<^sup>\<omega>` have "xs \<in> power \<langle>R\<rangle> (Suc n) \<cdot> \<langle>R\<rangle>\<^sup>\<omega>"
+    by (metis omega_power)
+
+  hence "xs \<in> {xs. llength xs = enat (Suc n) \<and> lset xs \<subseteq> R} \<cdot> \<langle>R\<rangle>\<^sup>\<omega>"
+    by (metis atomic_power omega_power)
+
+  hence "lnth xs n \<in> R"
+    apply -
+    apply (erule rev_mp)
+    apply (subst fin_l_prod)
+    apply (metis (full_types) FIN_def atomic_power mem_Collect_eq rely_power1 subsetI)
+    apply auto
+    apply (subgoal_tac "lnth xs n = lnth (xs \<frown> ys) n")
+    apply (metis enat_ord_simps(2) in_lset_conv_lnth in_mono lessI)
+    by (metis enat_ord_simps(2) lessI lnth_lappend1)
+
+  from this and `lnth xs n = x`
+  show "x \<in> R"
+    by auto
+qed
+
+lemma inf_rely_def: "\<langle>R\<rangle>\<^sup>\<omega> = {xs. \<not> lfinite xs \<and> lset xs \<subseteq> R}"
+proof (rule antisym)
+  show "{xs. \<not> lfinite xs \<and> lset xs \<subseteq> R} \<subseteq> \<langle>R\<rangle>\<^sup>\<omega>"
+    apply (rule seq.omega_coinduct_eq_var2)
+    apply (subst fin_l_prod)
+    apply (metis atom_finite)
+    apply (simp add: atomic_def image_def)
+    apply auto
+    apply (rule_tac x = "LCons (lhd x) LNil" in exI)
+    apply (rule_tac x = "ltl x" in exI)
+    apply (intro conjI)
+    apply (metis lappend_code(1) lappend_code(2) lfinite.simps llist.collapse)
+    apply (metis in_mono lfinite.simps lhd_in_lset)
+    apply (metis lfinite_ltl)
+    by (metis lset_ltl subset_trans)
+next
+  show "\<langle>R\<rangle>\<^sup>\<omega> \<subseteq> {xs. \<not> lfinite xs \<and> lset xs \<subseteq> R}"
+    apply auto
+    apply (metis atomic_omega_inf)
+    by (metis atomic_omega_lset)
+qed
+
+lemma rely_def: "\<langle>R\<rangle>\<^sup>\<infinity> = {xs. lset xs \<subseteq> R}"
+  by (auto simp add: loop_def inf_rely_def fin_rely_def)
+
+lemma rely_galois: "X \<subseteq> \<langle>R\<rangle>\<^sup>\<infinity> \<longleftrightarrow> \<Union>(lset ` X) \<subseteq> R"
+  by (auto simp add: rely_def)
+
+lemma rely_galois_2: "X \<subseteq> \<langle>R\<rangle>\<^sup>\<infinity> \<longleftrightarrow> (\<forall>xs\<in>X. lset xs \<subseteq> R)"
+  by (auto simp add: rely_def)
 
 lemma lset_lefts [iff]: "lset (\<ll> xs) \<subseteq> R \<longleftrightarrow> lset (lfilter is_left xs) \<subseteq> Inl ` R"
   apply (auto simp add: lefts_def image_def subset_iff)
@@ -104,13 +232,20 @@ lemma lset_lr [intro]: "lset (\<ll> xs) \<subseteq> R \<Longrightarrow> lset (\<
   apply (auto simp add: subset_iff)
   by (metis (full_types) DEADID.map_id Projr_Inr imageE not_is_right sum.simps(5) sum.simps(6) unl.simps(1))
 
-lemma rely_union1: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>S\<rangle>\<^sup>\<star> \<subseteq> \<langle>R \<union> S\<rangle>\<^sup>\<star>"
-  apply (simp add: rely_def shuffle_def Sup_le_iff)
+lemma rely_union1_fin: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>S\<rangle>\<^sup>\<star> \<subseteq> \<langle>R \<union> S\<rangle>\<^sup>\<star>"
+  apply (simp add: fin_rely_def shuffle_def Sup_le_iff)
   apply clarify
   apply (intro conjI)
   apply (metis lfinite_lmap lfinite_shuffle)
   apply (simp add: tshuffle_words_def)
   by (metis llist.set_map lset_lr)
+
+lemma rely_union1_inf: "\<langle>R\<rangle>\<^sup>\<omega> \<parallel> \<langle>S\<rangle>\<^sup>\<omega> \<subseteq> \<langle>R \<union> S\<rangle>\<^sup>\<omega>"
+  apply (simp add: inf_rely_def shuffle_def Sup_le_iff)
+  apply clarify
+  apply (intro conjI)
+  apply (metis fair_non_empty lfinite_lmap shuffle_fair)
+  by (metis (mono_tags) lset_lr mem_Collect_eq tshuffle_words_def)
 
 lemma lmap_unl_Inl: "(\<forall>x\<in>lset xs. is_left x) \<Longrightarrow> lmap unl xs = ys \<longleftrightarrow> xs = lmap Inl ys"
   apply (auto simp del: lmap.compositionality)
@@ -156,10 +291,13 @@ proof -
   finally show ?thesis .
 qed
 
+lemma lfilter_pred_eq [intro!]: "P = Q \<Longrightarrow> lfilter P xs = lfilter Q xs"
+  by auto
+
 lemma rely_union [simp]: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>S\<rangle>\<^sup>\<star> = \<langle>R \<union> S\<rangle>\<^sup>\<star>"
 proof
   show "\<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>S\<rangle>\<^sup>\<star> \<subseteq> \<langle>R \<union> S\<rangle>\<^sup>\<star>"
-    apply (simp add: rely_def shuffle_def Sup_le_iff)
+    apply (simp add: fin_rely_def shuffle_def Sup_le_iff)
     apply clarify
     apply (intro conjI)
     apply (metis lfinite_lmap lfinite_shuffle)
@@ -170,7 +308,7 @@ next
     fix xs
     assume assm: "xs \<in> \<langle>R \<union> S\<rangle>\<^sup>\<star>"
     hence "lfinite xs"
-      by (auto simp add: rely_def)
+      by (auto simp add: fin_rely_def)
     have "xs = lmap \<langle>id,id\<rangle> (lfilter (\<lambda>x. x \<in> R) xs \<triangleright> traj (lmap (\<lambda>x. if x \<in> R then Inl () else Inr ()) xs) \<triangleleft> lfilter (\<lambda>x. x \<notin> R) xs)"
       by (subst lfilter_interleave[where P = "\<lambda>x. x \<in> R"], simp)
     also have "... \<in> lmap \<langle>id,id\<rangle> ` (lfilter (\<lambda>x. x \<in> R) xs \<sha> lfilter (\<lambda>x. x \<notin> R) xs)"
@@ -181,9 +319,19 @@ next
       apply (subst rights_interleave_llength)
       apply auto
       apply (simp add: rights_def)
-      sorry
+      apply (subst lfilter_lmap)
+      apply (subst llength_lmap)
+      apply (rule arg_cong) back
+      apply (rule lfilter_pred_eq)
+      apply auto
+      apply (simp add: lefts_def)
+      apply (subst lfilter_lmap)
+      apply (subst llength_lmap)
+      apply (rule arg_cong) back
+      apply (rule lfilter_pred_eq)
+      by (simp add: o_def)
     also have "... \<subseteq> \<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>S\<rangle>\<^sup>\<star>"
-      apply (auto simp add: rely_def shuffle_def)
+      apply (auto simp add: fin_rely_def shuffle_def)
       apply (rule_tac x = "lmap \<langle>id,id\<rangle> ` (lfilter (\<lambda>x. x \<in> R) xs \<sha> lfilter (\<lambda>x. x \<notin> R) xs)" in exI)
       apply simp
       apply (rule_tac x = "lfilter (\<lambda>x. x \<in> R) xs" in exI)
@@ -192,7 +340,7 @@ next
       apply (metis `lfinite xs` lfinite_lfilterI)
       apply (metis `lfinite xs` lfinite_lfilterI)
       apply (insert assm)
-      by (auto simp add: rely_def)
+      by (auto simp add: fin_rely_def)
     finally have "xs \<in> \<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>S\<rangle>\<^sup>\<star>" .
   }
   thus "\<langle>R \<union> S\<rangle>\<^sup>\<star> \<subseteq> \<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>S\<rangle>\<^sup>\<star>"
@@ -211,10 +359,10 @@ lemma rely_par_idem: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>R\<
   by (metis rely_union sup_idem)
 
 lemma rely_inter: "\<langle>R\<rangle>\<^sup>\<star> \<inter> \<langle>S\<rangle>\<^sup>\<star> = \<langle>R \<inter> S\<rangle>\<^sup>\<star>"
-  by (auto simp add: rely_def)
+  by (auto simp add: fin_rely_def)
 
 lemma rely_lappend [simp]: "(\<exists>rs. rs \<in> \<langle>R\<rangle>\<^sup>\<star> \<and> rs = rs' \<frown> rs'') \<longleftrightarrow> (rs' \<in> \<langle>R\<rangle>\<^sup>\<star> \<and> rs'' \<in> \<langle>R\<rangle>\<^sup>\<star>)"
-  by (auto simp add: rely_def FIN_def)
+  by (auto simp add: fin_rely_def FIN_def)
 
 lemma LCons_cont [simp]: "LCons x ` \<Union>{f xs ys|xs ys. P xs ys} = \<Union>{LCons x ` f xs ys|xs ys. P xs ys}"
   by (auto simp add: image_def)
@@ -247,7 +395,7 @@ lemma [simp]: "lmap \<langle>id,id\<rangle> ` (x \<cdot> y) = lmap \<langle>id,i
   by (metis l_prod_def lappend_in_l_prod lmap_lappend_distrib par.add_comm)
 
 lemma rely_finite: "\<langle>R\<rangle>\<^sup>\<star> \<subseteq> FIN"
-  by (auto simp add: rely_def FIN_def)
+  by (auto simp add: fin_rely_def FIN_def)
 
 lemma tshuffle_image1: "LCons (Inl x) ` (xs \<sha> ys) \<subseteq> LCons x xs \<sha> ys"
   by (auto simp add: tshuffle_words_def)
@@ -304,7 +452,7 @@ next
       apply (rule_tac x = rs' in exI)
       apply (rule_tac x = rs'' in exI)
       apply simp
-      by (intro l_prod_isol tshuffle_image2)
+      by (intro l_prod_isol tshuffle_image2)i
     also have "... = \<Union>{(rs' \<sha> LCons z zs) \<cdot> (rs'' \<sha> ys) |rs' rs''. LCons r rs = rs' \<frown> rs''}"
       by simp
     finally show ?case .
@@ -342,7 +490,7 @@ proof -
     by (auto simp only: l_prod_def) (metis (lifting, full_types) lfinite_lmap lfinite_rights mem_Collect_eq tshuffle_words_def)
 
   have "?lhs_fin \<subseteq> \<Union>{lmap \<langle>id,id\<rangle> ` \<Union>{(rs' \<sha> xs) \<cdot> (rs'' \<sha> ys) |rs' rs''. rs = rs' \<frown> rs''} |rs xs ys. rs \<in> \<langle>R\<rangle>\<^sup>\<star> \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
-    by (intro set_comp_Union_iso3 image_mono rely_dist) (auto simp add: rely_def FIN_def)
+    by (intro set_comp_Union_iso3 image_mono rely_dist) (auto simp add: fin_rely_def FIN_def)
   also have "... \<subseteq> \<Union>{\<Union>{lmap \<langle>id,id\<rangle> ` ((rs' \<sha> xs) \<cdot> (rs'' \<sha> ys)) |rs' rs''. rs = rs' \<frown> rs''} |rs xs ys. rs \<in> \<langle>R\<rangle>\<^sup>\<star> \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"
     by (rule set_comp_Union_iso3) blast
   also have "... = \<Union>{\<Union>{lmap \<langle>id,id\<rangle> ` (rs' \<sha> xs) \<cdot> lmap \<langle>id,id\<rangle> ` (rs'' \<sha> ys) |rs' rs''. rs = rs' \<frown> rs''} |rs xs ys. rs \<in> \<langle>R\<rangle>\<^sup>\<star> \<and> xs \<in> x \<and> ys \<in> y \<and> lfinite xs}"

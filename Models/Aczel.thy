@@ -292,7 +292,6 @@ lemma proj_powers_proj: "proj_powers x = proj_powers (\<pi> x)"
   apply (auto simp add: proj_powers_def)
   apply (metis proj_power_proj)
   by (metis proj_power_proj)
-  
 
 lemma "\<Union>{\<pi> X |X. X \<in> powers (x \<inter> FIN)} = \<Union>{X. X \<in> \<pi> ` powers (x \<inter> FIN)}"
   by (auto simp add: image_def)
