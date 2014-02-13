@@ -70,9 +70,10 @@ begin
 
   instance proof
     fix x y z :: "'a trace"
-    show "x \<parallel> (y \<parallel> z) = x \<parallel> y \<parallel> z"
+    show "x \<parallel> (y \<parallel> z) = (x \<parallel> y) \<parallel> z"
       apply transfer
       apply (simp add: shuffle_assoc)
+      sledgehammer
       by transfer (simp add: shuffle_assoc)
     show "x \<parallel> y = y \<parallel> x"
       by transfer (metis shuffle_comm)

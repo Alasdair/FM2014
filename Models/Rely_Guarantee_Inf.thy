@@ -247,6 +247,11 @@ lemma rely_union1_inf: "\<langle>R\<rangle>\<^sup>\<omega> \<parallel> \<langle>
   apply (metis fair_non_empty lfinite_lmap shuffle_fair)
   by (metis (mono_tags) lset_lr mem_Collect_eq tshuffle_words_def)
 
+lemma rely_union1: "\<langle>R\<rangle>\<^sup>\<infinity> \<parallel> \<langle>S\<rangle>\<^sup>\<infinity> \<subseteq> \<langle>R \<union> S\<rangle>\<^sup>\<infinity>"
+  apply (simp add: rely_def shuffle_def Sup_le_iff tshuffle_words_def)
+  apply clarify
+  by (metis (hide_lams, no_types) Un_iff lset_lefts lset_lr lset_rights set_rev_mp)
+
 lemma lmap_unl_Inl: "(\<forall>x\<in>lset xs. is_left x) \<Longrightarrow> lmap unl xs = ys \<longleftrightarrow> xs = lmap Inl ys"
   apply (auto simp del: lmap.compositionality)
   apply (rule sym)
@@ -294,15 +299,10 @@ qed
 lemma lfilter_pred_eq [intro!]: "P = Q \<Longrightarrow> lfilter P xs = lfilter Q xs"
   by auto
 
-lemma rely_union [simp]: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>S\<rangle>\<^sup>\<star> = \<langle>R \<union> S\<rangle>\<^sup>\<star>"
+lemma rely_union_fin [simp]: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>S\<rangle>\<^sup>\<star> = \<langle>R \<union> S\<rangle>\<^sup>\<star>"
 proof
   show "\<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>S\<rangle>\<^sup>\<star> \<subseteq> \<langle>R \<union> S\<rangle>\<^sup>\<star>"
-    apply (simp add: fin_rely_def shuffle_def Sup_le_iff)
-    apply clarify
-    apply (intro conjI)
-    apply (metis lfinite_lmap lfinite_shuffle)
-    apply (simp add: tshuffle_words_def)
-    by (metis llist.set_map lset_lr)
+    by (metis rely_union1_fin)
 next
   {
     fix xs
@@ -347,16 +347,57 @@ next
     by blast
 qed
 
+(*
+lemma "\<langle>R \<union> S\<rangle>\<^sup>\<omega> \<subseteq> \<langle>R\<rangle>\<^sup>\<omega> \<parallel> \<langle>S\<rangle>\<^sup>\<omega>"
+proof -
+  {
+    fix xs
+    assume "xs \<in> \<langle>R \<union> S\<rangle>\<^sup>\<omega>"
+    hence "\<not> lfinite xs"
+      by (metis atomic_omega_inf)
+    have "xs = lmap \<langle>id,id\<rangle> (lfilter (\<lambda>x. x \<in> R) xs \<triangleright> traj (lmap (\<lambda>x. if x \<in> R then Inl () else Inr ()) xs) \<triangleleft> lfilter (\<lambda>x. x \<notin> R) xs)"
+      by (subst lfilter_interleave[where P = "\<lambda>x. x \<in> R"], simp)
+    also have "... \<in> lmap \<langle>id,id\<rangle> ` (lfilter (\<lambda>x. x \<in> R) xs \<sha> lfilter (\<lambda>x. x \<notin> R) xs)"
+      apply (intro imageI)
+      apply (simp add: tshuffle_words_def image_def)
+      apply (subst lefts_interleave_llength)
+      defer
+      apply (subst rights_interleave_llength)
+      apply auto
+      apply (simp add: rights_def)
+      apply (subst lfilter_lmap)
+      apply (subst llength_lmap)
+      apply (rule arg_cong) back
+      apply (rule lfilter_pred_eq)
+      apply auto
+      apply (simp add: lefts_def)
+      apply (subst lfilter_lmap)
+      apply (subst llength_lmap)
+      apply (rule arg_cong) back
+      apply (rule lfilter_pred_eq)
+      by (simp add: o_def)
+    also have "... \<subseteq> \<langle>R\<rangle>\<^sup>\<omega> \<parallel> \<langle>S\<rangle>\<^sup>\<omega>"
+      apply (auto simp add: inf_rely_def shuffle_def)
+      apply (rule_tac x = "lmap \<langle>id,id\<rangle> ` (lfilter (\<lambda>x. x \<in> R) xs \<sha> lfilter (\<lambda>x. x \<notin> R) xs)" in exI)
+      apply simp
+      apply (rule_tac x = "lfilter (\<lambda>x. x \<in> R) xs" in exI)
+      apply (rule_tac x = "lfilter (\<lambda>x. x \<notin> R) xs" in exI)
+      apply auto
+*)
+
 lemmas [intro] = seq.star_iso[rule_format]
 
-lemma rely_1: "\<langle>R\<rangle>\<^sup>\<star> \<le> \<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>S\<rangle>\<^sup>\<star>"
+lemma rely_1_fin: "\<langle>R\<rangle>\<^sup>\<star> \<le> \<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>S\<rangle>\<^sup>\<star>"
   by (auto del: subsetI)
+
+lemma rely_1_inf: "\<langle>R\<rangle>\<^sup>\<omega> \<le> \<langle>R\<rangle>\<^sup>\<omega> \<parallel> \<langle>S\<rangle>\<^sup>\<omega>"
+  sorry
 
 lemma rely_2: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>R\<rangle>\<^sup>\<star> \<subseteq> \<langle>R\<rangle>\<^sup>\<star>"
   by auto 
 
 lemma rely_par_idem: "\<langle>R\<rangle>\<^sup>\<star> \<parallel> \<langle>R\<rangle>\<^sup>\<star> = \<langle>R\<rangle>\<^sup>\<star>"
-  by (metis rely_union sup_idem)
+  by (metis rely_union_fin sup_idem)
 
 lemma rely_inter: "\<langle>R\<rangle>\<^sup>\<star> \<inter> \<langle>S\<rangle>\<^sup>\<star> = \<langle>R \<inter> S\<rangle>\<^sup>\<star>"
   by (auto simp add: fin_rely_def)

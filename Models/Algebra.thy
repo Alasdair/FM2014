@@ -66,6 +66,8 @@ class rely_guarantee_trioid = weak_star_trioid + semilattice_inf +
 
   and Con_mult: "x\<cdot>y \<sqinter> C \<le> (x \<sqinter> C)\<cdot>(y \<sqinter> C) \<sqinter> C"
   and Con_star: "x\<^sup>\<star> \<sqinter> C \<le> (x \<sqinter> C)\<^sup>\<star> \<sqinter> C"
+  and Con_star_inductl: "(z + y \<cdot> x) \<sqinter> C \<le> y \<sqinter> C \<Longrightarrow> (z \<cdot> x\<^sup>\<star>) \<sqinter> C \<le> y \<sqinter> C"
+
 
   and plus_meet_distrib: "x + y \<sqinter> z = (x + y) \<sqinter> (x + z)"
 
@@ -287,7 +289,7 @@ begin
     by (metis par_distl par_unitr star_unfoldl_eq)
 
   lemma proj_star_inductl: "\<pi> (z + y \<cdot> x) \<le> \<pi> y \<Longrightarrow> \<pi> (z \<cdot> x\<^sup>\<star>) \<le> \<pi> y"
-    sorry
+    by (metis Con_star_inductl dual_order.trans eq_refl inf_commute proj_def)
 
   lemma star_rule: "p\<cdot>r \<le>\<^sub>\<pi> p \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>p\<rbrace> \<Longrightarrow> r, g \<turnstile> \<lbrace>p\<rbrace> c\<^sup>\<star> \<lbrace>p\<rbrace>"
     apply (auto simp add: quintuple_def proj_leq_def)
