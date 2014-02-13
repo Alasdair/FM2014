@@ -62,6 +62,12 @@ end
 
 (* traces form a dioid w.r.t. parallel composition *)
 
+lemma [simp]: "(shuffle (x\<^sup>\<dagger> \<inter> FIN) (y\<^sup>\<dagger> \<inter> FIN))\<^sup>\<dagger> \<inter> FIN = (shuffle x y)\<^sup>\<dagger> \<inter> FIN"
+  apply (subst Mumble_FIN[symmetric]) back back by simp
+
+lemma [simp]: "{LNil} \<inter> FIN = {LNil}"
+  by (simp add: FIN_def)
+
 instantiation trace :: (type) par_dioid
 begin
 
@@ -71,16 +77,13 @@ begin
   instance proof
     fix x y z :: "'a trace"
     show "x \<parallel> (y \<parallel> z) = (x \<parallel> y) \<parallel> z"
-      apply transfer
-      apply (simp add: shuffle_assoc)
-      sledgehammer
       by transfer (simp add: shuffle_assoc)
     show "x \<parallel> y = y \<parallel> x"
       by transfer (metis shuffle_comm)
     show "x \<parallel> (y + z) = x \<parallel> y + x \<parallel> z"
-      by transfer (metis Mumble_union par.distrib_left)
+      by transfer simp
     show "1 \<parallel> x = x"
-      by transfer (metis Mumble_shuffle_left par.mult.right_neutral shuffle_comm)
+      by transfer simp
     show "0 \<parallel> x = 0"
       by transfer simp
   qed
@@ -91,7 +94,7 @@ instance trace :: (type) weak_trioid by default
 instantiation trace :: (type) lattice
 begin
 
-  lift_definition inf_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" is "\<lambda>X Y. X\<^sup>\<dagger> \<inter> Y\<^sup>\<dagger>"
+  lift_definition inf_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" is "\<lambda>X Y. (X \<inter> FIN)\<^sup>\<dagger> \<inter> (Y \<inter> FIN)\<^sup>\<dagger>"
     by simp
 
   lift_definition sup_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" is "op \<union>"
@@ -100,11 +103,16 @@ begin
   instance proof
     fix x y z :: "'a trace"
     show "x \<sqinter> y \<le> x"
-      by transfer simp
+      apply transfer
+      apply simp
+      by (metis Mumble_idem Mumble_iso inf.cobounded2 inf.coboundedI2 inf_commute)
     show "x \<sqinter> y \<le> y"
-      by transfer simp
+      apply transfer
+      apply simp
+      by (metis Mumble_idem Mumble_iso inf.cobounded2 inf.coboundedI2 inf_commute)
     show "x \<le> y \<Longrightarrow> x \<le> z \<Longrightarrow> x \<le> y \<sqinter> z"
-      by transfer simp
+      apply transfer
+      by (metis (hide_lams, no_types) Mumble_FIN Mumble_meet inf.bounded_iff)
     show "x \<le> x \<squnion> y"
       by transfer simp
     show "y \<le> x \<squnion> y"
@@ -115,14 +123,17 @@ begin
 end
 
 instance trace :: (type) distrib_lattice
-  by (default, transfer, simp, metis Mumble_idem Mumble_meet Mumble_union Un_Int_distrib)
+  apply default
+  apply transfer
+  apply simp
+  by (metis (lifting, no_types) Int_commute Mumble_FIN Mumble_idem Mumble_union Un_commute distrib_lattice_class.sup_inf_distrib1 lattice_class.sup_inf_absorb)
 
 no_notation Language.star ("_\<^sup>\<star>" [101] 100)
 
 instantiation trace :: (type) left_kleene_algebra
 begin
 
-  lift_definition star_trace :: "'a trace \<Rightarrow> 'a trace" is "\<lambda>x. Language.star x\<^sup>\<dagger>"
+  lift_definition star_trace :: "'a trace \<Rightarrow> 'a trace" is "\<lambda>x. Language.star (x\<^sup>\<dagger>"
     by simp
 
   instance
