@@ -1602,4 +1602,55 @@ lemma [simp]: "X \<subseteq> FIN \<Longrightarrow> (X \<parallel> Y \<cdot> {}) 
 lemma zero_mid [simp]: "X \<cdot> {} \<cdot> Z = X \<cdot> {}"
   by (metis l_prod_zero seq.mult_assoc)
 
+lemma power_leq_star: "power x i \<subseteq> x\<^sup>\<star>"
+  apply (induct i)
+  apply (metis Language.power.simps(1) par.zero_least seq.star_iso seq.star_zero)
+  apply simp
+  by (metis seq.prod_star_closure seq.star_ext)
+
+lemma star_power1: "\<Union>powers x \<subseteq> x\<^sup>\<star>"
+  apply (subst Sup_le_iff)
+  apply (rule ballI)
+  apply (simp only: powers_def)
+  apply simp
+  apply (erule exE)
+  apply simp
+  by (metis power_leq_star)
+
+lemma powers_refl: "x \<in> powers x"
+  apply (auto simp add: powers_def)
+  apply (rule_tac x = 1 in exI)
+  by auto
+
+lemma star_power2: "x\<^sup>\<star> \<subseteq> \<Union>powers x"
+proof (rule seq.star_inductl_one[rule_format])
+  have "x \<cdot> \<Union>powers x \<subseteq> \<Union>powers x"
+    apply (auto simp add: l_prod_def)
+    apply (rule_tac x = x in bexI)
+    apply simp
+    apply (metis powers_refl)
+    apply (rule_tac x = "x \<cdot> xa" in bexI)
+    apply (simp add: l_prod_def)
+    apply (intro disjI2)
+    apply (rule_tac x = xs in exI)
+    apply (rule_tac x = ys in exI)
+    apply auto
+    apply (simp add: powers_def)
+    apply (erule exE)
+    apply (rule_tac x = "Suc i" in exI)
+    by simp
+  moreover have "{LNil} \<subseteq> \<Union>powers x"
+    apply (simp add: powers_def)
+    apply (rule_tac x = "{LNil}" in exI)
+    apply auto
+    apply (rule_tac x = 0 in exI)
+    by auto
+  ultimately show "{LNil} \<union> x \<cdot> \<Union>powers x \<subseteq> \<Union>powers x"
+    by (metis par.add_lub)
+qed
+
+lemma star_power: "x\<^sup>\<star> = \<Union>powers x"
+  by (metis star_power1 star_power2 subset_antisym)
+
+
 end

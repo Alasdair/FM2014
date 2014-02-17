@@ -133,13 +133,14 @@ no_notation Language.star ("_\<^sup>\<star>" [101] 100)
 instantiation trace :: (type) left_kleene_algebra
 begin
 
-  lift_definition star_trace :: "'a trace \<Rightarrow> 'a trace" is "\<lambda>x. Language.star (x\<^sup>\<dagger>"
+  lift_definition star_trace :: "'a trace \<Rightarrow> 'a trace" is "\<lambda>x. Language.star (x \<inter> FIN)\<^sup>\<dagger>"
     by simp
 
   instance
   proof
     fix x y z :: "'a trace"
     show "1 + x \<cdot> x\<^sup>\<star> \<le> x\<^sup>\<star>"
+      apply transfer
       by transfer (metis Mumble_l_prod Mumble_star Mumble_union par.less_eq_def seq.add_idem' seq.star_unfoldl_eq)
     show "z + x \<cdot> y \<le> y \<longrightarrow> x\<^sup>\<star> \<cdot> z \<le> y"
       by transfer (metis Mumble_ext Mumble_idem Mumble_iso Mumble_l_prod order.trans seq.star_inductl)

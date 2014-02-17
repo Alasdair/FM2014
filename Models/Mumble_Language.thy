@@ -1214,5 +1214,21 @@ lemma [simp]: "(x \<union> y) \<inter> FIN = (x \<inter> FIN) \<union> (y \<inte
 lemma [simp]: "{}\<^sup>\<dagger> \<inter> FIN = {}\<^sup>\<dagger>"
   by (auto simp add: Mumble_def FIN_def)
 
+lemma star_FIN: "x\<^sup>\<star> \<inter> FIN = (x \<inter> FIN)\<^sup>\<star>"
+  apply (simp add: star_def)
+  apply (rule fixpoint_fusion)
+  apply (subst lower_is_jp)
+  apply (simp add: join_preserving_def)
+  apply blast
+  apply (simp add: mono_def)
+  apply (metis l_prod_isor subset_insertI2)
+  apply (simp add: mono_def)
+  apply (metis seq.mult_isol subset_insertI2)
+  apply (simp add: o_def)
+  apply (rule ext)
+  apply (auto simp add: FIN_def l_prod_def)
+  apply metis
+  by (metis lfinite_LCons lfinite_lappend)
+
 end
 
