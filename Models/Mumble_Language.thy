@@ -1160,6 +1160,9 @@ lemma Mumble_l_prod1 [simp]: "(X \<cdot> Y\<^sup>\<dagger>)\<^sup>\<dagger> = (X
 lemma Mumble_l_prod2 [simp]: "(X\<^sup>\<dagger> \<cdot> Y)\<^sup>\<dagger> = (X \<cdot> Y)\<^sup>\<dagger>"
   by (metis Mumble_idem Mumble_l_prod)
 
+lemma Mumble_empty [simp]: "{}\<^sup>\<dagger> = {}"
+  by (simp add: Mumble_def)
+
 lemma mumble_LNil: "xs \<in> mumble LNil \<Longrightarrow> xs = LNil"
   by (induct rule: mumble.induct) auto
 
@@ -1194,41 +1197,90 @@ lemma Mumble_Inter [simp]: "(\<Inter>(Mumble ` A))\<^sup>\<dagger> = \<Inter>(Mu
 lemma Mumble_FIN [simp]: "(x \<inter> FIN)\<^sup>\<dagger> = (x\<^sup>\<dagger>) \<inter> FIN"
   by (auto simp add: Mumble_def FIN_def)
 
-lemma l_prod_FIN_simp1 [simp]: "((x \<inter> FIN) \<cdot> y) \<inter> FIN = (x \<cdot> y) \<inter> FIN"
-  by (auto simp add: l_prod_def FIN_def)
-
-lemma l_prod_FIN_simp2 [simp]: "(x \<cdot> (y \<inter> FIN)) \<inter> FIN = (x \<cdot> y) \<inter> FIN"
-  by (auto simp add: l_prod_def FIN_def)
-
-lemma shuffle_FIN_simp1 [simp]: "((x \<inter> FIN) \<parallel> y) \<inter> FIN = (x \<parallel> y) \<inter> FIN"
-  apply (auto simp add: FIN_def shuffle_def)
-  by (metis (lifting, full_types) imageI lfinite_lefts mem_Collect_eq tshuffle_words_def)
-
-lemma shuffle_FIN_simp2 [simp]: "(x \<parallel> (y \<inter> FIN)) \<inter> FIN = (x \<parallel> y) \<inter> FIN"
-  apply (auto simp add: FIN_def shuffle_def)
-  by (metis (lifting, full_types) imageI lfinite_rights mem_Collect_eq tshuffle_words_def)
-
-lemma [simp]: "(x \<union> y) \<inter> FIN = (x \<inter> FIN) \<union> (y \<inter> FIN)"
-  by auto
-
-lemma [simp]: "{}\<^sup>\<dagger> \<inter> FIN = {}\<^sup>\<dagger>"
+lemma empty_Mumble_FIN [simp]: "{}\<^sup>\<dagger> \<inter> FIN = {}\<^sup>\<dagger>"
   by (auto simp add: Mumble_def FIN_def)
 
-lemma star_FIN: "x\<^sup>\<star> \<inter> FIN = (x \<inter> FIN)\<^sup>\<star>"
-  apply (simp add: star_def)
-  apply (rule fixpoint_fusion)
-  apply (subst lower_is_jp)
-  apply (simp add: join_preserving_def)
-  apply blast
-  apply (simp add: mono_def)
-  apply (metis l_prod_isor subset_insertI2)
-  apply (simp add: mono_def)
-  apply (metis seq.mult_isol subset_insertI2)
-  apply (simp add: o_def)
-  apply (rule ext)
-  apply (auto simp add: FIN_def l_prod_def)
-  apply metis
-  by (metis lfinite_LCons lfinite_lappend)
+definition fmumble :: "('a \<times> 'a) lan \<Rightarrow> ('a \<times> 'a) lan" ("_\<^sup>\<ddagger>" [1000] 1000) where
+  "fmumble x = x\<^sup>\<dagger> \<inter> FIN"
+
+lemma fmumble_empty [simp]: "{}\<^sup>\<ddagger> = {}"
+  by (simp add: fmumble_def)
+
+lemma fmumble_l_prod1 [simp]: "(X\<^sup>\<ddagger> \<cdot> Y)\<^sup>\<ddagger> = (X \<cdot> Y)\<^sup>\<ddagger>"
+  by (metis Mumble_FIN Mumble_l_prod2 fmumble_def l_prod_FIN_simp1)
+
+lemma fmumble_l_prod2 [simp]: "(X \<cdot> Y\<^sup>\<ddagger>)\<^sup>\<ddagger> = (X \<cdot> Y)\<^sup>\<ddagger>"
+  by (metis Mumble_FIN Mumble_l_prod1 fmumble_def l_prod_FIN_simp2)
+
+lemma fmumble_union [simp]: "(X \<union> Y)\<^sup>\<ddagger> = X\<^sup>\<ddagger> \<union> Y\<^sup>\<ddagger>"
+  by (simp add: fmumble_def)
+
+lemma fmumble_one [simp]: "{LNil}\<^sup>\<ddagger> = {LNil}"
+  by (auto simp add: fmumble_def FIN_def)
+
+lemma fmumble_idem [simp]: "X\<^sup>\<ddagger>\<^sup>\<ddagger> = X\<^sup>\<ddagger>"
+  by (simp add: fmumble_def)
+
+lemma fmumble_shuffle_left [simp]: "(X\<^sup>\<ddagger> \<parallel> Y)\<^sup>\<ddagger> = (X \<parallel> Y)\<^sup>\<ddagger>"
+  by (simp add: fmumble_def) (metis Mumble_FIN Mumble_shuffle_right shuffle_FIN_simp2 shuffle_comm)
+
+lemma fmumble_shuffle_right [simp]: "(X \<parallel> Y\<^sup>\<ddagger>)\<^sup>\<ddagger> = (X \<parallel> Y)\<^sup>\<ddagger>"
+  by (metis fmumble_shuffle_left shuffle_comm)
+
+lemma fmumble_meet [simp]: "(X\<^sup>\<ddagger> \<inter> Y\<^sup>\<ddagger>)\<^sup>\<ddagger> = X\<^sup>\<ddagger> \<inter> Y\<^sup>\<ddagger>"
+  by (simp add: fmumble_def) (metis (hide_lams, no_types) Int_left_commute Mumble_FIN Mumble_meet inf_commute inf_left_idem)
+
+lemma fmumble_star [simp]: "(X\<^sup>\<ddagger>\<^sup>\<star>)\<^sup>\<ddagger> = (X\<^sup>\<star>)\<^sup>\<ddagger>"
+  apply (simp add: fmumble_def)  
+  by (metis Mumble_FIN Mumble_star inf_commute inf_left_idem star_FIN)
+
+lemma fmumble_iso [intro]: "X \<subseteq> Y \<Longrightarrow> X\<^sup>\<ddagger> \<subseteq> Y\<^sup>\<ddagger>"
+  by (metis fmumble_union le_iff_sup)
+
+lemma fmumble_ext: "X \<inter> FIN \<subseteq> X\<^sup>\<ddagger>"
+  by (metis Mumble_FIN Mumble_ext fmumble_def)
+
+lemma fmumble_continuous: "(\<Union>\<XX>)\<^sup>\<ddagger> = \<Union>{X\<^sup>\<ddagger> |X. X \<in> \<XX>}"
+  by (auto simp add: fmumble_def Mumble_continuous)
+
+lemma fmumble_star_power: "Z\<^sup>\<ddagger> \<subseteq> Y\<^sup>\<ddagger> \<Longrightarrow> (X \<cdot> Y)\<^sup>\<ddagger> \<subseteq> Y\<^sup>\<ddagger> \<Longrightarrow> (power X i \<cdot> Z)\<^sup>\<ddagger> \<subseteq> Y\<^sup>\<ddagger>"
+  apply (induct i)
+  apply simp_all
+proof -
+  fix ia :: nat
+  assume a1: "(Language.power X ia \<cdot> Z)\<^sup>\<ddagger> \<subseteq> Y\<^sup>\<ddagger>"
+  assume a2: "(X \<cdot> Y)\<^sup>\<ddagger> \<subseteq> Y\<^sup>\<ddagger>"
+  have "Y\<^sup>\<ddagger> = Y\<^sup>\<ddagger> \<union> (Language.power X ia \<cdot> Z)\<^sup>\<ddagger>"
+    using a1 by fastforce
+  hence "\<exists>x\<^sub>0. X \<cdot> (Language.power X ia \<cdot> Z) \<subseteq> x\<^sub>0 \<and> x\<^sub>0\<^sup>\<ddagger> \<subseteq> Y\<^sup>\<ddagger>"
+    using a2 by (metis fmumble_l_prod2 fmumble_union l_prod_isor par.add_ub2)
+  hence "\<exists>x\<^sub>0. (X \<cdot> (Language.power X ia \<cdot> Z))\<^sup>\<ddagger> \<subseteq> x\<^sub>0 \<and> x\<^sub>0 \<subseteq> Y\<^sup>\<ddagger>"
+    by (metis fmumble_iso)
+  thus "(X \<cdot> Language.power X ia \<cdot> Z)\<^sup>\<ddagger> \<subseteq> Y\<^sup>\<ddagger>"
+    by (metis order.trans seq.mult_assoc)
+qed
+
+lemma fmumble_star_inductl: "(Z \<union> X \<cdot> Y)\<^sup>\<ddagger> \<subseteq> Y\<^sup>\<ddagger> \<Longrightarrow> (X\<^sup>\<star> \<cdot> Z)\<^sup>\<ddagger> \<subseteq> Y\<^sup>\<ddagger>"
+  apply (simp add: star_power l_prod_inf_distr fmumble_continuous Sup_le_iff)
+  apply (intro allI impI)
+  apply (erule exE)
+  apply simp
+  apply (erule conjE)+
+  apply (erule exE)
+  apply (erule conjE)
+  apply simp
+  apply (rename_tac A B C)
+  apply (thin_tac "A = (C \<cdot> Z)\<^sup>\<ddagger>")
+  apply (thin_tac "B = C \<cdot> Z")
+  apply (tactic {* prune_params_tac *})
+  apply (rename_tac X')
+  apply (simp add: powers_def)
+  apply (erule exE)
+  apply simp
+  apply (thin_tac "X' = Language.power X i")
+  apply (tactic {* prune_params_tac *})
+  apply (rule fmumble_star_power)
+  by assumption+
 
 end
 

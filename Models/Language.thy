@@ -1652,5 +1652,37 @@ qed
 lemma star_power: "x\<^sup>\<star> = \<Union>powers x"
   by (metis star_power1 star_power2 subset_antisym)
 
+lemma l_prod_FIN_simp1 [simp]: "((x \<inter> FIN) \<cdot> y) \<inter> FIN = (x \<cdot> y) \<inter> FIN"
+  by (auto simp add: l_prod_def FIN_def)
+
+lemma l_prod_FIN_simp2 [simp]: "(x \<cdot> (y \<inter> FIN)) \<inter> FIN = (x \<cdot> y) \<inter> FIN"
+  by (auto simp add: l_prod_def FIN_def)
+
+lemma shuffle_FIN_simp1 [simp]: "((x \<inter> FIN) \<parallel> y) \<inter> FIN = (x \<parallel> y) \<inter> FIN"
+  apply (auto simp add: FIN_def shuffle_def)
+  by (metis (lifting, full_types) imageI lfinite_lefts mem_Collect_eq tshuffle_words_def)
+
+lemma shuffle_FIN_simp2 [simp]: "(x \<parallel> (y \<inter> FIN)) \<inter> FIN = (x \<parallel> y) \<inter> FIN"
+  apply (auto simp add: FIN_def shuffle_def)
+  by (metis (lifting, full_types) imageI lfinite_rights mem_Collect_eq tshuffle_words_def)
+
+lemma [simp]: "(x \<union> y) \<inter> FIN = (x \<inter> FIN) \<union> (y \<inter> FIN)"
+  by auto
+
+lemma star_FIN: "x\<^sup>\<star> \<inter> FIN = (x \<inter> FIN)\<^sup>\<star>"
+  apply (simp add: star_def)
+  apply (rule fixpoint_fusion)
+  apply (subst lower_is_jp)
+  apply (simp add: join_preserving_def)
+  apply blast
+  apply (simp add: mono_def)
+  apply (metis l_prod_isor subset_insertI2)
+  apply (simp add: mono_def)
+  apply (metis seq.mult_isol subset_insertI2)
+  apply (simp add: o_def)
+  apply (rule ext)
+  apply (auto simp add: FIN_def l_prod_def)
+  apply metis
+  by (metis lfinite_LCons lfinite_lappend)
 
 end

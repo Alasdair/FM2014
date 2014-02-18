@@ -6,7 +6,7 @@ no_notation shuffle (infixl "\<parallel>" 75)
 no_notation l_prod (infixl "\<cdot>" 80)
 no_notation Aczel ("\<pi>")
 
-quotient_type 'a trace = "('a \<times> 'a) lan" / "\<lambda>X Y. (X \<inter> FIN)\<^sup>\<dagger> = (Y \<inter> FIN)\<^sup>\<dagger>"
+quotient_type 'a trace = "('a \<times> 'a) lan" / "\<lambda>X Y. X\<^sup>\<ddagger> = Y\<^sup>\<ddagger>"
   by (intro equivpI reflpI sympI transpI) auto
 
 (* traces form a dioid *)
@@ -14,21 +14,21 @@ quotient_type 'a trace = "('a \<times> 'a) lan" / "\<lambda>X Y. (X \<inter> FIN
 instantiation trace :: (type) dioid_one_zerol
 begin
 
-  lift_definition less_eq_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> bool" is "\<lambda>X Y. (X \<inter> FIN)\<^sup>\<dagger> \<subseteq> (Y \<inter> FIN)\<^sup>\<dagger>"
+  lift_definition less_eq_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> bool" is "\<lambda>X Y. X\<^sup>\<ddagger> \<subseteq> Y\<^sup>\<ddagger>"
     by simp
 
-  lift_definition less_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> bool" is "\<lambda>X Y. (X \<inter> FIN)\<^sup>\<dagger> \<subset> (Y \<inter> FIN)\<^sup>\<dagger>"
+  lift_definition less_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> bool" is "\<lambda>X Y. X\<^sup>\<ddagger> \<subset> Y\<^sup>\<ddagger>"
     by simp
 
   lift_definition zero_trace :: "'a trace" is "{}" done
 
   lift_definition one_trace :: "'a trace" is "{LNil}" done
 
-  lift_definition times_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" is "\<lambda>X Y. l_prod (X \<inter> FIN)\<^sup>\<dagger> (Y \<inter> FIN)\<^sup>\<dagger>"
+  lift_definition times_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" is "\<lambda>X Y. l_prod X\<^sup>\<ddagger> Y\<^sup>\<ddagger>"
     by simp
 
   lift_definition plus_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" is "op \<union>"
-    by (metis Mumble_union distrib_lattice_class.inf_sup_distrib2)
+    by simp
 
   instance
   proof
@@ -62,16 +62,10 @@ end
 
 (* traces form a dioid w.r.t. parallel composition *)
 
-lemma [simp]: "(shuffle (x\<^sup>\<dagger> \<inter> FIN) (y\<^sup>\<dagger> \<inter> FIN))\<^sup>\<dagger> \<inter> FIN = (shuffle x y)\<^sup>\<dagger> \<inter> FIN"
-  apply (subst Mumble_FIN[symmetric]) back back by simp
-
-lemma [simp]: "{LNil} \<inter> FIN = {LNil}"
-  by (simp add: FIN_def)
-
 instantiation trace :: (type) par_dioid
 begin
 
-  lift_definition par_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" is "\<lambda>X Y. (shuffle (X \<inter> FIN)\<^sup>\<dagger> (Y \<inter> FIN)\<^sup>\<dagger>)\<^sup>\<dagger>"
+  lift_definition par_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" is "\<lambda>X Y. (shuffle X\<^sup>\<ddagger> Y\<^sup>\<ddagger>)\<^sup>\<ddagger>"
     by simp
 
   instance proof
@@ -94,7 +88,7 @@ instance trace :: (type) weak_trioid by default
 instantiation trace :: (type) lattice
 begin
 
-  lift_definition inf_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" is "\<lambda>X Y. (X \<inter> FIN)\<^sup>\<dagger> \<inter> (Y \<inter> FIN)\<^sup>\<dagger>"
+  lift_definition inf_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" is "\<lambda>X Y. X\<^sup>\<ddagger> \<inter> Y\<^sup>\<ddagger>"
     by simp
 
   lift_definition sup_trace :: "'a trace \<Rightarrow> 'a trace \<Rightarrow> 'a trace" is "op \<union>"
@@ -103,16 +97,11 @@ begin
   instance proof
     fix x y z :: "'a trace"
     show "x \<sqinter> y \<le> x"
-      apply transfer
-      apply simp
-      by (metis Mumble_idem Mumble_iso inf.cobounded2 inf.coboundedI2 inf_commute)
+      by transfer simp
     show "x \<sqinter> y \<le> y"
-      apply transfer
-      apply simp
-      by (metis Mumble_idem Mumble_iso inf.cobounded2 inf.coboundedI2 inf_commute)
+      by transfer simp
     show "x \<le> y \<Longrightarrow> x \<le> z \<Longrightarrow> x \<le> y \<sqinter> z"
-      apply transfer
-      by (metis (hide_lams, no_types) Mumble_FIN Mumble_meet inf.bounded_iff)
+      by transfer simp
     show "x \<le> x \<squnion> y"
       by transfer simp
     show "y \<le> x \<squnion> y"
@@ -126,24 +115,24 @@ instance trace :: (type) distrib_lattice
   apply default
   apply transfer
   apply simp
-  by (metis (lifting, no_types) Int_commute Mumble_FIN Mumble_idem Mumble_union Un_commute distrib_lattice_class.sup_inf_distrib1 lattice_class.sup_inf_absorb)
+  apply (simp add: fmumble_def)
+  by (metis (hide_lams, no_types) distrib_lattice_class.sup_inf_distrib1 fmumble_def fmumble_meet fmumble_union inf_commute inf_left_idem)
 
 no_notation Language.star ("_\<^sup>\<star>" [101] 100)
 
 instantiation trace :: (type) left_kleene_algebra
 begin
 
-  lift_definition star_trace :: "'a trace \<Rightarrow> 'a trace" is "\<lambda>x. Language.star (x \<inter> FIN)\<^sup>\<dagger>"
+  lift_definition star_trace :: "'a trace \<Rightarrow> 'a trace" is "\<lambda>x. Language.star x\<^sup>\<ddagger>"
     by simp
 
   instance
   proof
     fix x y z :: "'a trace"
     show "1 + x \<cdot> x\<^sup>\<star> \<le> x\<^sup>\<star>"
-      apply transfer
-      by transfer (metis Mumble_l_prod Mumble_star Mumble_union par.less_eq_def seq.add_idem' seq.star_unfoldl_eq)
+      by transfer (metis fmumble_l_prod2 fmumble_union par.add_ub1 seq.add_idem' seq.star_unfoldl_eq)
     show "z + x \<cdot> y \<le> y \<longrightarrow> x\<^sup>\<star> \<cdot> z \<le> y"
-      by transfer (metis Mumble_ext Mumble_idem Mumble_iso Mumble_l_prod order.trans seq.star_inductl)
+      by transfer (metis fmumble_l_prod1 fmumble_l_prod2 fmumble_star fmumble_star_inductl fmumble_union)
   qed
 end
 
