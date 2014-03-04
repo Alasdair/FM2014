@@ -60,8 +60,8 @@
   implemented the approach in Isabelle/HOL as a lightweight
   concurrency verification tool that supports reasoning about the
   control and data flow of concurrent programs with shared variables
-  at different levels of abstraction. This is illustrated on two
-  simple verification examples.
+  at different levels of abstraction. This is illustrated on a simple
+  verification example.
 \end{abstract}
 
 \pagestyle{plain}
@@ -137,7 +137,7 @@ Second, we link our rely-guarantee algebras with a simple trace based
 semantics which so far is restricted to finite executions and
 disregards termination and synchronisation. Despite the simplicity of
 this model, we demonstrate and evaluate our prototypical verification
-tool implemented in Isabelle by verifying two simple examples from
+tool implemented in Isabelle by verifying a simple example from
 the literature. Beyond that our approach provides a coherent framework
 from which more complex and detailed models can be implemented in the
 future.
@@ -151,7 +151,7 @@ programs.
 
 Taken together, our Isabelle implementation constitutes a tool
 prototype for the verification and construction of concurrent
-programs. We illustrate the tool with two simple examples from the
+programs. We illustrate the tool with a simple example from the
 literature. The complete Isabelle code can be found
 online\footnote{\url{www.dcs.shef.ac.uk/~alasdair/rg}}. A
 previous Isabelle implementation of rely-guarantee reasoning is due to
@@ -257,6 +257,17 @@ such that $(K,+,\sqcap)$ is a distributive lattice. This is
 particularly needed in the context of refinement, where we typically
 want to represent specifications as well as programs.
 
+A (unital) \emph{quantale} is a dioid based on a complete lattice
+where the multiplication distributes over arbitrary suprema. Formally, it is a
+structure $(S,\le,\cdot,1)$ such that $(S,\le)$ is a complete lattice,
+$(S,\cdot,1)$ is a monoid and
+\begin{align*}
+x(\Sigma Y) = \Sigma\{xy|y\in Y\}, \qquad
+(\Sigma X)y = \Sigma\{xy|x\in X\}.
+\end{align*}
+In a quantale the star is the sum of all powers $x^n$. Therefore, all
+quantales are also Kleene algebras.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Generalised Hoare Logics  in Kleene Algebra}
@@ -271,7 +282,7 @@ $+$ corresponds to join and $\cdot$ to meet. Complements $-$ are
 defined only on $B$. Suppose further that a \emph{backward diamond
   operator} $\langle x|p$ has been defined for each $x\in K$ and $p\in
 B$, which models the set of all states to which each terminating
-execution of program $x$ may lead from states $q$. Finally suppose
+execution of program $x$ may lead from states $p$. Finally suppose
 that a \emph{forward box operator} $|x]p$ has been defined which
 models the (largest) set of states from which every terminating
 execution of $x$ must end in states $p$ and that boxes and diamonds
@@ -303,10 +314,10 @@ explanations carry over to the algebraic approach.
 As an example we show the derivation of a generalised while
 rule. Suppose $x\cdot t\cdot y\le x$. Then $x\cdot (t\cdot y)^\ast \le
 x$ by the right induction axiom of Kleene algebra and therefore
-$x\cdot (t\cdot y)^\ast t'\le x\cdot t'$ for arbitrary element $t'$ by
+$x\cdot (t\cdot y)^\ast\cdot t'\le x\cdot t'$ for arbitrary element $t'$ by
 isotonicity of multiplication. This derives the while rule
 \begin{equation*}
-  \frac{\vdash \{x\cdot t\}y\{x\}}{\vdash \{x\}(t\cdot y)^\ast\{t'\cdot x\}}
+  \frac{\vdash \{x\cdot t\}y\{x\}}{\vdash \{x\}(t\cdot y)^\ast\cdot t'\{x\cdot t'\}}
 \end{equation*}
 for a generalised while loop $(t\cdot y)^\ast\cdot t'$, which
 specialises to the conventional rule when $t$ and $t'$ are, in some
@@ -436,14 +447,20 @@ r, g \vdash \{p\} x \{q\} \iff p\cdot(r\|x) \le q \land x \le g. \label{quin}
 \end{align}
 This means that program $x$ when constrained by a rely $r$, and
 executed after $p$, behaves as $q$. Moreover, all behaviours of $x$
-are included in its guarantee.
+are included in its guarantee $q$. Note that this encoding is stronger
+than in traditional rely-guarantee, as $x$ is required to
+unconditionally implement $g$. The algebra could easily be extended
+with an additional operator $f$ such that $f(r,x) \le q$ would encode
+that $x$ implements $q$ only under interference of at most $r$. For
+more complex examples than what we present in section
+\ref{sec:Examples} such an encoding may prove neccessary.
 
 \begin{thm}
   The standard rely-guarantee inference rules can be derived with the
   above encoding, as shown in Figure \ref{fig:rgrules}.
 \end{thm}
 
-\begin{figure}[hbt]
+\begin{figure}[bth]
 \centering
 \begin{prooftree}
 \RightLabel{\ Skip}
@@ -470,11 +487,11 @@ are included in its guarantee.
 
 \begin{prooftree}
 \RightLabel{\ Parallel}
-\AxiomC{$r_1, g_2 \vdash \{p_1\}x\{q_1\}$}
+\AxiomC{$r_1, g_1 \vdash \{p_1\}x\{q_1\}$}
 \AxiomC{$g_1 \le r_2$}
-\AxiomC{$r_1, g_2 \vdash \{p_2\}y\{q_2\}$}
+\AxiomC{$r_2, g_2 \vdash \{p_2\}y\{q_2\}$}
 \AxiomC{$g_2 \le r_1$}
-\QuaternaryInfC{$r_1 \sqcap r_2, g_1 \| g_2 \vdash \{p_1 \sqcap q_2\}x\|y\{q_1 \sqcap q_2\}$}
+\QuaternaryInfC{$r_1 \sqcap r_2, g_1 \| g_2 \vdash \{p_1 \sqcap p_2\}x\|y\{q_1 \sqcap q_2\}$}
 \end{prooftree}
 
 \begin{prooftree}
@@ -502,7 +519,7 @@ If we add residuals to our algebra quintuples can be encoded in the
 following way, which is equivalent to the encoding in Equation
 (\ref{quin}).
 \begin{align}
-r, g \vdash \{p\} c \{q\} \iff c \le r/(p \rightarrow q) \sqcap g \label{refine}.
+r, g \vdash \{p\} x \{q\} \iff x \le r/(p \rightarrow q) \sqcap g \label{refine}.
 \end{align}
 This encoding allows us to think in terms of program refinement, as in~\cite{hayes_refining_2013}, since
 $r/(p \rightarrow q) \sqcap g$ defines the weakest program that when
@@ -529,7 +546,7 @@ interference using purely algebra. This is not the case, but breaking
 such inherent compositionality in just the right way to capture
 interesting properties of interference requires extra work.
 
-The obvious way of achieving this is to expand our rely-guarantee
+A way of achieving this is to expand our rely-guarantee
 algebra with an additional function $\pi : K \to K$ and redefining our
 quintuples as,
 \begin{align*}
@@ -596,7 +613,7 @@ form $(\sigma_1,\sigma_2) \in \Sigma^2$. A word in such a language is
 \emph{consistent} if every such pair in a word has the same first
 state as the previous transition's second state. For example,
 $(\sigma_1,\sigma_2)(\sigma_2,\sigma_3)$ is consistent, while
-$(\sigma_1,\sigma_2)(\sigma_3,\sigma_3)$ is inconsistent. Sets of
+$(\sigma_1,\sigma_2)(\sigma_3,\sigma_3)$ is consistent only if $\sigma_2 = \sigma_3$. Sets of
 consistent words are essentially \emph{Aczel
   traces}~\cite{boer_formal_1999}, but lack the usual process
 labels. We denote the set of all consistent words by $C$ and define
@@ -681,10 +698,10 @@ The language contains the following six words
 \end{align*}
 where only the first,
 $(\sigma_1,\sigma_1)(\sigma_1,\sigma_2)(\sigma_2,\sigma_3)$ is
-consistent. This word is highlighted with solid arrows in the
-diagram above. Now if we shuffle the single state pair $(\sigma_2,
-\sigma_3)$ into the above language, we might end up with a language as
-below:
+consistent. This word is highlighted with solid arrows in the diagram
+above. Now if we shuffle the single state pair $(\sigma_2, \sigma_3)$
+into the above language, would end up with a language containing the
+words represented in the diagram below:
 
 \begin{center}
 \begin{tikzpicture}[x=1cm,auto]
@@ -762,7 +779,7 @@ where $\Id$ is the identity relation. Two languages $X$ and $Y$ are
 equal under stuttering if $\langle \Id\rangle^\star \| X =_\pi \langle
 \Id\rangle^\star \| Y$.
 
-With mumbling we now have that
+Assuming we apply mumbling to both sides of the following equation, we have that
 \begin{align*}
 \test(P \cap Q) \le_\pi \test(P); \test(Q)
 \end{align*}
@@ -783,7 +800,7 @@ Next, we define the operator $\edn(P)$ which contains all the
 words which end in a state satisfying $P$. Some useful properties of $\edn$ include
 \begin{gather*}
 \edn(P); \test{Q} \le_\pi \edn(P \cap Q), \qquad
-\test(P) \le \edn(Q),\\
+\test(P) \le \edn(P),\\
 \text{range}(\Id_P \circ R) \le P \implies \edn(P); \langle R\rangle^\star \le_\pi \edn(P).
 \end{gather*}
 
@@ -792,7 +809,7 @@ In this model, assignment is defined as
   x := e \ =\ \bigcup v.\,\test\{\sigma.\,\eval(\sigma,e) = v\} \cdot x \leftarrow v
 \end{align*}
 where $x \leftarrow v$ denotes the atomic command which assigns the
-value $v$ to $x$. The $\eval$ function evaluates an expression $e$ in
+value $v$ to $x$. The $\eval$ function atomically evaluates an expression $e$ in
 the state $\sigma$. Using this definition we derive the assignment
 rule
 \begin{align*}
@@ -910,8 +927,8 @@ To prove the correctness of FINDP, we must show that
 where $\mathsf{leastP(f)}$ is the set of states where $f$ is the least
 index satisfying $P$, and $f = len(array)$ is the set of states where
 $f$ is the length of the array. In other words, either we find the
-least element, or no elements in the array satisfy $P$, in which case
-$f$ remains the same as the length of the array.
+least element, or $f$ remains the same as the length of the array, in
+which case no elements in the array satisfy $P$.
 
 To prove the parallel part of the program, subprogram $A$ guarantees
 that it does not modify any of the variables used by subprogram $B$,
@@ -941,7 +958,7 @@ concepts from traces and language theory. This theory has been
 implemented in the Isabelle/HOL theorem prover, providing a solid
 mathematical basis on which to build a tool for mechanised refinement
 and verification tasks. In line with this aim, we have applied
-our formalisation to two simple examples.
+our formalisation to a simple example program.
 
 This implementation serves as a basis from which further interesting
 aspects of concurrent programs, such as non-termination and
@@ -949,15 +966,17 @@ synchronisation can be explored. As mentioned in Section
 \ref{sec:Model}, some of the work needed to implement this we have
 already done in Isabelle.
 
-Algebra plays an important role in our development. First, it
-allowed us to derive inference rules rapidly and with little proof
+Algebra plays an important role in our development. First, it allowed
+us to derive inference rules rapidly and with little proof
 effort. Second, it yields an abstract layer at which many properties
 that would be difficult to prove in concrete models can be verified
 with relative ease by equational reasoning. Third, as pointed out in
 Section \ref{sec:KA}, some fragments of the algebras considered are
 decidable. Therefore, decision procedures for some aspects of
 rely-guarantee reasoning can be implemented in interactive theorem
-proving tools such as Isabelle.
+proving tools such as Isabelle. However, we have not yet
+investigated the extent to which such decision procedures would benefit
+our approach.
 
 The examples from Section \ref{sec:Examples} confirm previous
 evidence~\cite{nieto_rely-guarantee_2003} that even seemingly

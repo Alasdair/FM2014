@@ -1,5 +1,7 @@
 theory Trace
   imports Aczel Mumble_Language Rely_Guarantee Algebra
+  "~~/src/HOL/Library/Quotient_Set"
+  "~~/src/HOL/Lifting_Set"
 begin        
 
 no_notation shuffle (infixl "\<parallel>" 75)
@@ -159,7 +161,7 @@ lemma [simp]: "set_rel (llist_all2 (prod_rel op = op =)) x y \<longleftrightarro
 lemma [simp]: "pcr_trace op = x y \<longleftrightarrow> abs_trace x = y"
   by (simp add: pcr_trace_def OO_def cr_trace_def)
 
-lemma [simp]: "abs_trace X = Abs_trace {Y. X\<^sup>\<dagger> = Y\<^sup>\<dagger>}"
+lemma [simp]: "abs_trace X = Abs_trace {Y. X\<^sup>\<ddagger> = Y\<^sup>\<ddagger>}"
   apply (auto simp add: abs_trace_def)
   apply (subst quot_type.abs_def[of _ _ Rep_trace])
   apply (auto simp add: quot_type_def)
@@ -178,7 +180,8 @@ lemma [simp]: "abs_trace X = Abs_trace {Y. X\<^sup>\<dagger> = Y\<^sup>\<dagger>
   apply (insert Rep_trace)
   by auto
 
-lemma [transfer_rule]: "(pcr_trace op = ===> set_rel (pcr_trace op =) ===> op =) (\<lambda>X Y. X\<^sup>\<dagger> \<in> Mumble ` Y) op \<in>"
+(*
+lemma [transfer_rule]: "(pcr_trace op = ===> set_rel (pcr_trace op =) ===> op =) (\<lambda>X Y. X\<^sup>\<ddagger> \<in> Mumble ` Y) op \<in>"
   apply (auto simp add: fun_rel_def set_rel_def image_def)
   apply (erule_tac x = "Abs_trace {Y. x\<^sup>\<dagger> = Y\<^sup>\<dagger>}" in ballE)
   apply auto
@@ -190,6 +193,7 @@ lemma [transfer_rule]: "(pcr_trace op = ===> set_rel (pcr_trace op =) ===> op =)
 
 lemma [transfer_rule]: "(op = ===> pcr_trace op = ===> op =) (\<lambda>x y. x = Abs_trace {Y. y\<^sup>\<dagger> = Y\<^sup>\<dagger>}) op ="
   by (auto simp add: fun_rel_def)
+*)
 
 lemma atomic_star_lfinite: "xs \<in> star (atomic R) \<Longrightarrow> lfinite xs"
   apply (erule rev_mp)
@@ -316,6 +320,7 @@ begin
   proof
     fix r s x y z :: "'a trace"
     show "(1::'a trace) \<in> RG"
+      apply transfer
       by transfer (auto intro: exI[of _ "{LNil}"] exI[of _ "{}"] simp add: image_def)
 
     show "x \<cdot> y \<sqinter> C \<le> (x \<sqinter> C) \<cdot> (y \<sqinter> C) \<sqinter> C"
