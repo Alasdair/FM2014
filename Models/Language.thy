@@ -3,7 +3,7 @@ theory Language
 begin
 
 (* Old coinduction princples from old version of coinductive packages. Newer coinduction principles
-   for lazy lists are too awkard to use, most because they lack the nice case_conclusion names for
+   for lazy lists are somewhat awkard to use, mostly because they lack the nice case_conclusion names for
    subgoals. *)
 
 lemma llist_equalityI
