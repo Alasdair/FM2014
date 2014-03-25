@@ -256,7 +256,36 @@ lemma shuffle_llength: "zs \<in> xs \<sha> ys \<Longrightarrow> llength zs = lle
 lemma "lfinite xs \<Longrightarrow> env R (xs \<frown> ys) \<Longrightarrow> env R ys"
   by (induct rule: lfinite.induct) auto
 
-lemma
+lemma gap_environment: "lfinite xs \<Longrightarrow> env R (LCons \<sigma> LNil \<frown> xs \<frown> LCons \<sigma>' LNil) \<Longrightarrow> (snd \<sigma>, fst \<sigma>') \<in> (R \<union> lset xs)\<^sup>*"
+proof (induct arbitrary: \<sigma> rule: lfinite.induct)
+  case lfinite_LNil thus ?case
+    by simp (drule env_LConsE, erule r_into_rtrancl)
+next
+  case (lfinite_LConsI xs x)
+  hence "env R (LCons \<sigma> (LCons x (xs \<frown> LCons \<sigma>' LNil)))"
+    by (metis LCons_lappend_LNil lappend_code(2))
+  hence "env R (LCons x (xs \<frown> LCons \<sigma>' LNil))" and "(snd \<sigma>, fst x) \<in> R"
+    by - (metis env_LConsD, metis env_LConsE)
+  hence "env R (LCons x LNil \<frown> xs \<frown> LCons \<sigma>' LNil)"
+    by (metis LCons_lappend_LNil lappend_code(2))
+  hence "(snd x, fst \<sigma>') \<in> (R \<union> lset xs)\<^sup>*"
+    by (metis lfinite_LConsI.hyps(2))
+  hence "(snd x, fst \<sigma>') \<in> (R \<union> lset (LCons x xs))\<^sup>*"
+    by (rule set_rev_mp) (auto intro!: rtrancl_mono)
+  moreover have "(fst x, snd x) \<in> lset (LCons x xs)"
+    by (metis lset_intros(1) surjective_pairing)
+  ultimately show ?case using `(snd \<sigma>, fst x) \<in> R`
+    apply -
+    apply (rule converse_rtrancl_into_rtrancl[where b = "fst x"])
+    apply simp
+    apply (rule converse_rtrancl_into_rtrancl[where b = "snd x"])
+    by simp_all
+qed
+
+lemma lfinite_ltake_llength: "lfinite xs \<Longrightarrow> lfinite (\<up> (llength xs) ys)"
+  by (metis infinity_ileE lfinite_llength_enat llength_ltake min_max.inf_le1 not_lfinite_llength)
+
+lemma shuffle_env:
   assumes "zs \<in> xs \<sha> ys"
   and "env R (lmap \<langle>id,id\<rangle> zs)"
   shows "env ((R \<union> lset ys)\<^sup>*) xs"
@@ -275,38 +304,149 @@ proof (rule classical)
 
   from interleave_left_lappend[OF lfinite_as zs_interleave traj_zs_llen]
   obtain ys' and ys''
-  where "lfinite ys'" and "ys = ys' \<frown> ys''"
-  and "zs = (as \<triangleright> \<up> (llength as + llength ys') (traj zs) \<triangleleft> ys') \<frown> (LCons \<sigma> (LCons \<sigma>' bs) \<triangleright> LCons (Inl ()) (\<down> (eSuc (llength as + llength ys')) (traj zs)) \<triangleleft> ys'')"
+  where "lfinite ys'" and ys_split: "ys = ys' \<frown> ys''"
+  and zs_prefix: "zs = (as \<triangleright> \<up> (llength as + llength ys') (traj zs) \<triangleleft> ys') \<frown> (LCons \<sigma> (LCons \<sigma>' bs) \<triangleright> LCons (Inl ()) (\<down> (eSuc (llength as + llength ys')) (traj zs)) \<triangleleft> ys'')"
     by auto
 
-  hence False
+  let ?prefix = "as \<triangleright> \<up> (llength as + llength ys') (traj zs) \<triangleleft> ys'"
+  let ?t = "\<down> (eSuc (llength as + llength ys')) (traj zs)"
+
+  have "zs = ?prefix \<frown> (LCons \<sigma> (LCons \<sigma>' bs) \<triangleright> LCons (Inl ()) ?t \<triangleleft> ys'')"
+    by (metis zs_prefix)
+  also have "... = ?prefix \<frown> LCons (Inl \<sigma>) (LCons \<sigma>' bs \<triangleright> ?t \<triangleleft> ys'')"
+    by (metis zs_prefix interleave_left lhd_LCons ltl_simps(2))
+  also have "... = ?prefix \<frown> LCons (Inl \<sigma>) (LCons \<sigma>' bs \<triangleright> ltakeWhile is_right ?t \<frown> LCons (Inl ()) (ltl (ldropWhile is_right ?t)) \<triangleleft> ys'')"
     sorry
-  thus ?thesis by auto
+  also have "... = ?prefix \<frown> LCons (Inl \<sigma>) LNil \<frown> lmap Inr (\<up> (llength (ltakeWhile is_right ?t)) ys'') \<frown> LCons (Inl \<sigma>') (bs \<triangleright> ltl (ldropWhile is_right ?t) \<triangleleft> \<down> (llength (ltakeWhile is_right ?t)) ys'')"
+    sorry
+  finally have "zs = ?prefix \<frown> LCons (Inl \<sigma>) LNil \<frown> lmap Inr (\<up> (llength (ltakeWhile is_right ?t)) ys'') \<frown> LCons (Inl \<sigma>') (bs \<triangleright> ltl (ldropWhile is_right ?t) \<triangleleft> \<down> (llength (ltakeWhile is_right ?t)) ys'')"
+    by simp
+
+  hence "env R (LCons \<sigma> LNil \<frown> \<up> (llength (ltakeWhile is_right ?t)) ys'' \<frown> LCons \<sigma>' LNil)"
+    sorry  
+  hence "(snd \<sigma>, fst \<sigma>') \<in> (R \<union> lset (\<up> (llength (ltakeWhile is_right ?t)) ys''))\<^sup>*"
+    apply -
+    apply (erule gap_environment[rotated 1])
+    defer
+    apply (rule lfinite_ltake_llength)
+    sorry
+  hence "(snd \<sigma>, fst \<sigma>') \<in> (R \<union> lset ys)\<^sup>*"
+    apply (rule set_rev_mp)
+    apply (intro rtrancl_mono Un_mono order_refl)
+    by (metis Un_upper2 `lfinite ys'` lset_lappend_lfinite lset_ltake order.trans ys_split)
+  from this and `(snd \<sigma>, fst \<sigma>') \<notin> (R \<union> lset ys)\<^sup>*` have False
+    by blast
+  thus ?thesis by blast
 qed
 
-lemma Rely_parallel: "r \<Colon> x \<parallel> y = r \<Colon> (r \<union> guar (r \<Colon> y) \<Colon> x) \<parallel> (r \<union> guar (r \<Colon> x) \<Colon> y)"
+lemma shuffle_env':
+  assumes "zs \<in> xs \<sha> ys"
+  and "env R (lmap \<langle>id,id\<rangle> zs)"
+  shows "env ((R \<union> lset xs)\<^sup>*) ys"
   sorry
+
+lemma lset_guar: "xs \<in> X \<Longrightarrow> lset xs \<subseteq> guar X"
+  by (auto simp add: guar_def)
+
+lemma env_iso: "R \<subseteq> S \<Longrightarrow> env R xs \<Longrightarrow> env S xs"
+  sorry
+
+lemma ex2_mono: "(\<And>x y. f x y \<longrightarrow> g x y) \<Longrightarrow> (\<exists>x y. f x y) \<longrightarrow> (\<exists>x y. g x y)"
+  by auto
+
+lemma Rely_parallel: "r \<Colon> x \<parallel> y = r \<Colon> (r \<union> guar y \<Colon> x) \<parallel> (r \<union> guar x \<Colon> y)"
+proof -
+  have "r \<Colon> (x \<parallel> y) = r \<Colon> \<Union>{lmap \<langle>id,id\<rangle> ` (xs \<sha> ys) |xs ys. xs \<in> x \<and> ys \<in> y}"
+    by (metis shuffle_def)
+  also have "... = \<Union>{r \<Colon> lmap \<langle>id,id\<rangle> ` (xs \<sha> ys) |xs ys. xs \<in> x \<and> ys \<in> y}"
+    by (subst Rely_continuous) auto
+  also have "... = {zs. \<exists>xs ys. zs \<in> r \<Colon> lmap \<langle>id,id\<rangle> ` (xs \<sha> ys) \<and> xs \<in> x \<and> ys \<in> y}" 
+    by (simp add: Rely_def Env_def image_def) auto
+  also have "... = {zs. \<exists>xs ys. zs \<in> lmap \<langle>id,id\<rangle> ` (xs \<sha> ys) \<and> env (r\<^sup>*) zs \<and> xs \<in> x \<and> ys \<in> y}"
+    by (rule Collect_cong) (auto simp add: Rely_def Env_def)
+  also have "... = {lmap \<langle>id,id\<rangle> zs |zs. \<exists>xs ys. zs \<in> xs \<sha> ys \<and> env (r\<^sup>*) (lmap \<langle>id,id\<rangle> zs) \<and> xs \<in> x \<and> ys \<in> y}"
+    by auto
+  also have "... = lmap \<langle>id,id\<rangle> ` {zs. \<exists>xs ys. zs \<in> xs \<sha> ys \<and> env (r\<^sup>*) (lmap \<langle>id,id\<rangle> zs) \<and> xs \<in> x \<and> ys \<in> y}"
+    by auto
+  also have "... = lmap \<langle>id,id\<rangle> ` {zs. \<exists>xs ys. zs \<in> xs \<sha> ys \<and> env (r\<^sup>*) (lmap \<langle>id,id\<rangle> zs) \<and> env ((r \<union> lset ys)\<^sup>*) xs \<and> xs \<in> x \<and> env ((r \<union> lset xs)\<^sup>*) ys \<and> ys \<in> y}"
+    by (rule arg_cong, rule Collect_cong) (metis rtrancl_Un_rtrancl rtrancl_idemp shuffle_env shuffle_env')
+  also have "... \<subseteq> lmap \<langle>id,id\<rangle> ` {zs. \<exists>xs ys. zs \<in> xs \<sha> ys \<and> env (r\<^sup>*) (lmap \<langle>id,id\<rangle> zs) \<and> env ((r \<union> guar y)\<^sup>*) xs \<and> xs \<in> x \<and> env ((r \<union> guar x)\<^sup>*) ys \<and> ys \<in> y}"
+    apply (intro image_mono Collect_mono ex2_mono)
+    apply auto
+    apply (erule env_iso[rotated 1])
+    apply (metis lset_guar rtrancl_mono subset_refl sup_mono)
+    apply (erule env_iso[rotated 1])
+    by (metis lset_guar rtrancl_mono subset_refl sup_mono)
+  also have "... = lmap \<langle>id,id\<rangle> ` {zs. \<exists>xs ys. zs \<in> xs \<sha> ys \<and> env (r\<^sup>*) (lmap \<langle>id,id\<rangle> zs) \<and> xs \<in> r \<union> guar y \<Colon> x \<and> ys \<in> r \<union> guar x \<Colon> y}"
+    by (rule arg_cong, rule Collect_cong) (auto simp add: Rely_def Env_def)
+  also have "... = {zs. \<exists>xs ys. zs \<in> lmap \<langle>id,id\<rangle> ` (xs \<sha> ys) \<and> env (r\<^sup>*) zs \<and> xs \<in> r \<union> guar y \<Colon> x \<and> ys \<in> r \<union> guar x \<Colon> y}"
+    by auto
+  also have "... = {zs. \<exists>xs ys. zs \<in> r \<Colon> lmap \<langle>id,id\<rangle> ` (xs \<sha> ys) \<and> xs \<in> r \<union> guar y \<Colon> x \<and> ys \<in> r \<union> guar x \<Colon> y}" 
+    by (simp add: Rely_def Env_def image_def)
+  also have "... = \<Union>{r \<Colon> lmap \<langle>id,id\<rangle> ` (xs \<sha> ys) |xs ys. xs \<in> r \<union> guar y \<Colon> x \<and> ys \<in> r \<union> guar x \<Colon> y}"
+    by auto
+  also have "... = r \<Colon> \<Union>{lmap \<langle>id,id\<rangle> ` (xs \<sha> ys) |xs ys. xs \<in> r \<union> guar y \<Colon> x \<and> ys \<in> r \<union> guar x \<Colon> y}"
+    by (subst Rely_continuous) auto
+  also have "... = r \<Colon> (r \<union> guar y \<Colon> x) \<parallel> (r \<union> guar x \<Colon> y)"
+    by (metis shuffle_def)
+  finally have "r \<Colon> x \<parallel> y \<subseteq> r \<Colon> (r \<union> guar y \<Colon> x) \<parallel> (r \<union> guar x \<Colon> y)" .
+  moreover have "r \<Colon> (r \<union> guar y \<Colon> x) \<parallel> (r \<union> guar x \<Colon> y) \<subseteq> r \<Colon> x \<parallel> y"
+    by (metis Rely_coextensive Rely_iso par.mult_isol_var)
+  ultimately show ?thesis by blast
+qed
 
 definition quintuple :: "'a rel \<Rightarrow> 'a rel \<Rightarrow> ('a \<times> 'a) lan \<Rightarrow> ('a \<times> 'a) lan \<Rightarrow> ('a \<times> 'a) lan \<Rightarrow> bool" ("_, _ \<turnstile> \<lbrace>_\<rbrace> _ \<lbrace>_\<rbrace>" [20,20,20,20,20] 1000) where
   "r, g \<turnstile> \<lbrace>p\<rbrace> c \<lbrace>q\<rbrace> \<equiv> r \<Colon> (p \<cdot> c) \<le> q \<inter> prog g"
 
-find_theorems "op \<parallel>" name:iso
-
 lemma Rely_iso2: "r1\<^sup>* \<le> r2\<^sup>* \<Longrightarrow> r1 \<Colon> x \<le> r2 \<Colon> y"
   sorry
+
+primrec circle :: "'a rel \<Rightarrow> ('a \<times> 'a) lan \<Rightarrow> ('a \<times> 'a) lan \<Rightarrow> nat \<Rightarrow> ('a \<times> 'a) lan" where
+  "circle r x y 0 = y"
+| "circle r x y (Suc n) = r \<union> guar (circle r y x n) \<Colon> y"
+
+lemma circle_simp1: "r \<squnion> guar (circle r x y n) \<Colon> circle r y x n = r \<squnion> guar (circle r x y n) \<Colon> x"
+  apply (induct n arbitrary: x y)
+  apply auto
+  apply (metis Rely_coextensive Rely_comm set_rev_mp)
+  sorry
+(*
+  sledgehammer
+  by (metis guar_iso inf_absorb2 inf_sup_aci(1) mod_coext mod_meet order_refl sup_mono)
+*)
+
+lemma prog_lset: "xs \<in> prog g \<longleftrightarrow> lset xs \<subseteq> g\<^sup>*"
+  by (auto simp add: prog_def)
+
+lemma "r \<Colon> x \<le> prog g \<longleftrightarrow> (\<forall>xs \<in> x. env (r\<^sup>*) xs \<longrightarrow> lset xs \<subseteq> g\<^sup>*)"
+  by (auto simp add: subset_eq Rely_def Env_def prog_lset)
+
+lemma
+  assumes "r1, g1 \<turnstile> \<lbrace>p1\<rbrace> c1 \<lbrace>q1\<rbrace>" and "g2 \<le> r1"
+  and "r2, g2 \<turnstile> \<lbrace>p2\<rbrace> c2 \<lbrace>q2\<rbrace>" and "g1 \<le> r2"
+  shows "\<exists>n. circle (r1 \<inter> r2) (p2\<cdot>y) (p1\<cdot>x) n \<le> prog g1"
+proof -
+  have test: "\<And>r. r \<le> r1 \<Longrightarrow> r \<Colon> p1\<cdot>x \<le> prog g1"
+    sorry
+
+  show ?thesis
+    apply (rule_tac x = "(Suc (Suc (Suc (Suc 0))))" in exI)
+    apply simp
+    apply (rule test)
 
 theorem parallel:
   assumes "r1, g1 \<turnstile> \<lbrace>p1\<rbrace> c1 \<lbrace>q1\<rbrace>" and "g2 \<le> r1"
   and "r2, g2 \<turnstile> \<lbrace>p2\<rbrace> c2 \<lbrace>q2\<rbrace>" and "g1 \<le> r2"
-  and "(p1 \<inter> p2) \<cdot> (c1 \<parallel> c2) \<le> (p1 \<cdot> c1 \<parallel> p2 \<cdot>eeg c2)"
+  and "(p1 \<inter> p2) \<cdot> (c1 \<parallel> c2) \<le> (p1 \<cdot> c1 \<parallel> p2 \<cdot> c2)"
   and "prog g1 \<parallel> q2 \<le> q2"
   and "q1 \<parallel> prog g2 \<le> q1"
   shows "(r1 \<inter> r2), (g1 \<union> g2) \<turnstile> \<lbrace>p1 \<inter> p2\<rbrace> c1 \<parallel> c2 \<lbrace>q1 \<inter> q2\<rbrace>"
 proof -
   have "(r1 \<inter> r2) \<Colon> (p1 \<inter> p2) \<cdot> (c1 \<parallel> c2) \<le> r1 \<inter> r2 \<Colon> (p1 \<cdot> c1 \<parallel> p2 \<cdot> c2)"
     by (metis Rely_iso assms(5))
-  also have "... = r1 \<inter> r2 \<Colon> (r1 \<inter> r2 \<union> guar (r1 \<inter> r2 \<Colon> p2 \<cdot> c2) \<Colon> p1 \<cdot> c1) \<parallel> (r1 \<inter> r2 \<union> guar (r1 \<inter> r2 \<Colon> p1 \<cdot> c1) \<Colon> p2 \<cdot> c2)"
+  also have "... = r1 \<inter> r2 \<Colon> (r1 \<inter> r2 \<union> guar (p2 \<cdot> c2) \<Colon> p1 \<cdot> c1) \<parallel> (r1 \<inter> r2 \<union> guar (p1 \<cdot> c1) \<Colon> p2 \<cdot> c2)"
     by (simp only: Rely_parallel[symmetric])
+  also have "... \<le> r1 \<inter> r2 \<Colon> (r1 \<union> guar (p2\<cdot>c2) \<Colon> p1\<cdot>c1) \<parallel> (r2 \<union> guar (p1\<cdot>c1) \<Colon> p2\<cdot>c2)"
   also have "... \<le> r1 \<inter> r2 \<Colon> (r1 \<inter> r2 \<union> guar (r2 \<Colon> p2 \<cdot> c2) \<Colon> p1 \<cdot> c1) \<parallel> (r1 \<inter> r2 \<union> guar (r1 \<Colon> p1 \<cdot> c1) \<Colon> p2 \<cdot> c2)"
     by (intro Rely_iso par.mult_isol_var[rule_format] conjI Rely_iso2 rtrancl_mono Un_mono order_refl guar_iso)
   also have "... \<le> r1 \<inter> r2 \<Colon> (r1 \<inter> r2 \<union> guar (prog g1) \<Colon> p1 \<cdot> c1) \<parallel> (r1 \<inter> r2 \<union> guar (prog g1) \<Colon> p2 \<cdot> c2)"
