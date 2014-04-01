@@ -3,8 +3,8 @@ theory Env
 begin
 
 coinductive env :: "'a rel \<Rightarrow> ('a \<times> 'a) llist \<Rightarrow> bool" for "\<Gamma>" where
-  EqNil [intro!]: "env \<Gamma> LNil"
-| EqSingle [intro!]: "env \<Gamma> (LCons \<sigma> LNil)"
+  EqNil [intro!,simp]: "env \<Gamma> LNil"
+| EqSingle [intro!,simp]: "env \<Gamma> (LCons \<sigma> LNil)"
 | EqPair [intro!]: "(snd \<sigma>, fst \<sigma>') \<in> \<Gamma> \<Longrightarrow> env \<Gamma> (LCons \<sigma>' t) \<Longrightarrow> env \<Gamma> (LCons \<sigma> (LCons \<sigma>' t))"
 
 lemma env_LConsD [dest]: "env \<Gamma> (LCons \<sigma> t) \<Longrightarrow> env \<Gamma> t"
@@ -13,8 +13,80 @@ lemma env_LConsD [dest]: "env \<Gamma> (LCons \<sigma> t) \<Longrightarrow> env 
 lemma env_LConsE [elim]: "env \<Gamma> (LCons \<sigma> (LCons \<sigma>' t)) \<Longrightarrow> (snd \<sigma>, fst \<sigma>') \<in> \<Gamma>"
   by (erule env.cases) auto
 
-lemma lnth_repeat [simp]: "lnth (repeat x) n = x"
-  by (induct n) simp_all
+coinductive rg :: "'a rel \<Rightarrow> 'a rel \<Rightarrow> ('a \<times> 'a) llist \<Rightarrow> bool" for "\<Gamma>" and "\<Delta>" where
+  EqNil: "rg \<Gamma> \<Delta> LNil"
+| EqSingle: "\<sigma> \<in> \<Delta> \<Longrightarrow> rg \<Gamma> \<Delta> (LCons \<sigma> LNil)"
+| EqPairG: "(snd \<sigma>, fst \<sigma>') \<in> \<Gamma> \<Longrightarrow> \<sigma> \<in> \<Delta> \<Longrightarrow> rg \<Gamma> \<Delta> (LCons \<sigma>' t) \<Longrightarrow> rg \<Gamma> \<Delta> (LCons \<sigma> (LCons \<sigma>' t))"
+| EqPairNG: "(snd \<sigma>, fst \<sigma>') \<notin> \<Gamma> \<Longrightarrow> \<sigma> \<in> \<Delta> \<Longrightarrow> rg \<Gamma> \<Delta> (LCons \<sigma> (LCons \<sigma>' t))"
+
+definition RG :: "'a rel \<Rightarrow> 'a rel \<Rightarrow> ('a \<times> 'a) lan" (infix "\<leadsto>" 60) where
+  "R \<leadsto> G = {xs. rg (R\<^sup>*) (G\<^sup>*) xs}"
+
+lemma lprefix_lset: "lprefix xs ys \<Longrightarrow> lset xs \<subseteq> lset ys"
+  by (metis lprefix_def lset_lappend1)
+
+lemma [simp]: "env R (LCons \<sigma> (LCons \<sigma>' LNil)) \<longleftrightarrow> (snd \<sigma>, fst \<sigma>') \<in> R"
+  sorry
+
+lemma rg_lprefix: "(\<forall>xs'. lprefix xs' xs \<and> env (R\<^sup>*) xs' \<longrightarrow> lset xs' \<subseteq> G\<^sup>*) \<Longrightarrow> rg (R\<^sup>*) (G\<^sup>*) xs" 
+proof -
+  assume "(\<forall>xs'. lprefix xs' xs \<and> env (R\<^sup>*) xs' \<longrightarrow> lset xs' \<subseteq> G\<^sup>*)"
+  thus "rg (R\<^sup>*) (G\<^sup>*) xs"
+  proof coinduct
+    case (rg t)
+    show ?case
+    proof (cases t)
+      assume "t = LNil"
+      thus ?case by simp
+    next
+      fix \<sigma> t'
+      assume [simp]: "t = LCons \<sigma> t'"
+      hence "?EqSingle \<or> ?EqPairG \<or> ?EqPairNG"
+      proof (cases t')
+        assume "t' = LNil"
+        from this and rg have "?EqSingle"
+          by auto
+        thus "?EqSingle \<or> ?EqPairG \<or> ?EqPairNG"
+          by simp
+      next
+        fix \<sigma>' t''
+        assume [simp]: "t' = LCons \<sigma>' t''"
+        from this and rg have "?EqPairG \<or> ?EqPairNG"
+        proof (cases "(snd \<sigma>, fst \<sigma>') \<in> R\<^sup>*")
+          assume "(snd \<sigma>, fst \<sigma>') \<in> R\<^sup>*"
+          from this and rg have "?EqPairG"
+            apply simp
+            apply (intro conjI)
+            apply (erule_tac x = "LCons \<sigma> (LCons \<sigma>' LNil)" in allE)
+            apply simp
+            apply (intro disjI1 allI impI)
+            apply (erule conjE)
+            apply (erule_tac x = "LCons \<sigma> xs'" in allE)
+            apply (subgoal_tac "(\<exists>\<sigma>'' xs''. xs' = LCons \<sigma>'' xs'') \<or> xs' = LNil")
+            apply (erule disjE)
+            apply (erule exE)+
+            apply simp
+            apply (erule impE)
+            apply (metis env.EqPair)
+            by auto
+          thus "?EqPairG \<or> ?EqPairNG"
+            by blast
+        next
+          assume "(snd \<sigma>, fst \<sigma>') \<notin> R\<^sup>*"
+          from this and rg have "?EqPairNG"
+            apply simp
+            apply (erule_tac x = "LCons \<sigma> LNil" in allE)
+            by simp
+          thus "?EqPairG \<or> ?EqPairNG"
+            by blast
+        qed
+        thus "?EqSingle \<or> ?EqPairG \<or> ?EqPairNG"
+          by simp
+      qed
+      thus ?case by simp
+    qed
+  qed
+qed
 
 lemma inf_stutter_env:
   assumes "(\<sigma>, \<sigma>) \<in> \<Gamma>"
@@ -89,12 +161,117 @@ qed
 lemma env_interE2 [elim]: "env (R \<inter> S) x \<Longrightarrow> env R x"
   by (metis env_interE1 inf_commute)
 
+lemma env_InterE: "env (\<Inter>\<RR>) x \<Longrightarrow> R \<in> \<RR> \<Longrightarrow> env R x"
+proof -
+  assume "env (\<Inter>\<RR>) x" and "R \<in> \<RR>"
+  hence "env (\<Inter>\<RR>) x \<and> R \<in> \<RR>" by simp
+  thus "env R x"
+  proof coinduct
+    case (env t)
+    thus ?case
+    proof (cases t)
+      assume "t = LNil"
+      thus ?case
+        by simp
+    next
+      fix \<sigma> t'
+      assume [simp]: "t = LCons \<sigma> t'"
+      hence "?EqSingle \<or> ?EqPair"
+      proof (cases t')
+        assume "t' = LNil"
+        thus "?EqSingle \<or> ?EqPair" by simp
+      next
+        fix \<sigma>' t''
+        assume [simp]: "t' = LCons \<sigma>' t''"
+        from env
+        have "?EqPair"
+          apply auto
+          apply (drule env_LConsE)
+          by auto
+        thus "?EqSingle \<or> ?EqPair"
+          by auto
+      qed
+      thus ?case by simp
+    qed
+  qed
+qed
+
+lemma env_InterE_star: "env ((\<Inter>{R\<^sup>* |R. R \<in> \<RR>})\<^sup>*) x \<Longrightarrow> R \<in> \<RR> \<Longrightarrow> env (R\<^sup>*) x"
+proof -
+  assume "env ((\<Inter>{R\<^sup>* |R. R \<in> \<RR>})\<^sup>*) x" and "R \<in> \<RR>"
+  hence "env ((\<Inter>{R\<^sup>* |R. R \<in> \<RR>})\<^sup>*) x \<and> R \<in> \<RR>" by simp
+  thus "env (R\<^sup>*) x"
+  proof coinduct
+    case (env t)
+    thus ?case
+    proof (cases t)
+      assume "t = LNil"
+      thus ?case
+        by simp
+    next
+      fix \<sigma> t'
+      assume [simp]: "t = LCons \<sigma> t'"
+      hence "?EqSingle \<or> ?EqPair"
+      proof (cases t')
+        assume "t' = LNil"
+        thus "?EqSingle \<or> ?EqPair" by simp
+      next
+        fix \<sigma>' t''
+        assume [simp]: "t' = LCons \<sigma>' t''"
+        from env
+        have "?EqPair"
+          apply auto
+          apply (drule env_LConsE)
+          apply (erule set_rev_mp)
+          apply (subst rtrancl_idemp[symmetric]) back back
+          apply (rule rtrancl_mono)
+          by auto
+        thus "?EqSingle \<or> ?EqPair"
+          by auto
+      qed
+      thus ?case by simp
+    qed
+  qed
+qed
+
 lemma env_interI [intro]: "env R t \<Longrightarrow> env S t \<Longrightarrow> env (R \<inter> S) t"
 proof -
   assume "env R t" and "env S t"
   hence "env R t \<and> env S t"
     by auto
   thus "env (R \<inter> S) t"
+  proof (coinduct)
+    case (env t)
+    thus ?case
+    proof (cases t)
+      assume "t = LNil"
+      thus ?case
+        by simp
+    next
+      fix \<sigma> t'
+      assume [simp]: "t = LCons \<sigma> t'"
+      hence "?EqSingle \<or> ?EqPair"
+      proof (cases t')
+        assume "t' = LNil"
+        thus "?EqSingle \<or> ?EqPair" by simp
+      next
+        fix \<sigma>' t''
+        assume [simp]: "t' = LCons \<sigma>' t''"
+        from env
+        show "?EqSingle \<or> ?EqPair"
+          by auto
+      qed
+      thus ?case by simp
+    qed
+  qed
+qed
+
+lemma env_InterI [intro]: "(\<And>R. R \<in> \<RR> \<Longrightarrow> env R t) \<Longrightarrow> env (\<Inter>\<RR>) t"
+proof -
+  assume "(\<And>R. R \<in> \<RR> \<Longrightarrow> env R t)"
+  hence "(\<forall>R. R \<in> \<RR> \<longrightarrow> env R t)"
+    by auto
+  thus "env (\<Inter>\<RR>) t"
   proof (coinduct)
     case (env t)
     thus ?case
@@ -150,6 +327,11 @@ lemma Rely_inter2: "R\<^sup>* \<inter> S\<^sup>* \<Colon> X = (R \<Colon> X) \<i
   apply (metis env_interE2 inf.cobounded1 inf_absorb2 rtrancl_subset_rtrancl)
   by (metis env_interE1 env_interI le_iff_inf r_into_rtrancl subsetI)
 
+lemma "\<Sqinter>{R\<^sup>* |R. R \<in> \<RR>} \<Colon> X \<subseteq> \<Sqinter>{R \<Colon> X |R. R \<in> \<RR>}"
+  apply (auto simp add: Rely_def Env_def)
+  apply (rule env_InterE_star)
+  by simp_all
+
 lemma Rely_comm: "R \<Colon> S \<Colon> X = S \<Colon> R \<Colon> X"
   by (auto simp add: Rely_def)
 
@@ -202,8 +384,108 @@ lemma guar_prog: "guar (prog g) \<le> g\<^sup>*"
   apply (auto simp add: guar_def prog_def)
   by (metis (lifting) UN_subset_iff mem_Collect_eq rtrancl_subset_rtrancl set_rev_mp)
 
+lemma Rely_jp: "join_preserving (\<lambda>x. r \<Colon> x)"
+  by (auto simp add: join_preserving_def Rely_continuous)
+
+lemma lemma1: "x \<le> r \<Colon> g \<Longrightarrow> r \<Colon> x \<le> g"
+  by (auto simp add: Rely_def Env_def)
+
+lemma Rely_iso2: "r1\<^sup>* \<le> r2\<^sup>* \<Longrightarrow> r1 \<Colon> x \<le> r2 \<Colon> x"
+  sorry
+
+lemma prog_lset: "xs \<in> prog g \<longleftrightarrow> lset xs \<subseteq> g\<^sup>*"
+  by (auto simp add: prog_def)
+
+lemma test1: "r \<Colon> x \<le> prog g \<longleftrightarrow> (\<forall>xs \<in> x. env (r\<^sup>*) xs \<longrightarrow> lset xs \<subseteq> g\<^sup>*)"
+  by (auto simp add: subset_eq Rely_def Env_def prog_lset)
+
+(*
+lemma rg_galois1: "guar (r \<Colon> x) \<subseteq> g\<^sup>* \<Longrightarrow> x \<subseteq> r \<leadsto> g"
+  apply (erule rev_mp)
+  apply (subst guar_galois)
+  apply (subst test2)
+  apply (auto simp add: RG_def)
+  by (metis Rely_coextensive Rely_iso2 dual_order.trans not_lfinite_lprefix_conv_eq order_refl rg_lprefix test1)
+*)
+
+lemma subsetD2: "X \<subseteq> Y \<Longrightarrow> (\<forall>z. z \<in> X \<longrightarrow> z \<in> Y)"
+  by auto
+
 lemma contrp: "(\<not> P \<longrightarrow> Q) \<longleftrightarrow> (\<not> Q \<longrightarrow> P)"
   by blast
+
+lemma env_lappend1: "env R (xs \<frown> ys) \<Longrightarrow> env R xs"
+  sorry
+
+lemma environment_var': "\<not> env R xs \<longrightarrow> (\<exists>ys \<sigma> \<sigma>' zs. lfinite ys \<and> env R (ys \<frown> LCons \<sigma> LNil) \<and> xs = ys \<frown> LCons \<sigma> (LCons \<sigma>' zs) \<and> (snd \<sigma>, fst \<sigma>') \<notin> R)"
+proof (subst contrp, auto)
+  assume "\<forall>ys. lfinite ys \<longrightarrow>
+               (\<forall>a b. env R (ys \<frown> LCons (a, b) LNil) \<longrightarrow>
+                      (\<forall>a'. (\<forall>b' zs. xs \<noteq> ys \<frown> LCons (a, b) (LCons (a', b') zs)) \<or> (b, a') \<in> R))"
+  thus "env R xs"
+  proof coinduct
+    case (env t)
+    thus ?case
+    proof (cases t)
+      assume "t = LNil"
+      thus ?case
+        by simp
+    next
+      fix \<sigma> t'
+      assume [simp]: "t = LCons \<sigma> t'"
+      hence "?EqSingle \<or> ?EqPair"
+      proof (cases t')
+        assume "t' = LNil"
+        thus "?EqSingle \<or> ?EqPair" by simp
+      next
+        fix \<sigma>' t''
+        assume [simp]: "t' = LCons \<sigma>' t''"
+        from env
+        have "?EqPair"
+          apply (rule_tac x = \<sigma> in exI)
+          apply (rule_tac x = \<sigma>' in exI)
+          apply (rule_tac x = t'' in exI)
+          apply (intro conjI)
+          apply simp
+          apply simp
+          apply (erule_tac x = LNil in allE)
+          apply simp
+          apply (metis surjective_pairing)
+          apply (subgoal_tac "(snd \<sigma>, fst \<sigma>') \<in> R")
+          defer
+          apply simp
+          apply (erule_tac x = LNil in allE)
+          apply simp
+          apply (metis surjective_pairing)
+          apply auto
+          apply (erule_tac x = "LCons \<sigma> ys" in allE)
+          apply (erule impE)
+          apply simp
+          apply (erule_tac x = a in allE)
+          apply (erule_tac x = b in allE)
+          apply (erule impE)
+          apply simp
+          apply (subgoal_tac "(\<exists>\<sigma>'' ys'. ys = LCons \<sigma>'' ys') \<or> ys = LNil")
+          apply (erule disjE)
+          apply (erule exE)+
+          apply simp
+          apply (metis env.EqPair)
+          apply simp
+          apply (metis neq_LNil_conv)
+          apply (erule_tac x = a' in allE)
+          apply (erule disjE)
+          apply (metis lappend_code(2))
+          by blast
+        thus "?EqSingle \<or> ?EqPair"
+          by auto
+      qed
+      thus ?case by simp
+    qed
+  qed
+qed
+
+lemma environment_var: "\<not> env R xs \<Longrightarrow> (\<exists>ys \<sigma> \<sigma>' zs. lfinite ys \<and> env R (ys \<frown> LCons \<sigma> LNil) \<and> xs = ys \<frown> LCons \<sigma> (LCons \<sigma>' zs) \<and> (snd \<sigma>, fst \<sigma>') \<notin> R)"
+  by (metis environment_var')
 
 lemma environment': "\<not> env R xs \<longrightarrow> (\<exists>ys \<sigma> \<sigma>' zs. lfinite ys \<and> xs = ys \<frown> LCons \<sigma> (LCons \<sigma>' zs) \<and> (snd \<sigma>, fst \<sigma>') \<notin> R)"
 proof (subst contrp, auto)
@@ -245,10 +527,139 @@ lemma environment: "\<not> env R xs \<Longrightarrow> (\<exists>ys \<sigma> \<si
 lemma shuffle_interleaving: "zs \<in> xs \<sha> ys \<Longrightarrow> zs = xs \<triangleright> traj zs \<triangleleft> ys"
   by (auto simp add: tshuffle_words_def reinterleave)
 
-lemma interleave_left_lappend: "lfinite as \<Longrightarrow> xs = as \<frown> bs \<triangleright> t \<triangleleft> cs \<Longrightarrow>
-  llength t = llength as + llength bs + llength cs \<Longrightarrow>
-  (\<exists>cs' cs''. lfinite cs' \<and> cs = cs' \<frown> cs'' \<and> xs = (as \<triangleright> \<up> (llength as + llength cs') t \<triangleleft> cs') \<frown> (bs \<triangleright> LCons (Inl ()) (\<down> (eSuc (llength as + llength cs')) t) \<triangleleft> cs''))"
+lemma llength_lr': "llength (\<rr> xs) = llength (\<rr> ys) \<Longrightarrow> llength (\<ll> xs) = llength (\<ll> ys) \<Longrightarrow> llength xs = llength ys"
+  by (auto simp add: lefts_def rights_def) (metis llength_lr)
+
+lemma lset_ltakeD[dest]:  "x \<in> lset (\<up> n xs) \<Longrightarrow> x \<in> lset xs"
+  by (metis in_mono lset_ltake)
+
+lemma lset_repeatD[dest!]: "x \<in> lset (repeat y) \<Longrightarrow> x = y"
+  by (metis (mono_tags) Aczel.lnth_repeat Coinductive_List.lset_into_lsetp lmember_code(1) lmember_code(2) lset_ex_lnth lset_lmember lsetp_into_lset)
+
+lemma [simp]: "\<rr> (\<up> n (repeat (Inl ()))) = LNil"
+  by (auto simp add: rights_def)
+
+lemma enat_0_le: "enat 0 < n \<Longrightarrow> (\<exists>m. n = eSuc m)"
+  by (metis co.enat.exhaust i0_less zero_enat_def)
+
+lemma [simp]: "\<up> (eSuc n) (repeat x) = LCons x (\<up> n (repeat x))"
+  by (metis iterates_eq_LNil lhd_iterates llist.collapse ltake_eSuc_LCons ltl_iterates)
+
+lemma lnth_ltake_repeat: "enat m < n \<Longrightarrow> lnth (\<up> n (repeat x)) m = x"
+  apply (induct m)
+  apply (drule enat_0_le)
+  apply (erule exE)
+  apply simp
+  by (metis Aczel.lnth_repeat lnth_ltake)
+
+lemma enat_le_llength: "enat n < llength t \<Longrightarrow> (\<exists>t' t''. t = LCons t' t'')"  
+  by (cases t) auto
+
+lemma lnth_no_rights: "\<rr> t = LNil \<Longrightarrow> enat n < llength t \<Longrightarrow> lnth t n = Inl ()"
+  apply (induct n arbitrary: t)
+  apply (simp add: rights_def)
+  apply (drule enat_le_llength)
+  apply (erule exE)+
+  apply simp
+  apply (metis (full_types) is_left.simps(2) obj_sumE unit.exhaust)
+  apply (frule enat_le_llength)
+  apply (erule exE)+
+  apply simp
+  apply (subgoal_tac "enat n < llength t''")
+  apply (subgoal_tac "\<rr> t'' = LNil")
+  apply auto
+  apply (simp add: rights_def)
+  apply (metis lfilter_empty_conv llist.distinct(1) not_is_right)
+  by (metis Suc_ile_eq)
+
+lemma lfilter_repeat: "P x \<Longrightarrow> lfilter P (repeat x) = repeat x"
+  by (metis (full_types) lfilter_all lset_ltakeWhileD ltakeWhile_repeat)
+
+lemma [simp]: "lfilter is_left (repeat (Inl ())) = repeat (Inl ())"
+  by (metis is_left.simps(1) lfilter_repeat)
+
+lemma [simp]: "llength (lfilter is_left (\<up> (enat n) (repeat (Inl ())))) = enat n"
+  apply (induct n)
+  apply (simp add: enat_0)
+  by (simp add: eSuc_enat[symmetric])
+
+lemma traj_all_lefts: "llength (\<ll> t) = n \<Longrightarrow> llength (\<rr> t) = 0 \<Longrightarrow> t = \<up> n (repeat (Inl ()))"
+  apply (subst llist_all2_eq[symmetric])
+  apply (rule llist_all2_all_lnthI)
+  apply (rule llength_lr')
+  apply simp
+  defer
+  apply (subst lnth_ltake_repeat)
+  apply (subgoal_tac "llength t = n")
+  apply (rotate_tac 3)
+  apply (erule rev_mp)
+  apply (subst llength_lr)
+  apply (simp add: lefts_def rights_def)
+  apply (simp add: lefts_def rights_def)
+  apply (rule lnth_no_rights)
+  apply simp_all
+  apply (simp add: lefts_def rights_def)
+  apply (cases n)
+  by simp_all
+
+lemma interleave_only_left [simp]: "xs \<triangleright> \<up> (llength xs) (repeat (Inl ())) \<triangleleft> LNil = lmap Inl xs"
   sorry
+
+lemma [simp]: "min (n::enat) (n + m) = n"
+proof (cases n, auto)
+  fix n
+  show "min (enat n) (enat n + m) = enat n"
+    by (induct n, auto simp add: enat_0 eSuc_enat[symmetric], metis eSuc_plus min_eSuc_eSuc)
+qed
+
+lemma interleave_left_lappend:
+  assumes "lfinite as" and "xs = as \<frown> bs \<triangleright> t \<triangleleft> cs"
+  and "llength (\<ll> t) = llength as + llength bs" and "llength (\<rr> t) = llength cs"
+  shows "\<exists>cs' cs''. lfinite cs' \<and> cs = cs' \<frown> cs'' \<and> xs = (as \<triangleright> \<up> (llength as + llength cs') t \<triangleleft> cs') \<frown> (bs \<triangleright> LCons (Inl ()) (\<down> (eSuc (llength as + llength cs')) t) \<triangleleft> cs'')"
+  sorry
+(*
+proof (cases "cs = LNil")
+  assume cs_LNil [simp]: "cs = LNil"
+
+  from assms(4) have t_def: "t = \<up> (llength as + llength bs) (repeat (Inl ()))"
+    by (intro traj_all_lefts assms(3)) simp
+
+  have "xs = as \<frown> bs \<triangleright> t \<triangleleft> LNil"
+    by (metis assms(2) cs_LNil)
+  also have "... = as \<frown> bs \<triangleright> \<up> (llength as + llength bs) (repeat (Inl ())) \<triangleleft> LNil"
+    by (metis t_def)
+  also have "... = as \<frown> bs \<triangleright> \<up> (llength (as \<frown> bs)) (repeat (Inl ())) \<triangleleft> LNil"
+    by (metis llength_lappend)
+  also have "... = lmap Inl (as \<frown> bs)"
+    by (simp only: interleave_only_left)
+  also have "... = lmap Inl as \<frown> lmap Inl bs"
+    by (metis lmap_lappend_distrib)
+  also have "... = (as \<triangleright> \<up> (llength as) (repeat (Inl ())) \<triangleleft> LNil) \<frown> (bs \<triangleright> \<up> (llength bs) (repeat (Inl ())) \<triangleleft> LNil)"
+    by (simp only: interleave_only_left)
+  finally show ?thesis
+    apply (rule_tac x = LNil in exI)
+    apply (rule_tac x = LNil in exI)
+    apply (intro conjI)
+    apply simp
+    apply simp
+    apply (erule ssubst)
+    apply (rule arg_cong2) back back
+    apply (simp add: t_def)
+    apply (rule arg_cong2) back back
+    apply auto
+    apply (simp add: t_def)
+    sorry
+
+  apply (induct as rule: lfinite_induct)
+  apply (rule_tac x = "\<up> (llength (ltakeWhile is_right t)) cs" in exI)
+  apply (rule_tac x = "\<down> (llength (ltakeWhile is_right t)) cs" in exI)
+  apply (intro conjI)
+  apply simp
+  apply (rule disjI2)
+  defer
+  apply (metis lappend_ltake_ldrop)
+  sorry
+*)
 
 lemma shuffle_llength: "zs \<in> xs \<sha> ys \<Longrightarrow> llength zs = llength xs + llength ys"
   by (auto simp add: tshuffle_words_def lefts_def rights_def) (metis llength_lr)
@@ -258,8 +669,7 @@ lemma "lfinite xs \<Longrightarrow> env R (xs \<frown> ys) \<Longrightarrow> env
 
 lemma gap_environment: "lfinite xs \<Longrightarrow> env R (LCons \<sigma> LNil \<frown> xs \<frown> LCons \<sigma>' LNil) \<Longrightarrow> (snd \<sigma>, fst \<sigma>') \<in> (R \<union> lset xs)\<^sup>*"
 proof (induct arbitrary: \<sigma> rule: lfinite.induct)
-  case lfinite_LNil thus ?case
-    by simp (drule env_LConsE, erule r_into_rtrancl)
+  case lfinite_LNil thus ?case by simp
 next
   case (lfinite_LConsI xs x)
   hence "env R (LCons \<sigma> (LCons x (xs \<frown> LCons \<sigma>' LNil)))"
@@ -297,12 +707,18 @@ proof (rule classical)
   where lfinite_as: "lfinite as" and xs_split: "xs = as \<frown> LCons \<sigma> (LCons \<sigma>' bs)" and "(snd \<sigma>, fst \<sigma>') \<notin> (R \<union> lset ys)\<^sup>*"
     by auto
 
+  from assms(1)
+  have zs_llen: "llength (\<ll> zs) = llength xs"
+    by (auto simp add: tshuffle_words_def)
+
   have zs_interleave: "zs = as \<frown> LCons \<sigma> (LCons \<sigma>' bs) \<triangleright> traj zs \<triangleleft> ys"
     by (metis assms(1) shuffle_interleaving xs_split)
-  have traj_zs_llen: "llength (traj zs) = llength as + llength (LCons \<sigma> (LCons \<sigma>' bs)) + llength ys"
-    by (metis assms(1) llength_lappend llength_traj shuffle_llength xs_split)
+  have traj_zs_llen: "llength (\<ll> (traj zs)) = llength as + llength (LCons \<sigma> (LCons \<sigma>' bs))"
+    by (simp add: zs_llen xs_split)
+  have traj_zs_rlen: "llength (\<rr> (traj zs)) = llength ys"
+    using assms(1) by (simp add: tshuffle_words_def) 
 
-  from interleave_left_lappend[OF lfinite_as zs_interleave traj_zs_llen]
+  from interleave_left_lappend[OF lfinite_as zs_interleave traj_zs_llen traj_zs_rlen]
   obtain ys' and ys''
   where "lfinite ys'" and ys_split: "ys = ys' \<frown> ys''"
   and zs_prefix: "zs = (as \<triangleright> \<up> (llength as + llength ys') (traj zs) \<triangleleft> ys') \<frown> (LCons \<sigma> (LCons \<sigma>' bs) \<triangleright> LCons (Inl ()) (\<down> (eSuc (llength as + llength ys')) (traj zs)) \<triangleleft> ys'')"
@@ -353,6 +769,60 @@ lemma env_iso: "R \<subseteq> S \<Longrightarrow> env R xs \<Longrightarrow> env
 
 lemma ex2_mono: "(\<And>x y. f x y \<longrightarrow> g x y) \<Longrightarrow> (\<exists>x y. f x y) \<longrightarrow> (\<exists>x y. g x y)"
   by auto
+
+lemma
+  assumes "r \<union> g1 \<le> r2"
+  and "r \<union> g2 \<le> r1"
+  and "\<And>zs. lprefix zs xs \<Longrightarrow> env (r1\<^sup>*) zs \<Longrightarrow> lset zs \<subseteq> g1\<^sup>*"
+  and "\<And>zs. lprefix zs ys \<Longrightarrow> env (r2\<^sup>*) zs \<Longrightarrow> lset zs \<subseteq> g2\<^sup>*"
+  and "env ((r \<union> lset ys)\<^sup>*) xs" and "env ((r \<union> lset xs)\<^sup>*) ys"
+  shows "env (r1\<^sup>*) xs"
+proof (rule classical)
+  assume "\<not> (env (r1\<^sup>*) xs)"
+  thm environment_var
+  from environment_var[OF this]
+  obtain as \<sigma> \<sigma>' bs
+  where "lfinite as"
+  and "xs = as \<frown> LCons \<sigma> (LCons \<sigma>' bs)"
+  and "(snd \<sigma>, fst \<sigma>') \<notin> r1\<^sup>*"
+    by blast
+
+  have "lset xs \<subseteq> g1\<^sup>*"
+    apply (rule assms(3))
+    apply (rule env_iso)
+    apply (rule rtrancl_mono)
+    apply (rule assms(2))
+    find_theorems "env"
+
+  have "(snd \<sigma>, fst \<sigma>') \<in> (r \<union> lset ys)\<^sup>*"
+
+lemma Rely_parallel:
+  assumes "r1 \<Colon> x \<le> prog g1" and "r2 \<Colon> y \<le> prog g2"
+  and "r \<union> g1 \<le> r2"
+  and "r \<union> g2 \<le> r1"
+  shows "r \<Colon> x \<parallel> y = r \<Colon> (r1 \<Colon> x) \<parallel> (r2 \<Colon> y)"
+proof -
+  from assms(1)
+  have "\<And>xs. xs \<in> x \<Longrightarrow> env (r1\<^sup>*) xs \<Longrightarrow> lset xs \<subseteq> g1\<^sup>*"
+    by (simp add: test1)
+  from assms(2)
+  have "\<And>ys. ys \<in> y \<Longrightarrow> env (r2\<^sup>*) ys \<Longrightarrow> lset ys \<subseteq> g2\<^sup>*"
+    by (simp add: test1)
+
+  have "r \<Colon> (x \<parallel> y) = r \<Colon> \<Union>{lmap \<langle>id,id\<rangle> ` (xs \<sha> ys) |xs ys. xs \<in> x \<and> ys \<in> y}"
+    by (metis shuffle_def)
+  also have "... = \<Union>{r \<Colon> lmap \<langle>id,id\<rangle> ` (xs \<sha> ys) |xs ys. xs \<in> x \<and> ys \<in> y}"
+    by (subst Rely_continuous) auto
+  also have "... = {zs. \<exists>xs ys. zs \<in> r \<Colon> lmap \<langle>id,id\<rangle> ` (xs \<sha> ys) \<and> xs \<in> x \<and> ys \<in> y}" 
+    by (simp add: Rely_def Env_def image_def) auto
+  also have "... = {zs. \<exists>xs ys. zs \<in> lmap \<langle>id,id\<rangle> ` (xs \<sha> ys) \<and> env (r\<^sup>*) zs \<and> xs \<in> x \<and> ys \<in> y}"
+    by (rule Collect_cong) (auto simp add: Rely_def Env_def)
+  also have "... = {lmap \<langle>id,id\<rangle> zs |zs. \<exists>xs ys. zs \<in> xs \<sha> ys \<and> env (r\<^sup>*) (lmap \<langle>id,id\<rangle> zs) \<and> xs \<in> x \<and> ys \<in> y}"
+    by auto
+  also have "... = lmap \<langle>id,id\<rangle> ` {zs. \<exists>xs ys. zs \<in> xs \<sha> ys \<and> env (r\<^sup>*) (lmap \<langle>id,id\<rangle> zs) \<and> xs \<in> x \<and> ys \<in> y}"
+    by auto
+  also have "... = lmap \<langle>id,id\<rangle> ` {zs. \<exists>xs ys. zs \<in> xs \<sha> ys \<and> env (r\<^sup>*) (lmap \<langle>id,id\<rangle> zs) \<and> env ((r \<union> lset ys)\<^sup>*) xs \<and> xs \<in> x \<and> env ((r \<union> lset xs)\<^sup>*) ys \<and> ys \<in> y}"
+    by (rule arg_cong, rule Collect_cong) (metis rtrancl_Un_rtrancl rtrancl_idemp shuffle_env shuffle_env')
 
 lemma Rely_parallel: "r \<Colon> x \<parallel> y = r \<Colon> (r \<union> guar y \<Colon> x) \<parallel> (r \<union> guar x \<Colon> y)"
 proof -
@@ -418,21 +888,20 @@ lemma circle_simp1: "r \<squnion> guar (circle r x y n) \<Colon> circle r y x n 
 lemma prog_lset: "xs \<in> prog g \<longleftrightarrow> lset xs \<subseteq> g\<^sup>*"
   by (auto simp add: prog_def)
 
-lemma "r \<Colon> x \<le> prog g \<longleftrightarrow> (\<forall>xs \<in> x. env (r\<^sup>*) xs \<longrightarrow> lset xs \<subseteq> g\<^sup>*)"
+lemma test1: "r \<Colon> x \<le> prog g \<longleftrightarrow> (\<forall>xs \<in> x. env (r\<^sup>*) xs \<longrightarrow> lset xs \<subseteq> g\<^sup>*)"
   by (auto simp add: subset_eq Rely_def Env_def prog_lset)
 
-lemma
-  assumes "r1, g1 \<turnstile> \<lbrace>p1\<rbrace> c1 \<lbrace>q1\<rbrace>" and "g2 \<le> r1"
-  and "r2, g2 \<turnstile> \<lbrace>p2\<rbrace> c2 \<lbrace>q2\<rbrace>" and "g1 \<le> r2"
-  shows "\<exists>n. circle (r1 \<inter> r2) (p2\<cdot>y) (p1\<cdot>x) n \<le> prog g1"
-proof -
-  have test: "\<And>r. r \<le> r1 \<Longrightarrow> r \<Colon> p1\<cdot>x \<le> prog g1"
-    sorry
+lemma test2: "r \<Colon> x \<le> prog g \<longleftrightarrow> (\<forall>xs \<in> x. \<forall>xs'. lprefix xs' xs \<and> lfinite xs' \<and> env (r\<^sup>*) xs' \<longrightarrow> lset xs' \<subseteq> g\<^sup>*)"
+  apply (simp add: test1)
+  apply auto
+  apply (metis Rely_coextensive Rely_iso2 prog_lset r_into_rtrancl subsetD subsetI subset_trans test1)
+  by (metis Rely_coextensive Rely_iso2 in_mono order_trans subset_refl test1)
 
-  show ?thesis
-    apply (rule_tac x = "(Suc (Suc (Suc (Suc 0))))" in exI)
-    apply simp
-    apply (rule test)
+lemma "r \<Colon> x \<subseteq> prog r \<Longrightarrow> \<exists>n. prog r = iter (\<lambda>g. guar g \<Colon> x) n UNIV"
+  apply (simp add: test2)
+
+lemma "\<not> (r \<Colon> x \<le> prog g) \<longleftrightarrow> (\<exists>xs\<in>X. env (r\<^sup>*) xs \<and> \<not> lset xs \<subseteq> g\<^sup>*)"
+  by (metis (mono_tags) Rely_iso2 order_refl subset_antisym test1)
 
 theorem parallel:
   assumes "r1, g1 \<turnstile> \<lbrace>p1\<rbrace> c1 \<lbrace>q1\<rbrace>" and "g2 \<le> r1"
@@ -443,13 +912,7 @@ theorem parallel:
   shows "(r1 \<inter> r2), (g1 \<union> g2) \<turnstile> \<lbrace>p1 \<inter> p2\<rbrace> c1 \<parallel> c2 \<lbrace>q1 \<inter> q2\<rbrace>"
 proof -
   have "(r1 \<inter> r2) \<Colon> (p1 \<inter> p2) \<cdot> (c1 \<parallel> c2) \<le> r1 \<inter> r2 \<Colon> (p1 \<cdot> c1 \<parallel> p2 \<cdot> c2)"
-    by (metis Rely_iso assms(5))
-  also have "... = r1 \<inter> r2 \<Colon> (r1 \<inter> r2 \<union> guar (p2 \<cdot> c2) \<Colon> p1 \<cdot> c1) \<parallel> (r1 \<inter> r2 \<union> guar (p1 \<cdot> c1) \<Colon> p2 \<cdot> c2)"
-    by (simp only: Rely_parallel[symmetric])
-  also have "... \<le> r1 \<inter> r2 \<Colon> (r1 \<union> guar (p2\<cdot>c2) \<Colon> p1\<cdot>c1) \<parallel> (r2 \<union> guar (p1\<cdot>c1) \<Colon> p2\<cdot>c2)"
-  also have "... \<le> r1 \<inter> r2 \<Colon> (r1 \<inter> r2 \<union> guar (r2 \<Colon> p2 \<cdot> c2) \<Colon> p1 \<cdot> c1) \<parallel> (r1 \<inter> r2 \<union> guar (r1 \<Colon> p1 \<cdot> c1) \<Colon> p2 \<cdot> c2)"
-    by (intro Rely_iso par.mult_isol_var[rule_format] conjI Rely_iso2 rtrancl_mono Un_mono order_refl guar_iso)
-  also have "... \<le> r1 \<inter> r2 \<Colon> (r1 \<inter> r2 \<union> guar (prog g1) \<Colon> p1 \<cdot> c1) \<parallel> (r1 \<inter> r2 \<union> guar (prog g1) \<Colon> p2 \<cdot> c2)"
+    apply (simp add: shuffle_def)
     
 
 lemma [simp]: "ys \<notin> ltls ys \<longleftrightarrow> False"
