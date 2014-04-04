@@ -14,13 +14,19 @@ lemma env_LConsE [elim]: "env \<Gamma> (LCons \<sigma> (LCons \<sigma>' t)) \<Lo
   by (erule env.cases) auto
 
 coinductive rg :: "'a rel \<Rightarrow> 'a rel \<Rightarrow> ('a \<times> 'a) llist \<Rightarrow> bool" for "\<Gamma>" and "\<Delta>" where
-  EqNil: "rg \<Gamma> \<Delta> LNil"
-| EqSingle: "\<sigma> \<in> \<Delta> \<Longrightarrow> rg \<Gamma> \<Delta> (LCons \<sigma> LNil)"
+  EqNil [intro!,simp]: "rg \<Gamma> \<Delta> LNil"
+| EqSingle [intro!]: "\<sigma> \<in> \<Delta> \<Longrightarrow> rg \<Gamma> \<Delta> (LCons \<sigma> LNil)"
 | EqPairG: "(snd \<sigma>, fst \<sigma>') \<in> \<Gamma> \<Longrightarrow> \<sigma> \<in> \<Delta> \<Longrightarrow> rg \<Gamma> \<Delta> (LCons \<sigma>' t) \<Longrightarrow> rg \<Gamma> \<Delta> (LCons \<sigma> (LCons \<sigma>' t))"
 | EqPairNG: "(snd \<sigma>, fst \<sigma>') \<notin> \<Gamma> \<Longrightarrow> \<sigma> \<in> \<Delta> \<Longrightarrow> rg \<Gamma> \<Delta> (LCons \<sigma> (LCons \<sigma>' t))"
 
+lemma rg_hd: "rg R G (LCons x xs) \<Longrightarrow> x \<in> G"
+  by (erule rg.cases) auto
+
 definition RG :: "'a rel \<Rightarrow> 'a rel \<Rightarrow> ('a \<times> 'a) lan" (infix "\<leadsto>" 60) where
   "R \<leadsto> G = {xs. rg (R\<^sup>*) (G\<^sup>*) xs}"
+
+lemma rg_LCons2D: "rg R G (LCons \<sigma> (LCons \<sigma>' xs)) \<Longrightarrow> (snd \<sigma>, fst \<sigma>') \<in> R \<longrightarrow> rg R G (LCons \<sigma>' xs)"
+  by (erule rg.cases) auto
 
 lemma lprefix_lset: "lprefix xs ys \<Longrightarrow> lset xs \<subseteq> lset ys"
   by (metis lprefix_def lset_lappend1)
@@ -28,9 +34,16 @@ lemma lprefix_lset: "lprefix xs ys \<Longrightarrow> lset xs \<subseteq> lset ys
 lemma [simp]: "env R (LCons \<sigma> (LCons \<sigma>' LNil)) \<longleftrightarrow> (snd \<sigma>, fst \<sigma>') \<in> R"
   sorry
 
-lemma rg_lprefix: "(\<forall>xs'. lprefix xs' xs \<and> env (R\<^sup>*) xs' \<longrightarrow> lset xs' \<subseteq> G\<^sup>*) \<Longrightarrow> rg (R\<^sup>*) (G\<^sup>*) xs" 
+lemma "rg R G (LCons x xs) \<and> env R (LCons x xs) \<Longrightarrow> rg R G xs"
+  apply (cases xs)
+  apply auto
+  apply (drule rg_LCons2D)
+  apply (drule env_LConsE)
+  by auto
+
+lemma rg_lprefix: "(\<forall>xs'. lfinite xs' \<and> lprefix xs' xs \<and> env (R\<^sup>*) xs' \<longrightarrow> lset xs' \<subseteq> G\<^sup>*) \<Longrightarrow> rg (R\<^sup>*) (G\<^sup>*) xs" 
 proof -
-  assume "(\<forall>xs'. lprefix xs' xs \<and> env (R\<^sup>*) xs' \<longrightarrow> lset xs' \<subseteq> G\<^sup>*)"
+  assume "(\<forall>xs'. lfinite xs' \<and> lprefix xs' xs \<and> env (R\<^sup>*) xs' \<longrightarrow> lset xs' \<subseteq> G\<^sup>*)"
   thus "rg (R\<^sup>*) (G\<^sup>*) xs"
   proof coinduct
     case (rg t)
@@ -45,7 +58,7 @@ proof -
       proof (cases t')
         assume "t' = LNil"
         from this and rg have "?EqSingle"
-          by auto
+          by auto (metis env.EqSingle lfinite_LCons lfinite_LNil lprefix_refl lset_intros(1) set_rev_mp)
         thus "?EqSingle \<or> ?EqPairG \<or> ?EqPairNG"
           by simp
       next
@@ -87,6 +100,39 @@ proof -
     qed
   qed
 qed
+
+lemma rg_lprefix2: "lfinite xs' \<Longrightarrow> rg (R\<^sup>*) (G\<^sup>*) xs \<Longrightarrow> lprefix xs' xs \<Longrightarrow> env (R\<^sup>*) xs' \<Longrightarrow> lset xs' \<subseteq> G\<^sup>*"
+proof (induct xs' arbitrary: xs rule: lfinite_induct)
+  case Nil
+  thus ?case
+    by auto
+next
+  case (Cons x xs')
+  thus ?case
+    apply (cases xs)
+    apply simp
+    apply simp
+    apply auto
+    apply (metis rg_hd)
+    apply (rename_tac a b xs a' b')
+    apply (subgoal_tac "(\<exists>y ys. xs = LCons y ys) \<or> xs = LNil")
+    apply (erule disjE)
+    apply (erule exE)+
+    apply simp
+    apply (drule rg_LCons2D)
+    apply simp
+    apply (cases xs')
+    apply simp
+    apply simp
+    apply (metis LCons_lprefix_conv env_LConsD env_LConsE in_mono snd_conv)
+    by auto
+qed
+
+lemma rg_lprefix_eq: "(\<forall>xs'. lfinite xs' \<and> lprefix xs' xs \<and> env (R\<^sup>*) xs' \<longrightarrow> lset xs' \<subseteq> G\<^sup>*) \<longleftrightarrow> rg (R\<^sup>*) (G\<^sup>*) xs"
+  by (metis rg_lprefix rg_lprefix2)
+
+lemma RG_lprefix: "xs \<in> R \<leadsto> G \<longleftrightarrow> (\<forall>xs'. lfinite xs' \<and> lprefix xs' xs \<and> env (R\<^sup>*) xs' \<longrightarrow> lset xs' \<subseteq> G\<^sup>*)"
+  by (metis RG_def mem_Collect_eq rg_lprefix_eq)
 
 lemma inf_stutter_env:
   assumes "(\<sigma>, \<sigma>) \<in> \<Gamma>"
@@ -777,15 +823,24 @@ lemma
   and "\<And>zs. lprefix zs ys \<Longrightarrow> env (r2\<^sup>*) zs \<Longrightarrow> lset zs \<subseteq> g2\<^sup>*"
   and "env ((r \<union> lset ys)\<^sup>*) xs" and "env ((r \<union> lset xs)\<^sup>*) ys"
   shows "env (r1\<^sup>*) xs"
-proof (rule classical)
+proof (rule classical, auto)
   assume "\<not> (env (r1\<^sup>*) xs)"
-  thm environment_var
   from environment_var[OF this]
   obtain as \<sigma> \<sigma>' bs
-  where "lfinite as"
-  and "xs = as \<frown> LCons \<sigma> (LCons \<sigma>' bs)"
-  and "(snd \<sigma>, fst \<sigma>') \<notin> r1\<^sup>*"
+  where as_finite: "lfinite as"
+  and as_env: "env (r1\<^sup>*) (as \<frown> LCons \<sigma> LNil)"
+  and xs_split: "xs = as \<frown> LCons \<sigma> (LCons \<sigma>' bs)"
+  and bad_trans: "(snd \<sigma>, fst \<sigma>') \<notin> r1\<^sup>*"
     by blast
+  have "\<exists>y y'. (y, y') \<in> lset ys \<and> (y, y') \<notin> r1\<^sup>*"
+    sorry
+
+
+
+    have "(snd \<sigma>, fst \<sigma>') \<in> r \<and> (snd \<sigma>, fst \<sigma>') \<in> (lset ys)\<^sup>*"
+
+  have "lset (as \<frown> LCons \<sigma> LNil) \<subseteq> g1\<^sup>*"
+    by (rule assms(3)) (simp_all add: xs_split as_env)
 
   have "lset xs \<subseteq> g1\<^sup>*"
     apply (rule assms(3))
