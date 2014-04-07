@@ -25,33 +25,68 @@ coinductive rg :: "'a rel \<Rightarrow> ('a \<times> 'a) llist \<Rightarrow> ('a
 definition RG :: "'a rel \<Rightarrow> ('a \<times> 'a) lan \<Rightarrow> ('a \<times> 'a) lan" (infix "\<leadsto>" 60) where
   "R \<leadsto> X = {ys. \<exists>xs\<in>X. rg (R\<^sup>*) xs ys}"
 
-coinductive rg :: "'a rel \<Rightarrow> 'a rel \<Rightarrow> ('a \<times> 'a) llist \<Rightarrow> bool" for "\<Gamma>" and "\<Delta>" where
-  EqNil [intro!,simp]: "rg \<Gamma> \<Delta> LNil"
-| EqSingle [intro!]: "\<sigma> \<in> \<Delta> \<Longrightarrow> rg \<Gamma> \<Delta> (LCons \<sigma> LNil)"
-| EqPairG: "(snd \<sigma>, fst \<sigma>') \<in> \<Gamma> \<Longrightarrow> \<sigma> \<in> \<Delta> \<Longrightarrow> rg \<Gamma> \<Delta> (LCons \<sigma>' t) \<Longrightarrow> rg \<Gamma> \<Delta> (LCons \<sigma> (LCons \<sigma>' t))"
-| EqPairNG: "(snd \<sigma>, fst \<sigma>') \<notin> \<Gamma> \<Longrightarrow> \<sigma> \<in> \<Delta> \<Longrightarrow> rg \<Gamma> \<Delta> (LCons \<sigma> (LCons \<sigma>' t))"
-
-lemma rg_hd: "rg R G (LCons x xs) \<Longrightarrow> x \<in> G"
-  by (erule rg.cases) auto
-
-definition RG :: "'a rel \<Rightarrow> 'a rel \<Rightarrow> ('a \<times> 'a) lan" (infix "\<leadsto>" 60) where
-  "R \<leadsto> G = {xs. rg (R\<^sup>*) (G\<^sup>*) xs}"
-
-lemma rg_LCons2D: "rg R G (LCons \<sigma> (LCons \<sigma>' xs)) \<Longrightarrow> (snd \<sigma>, fst \<sigma>') \<in> R \<longrightarrow> rg R G (LCons \<sigma>' xs)"
-  by (erule rg.cases) auto
-
 lemma lprefix_lset: "lprefix xs ys \<Longrightarrow> lset xs \<subseteq> lset ys"
   by (metis lprefix_def lset_lappend1)
 
 lemma [simp]: "env R (LCons \<sigma> (LCons \<sigma>' LNil)) \<longleftrightarrow> (snd \<sigma>, fst \<sigma>') \<in> R"
+  by auto
+
+definition prog :: "'a rel \<Rightarrow> ('a \<times> 'a) lan" where
+  "prog X = {xs. lset xs \<subseteq> X\<^sup>*}"
+
+lemma rg_equality [intro]: "xs = ys \<Longrightarrow> rg R xs ys"
+proof -
+  assume "xs = ys"
+  thus "rg R xs ys"
+  proof coinduct
+    case (rg xs ys)
+    show ?case
+    proof (cases xs)
+      assume "xs = LNil"
+      thus ?case
+        by (metis rg)
+    next
+      fix \<sigma> xs'
+      assume [simp]: "xs = LCons \<sigma> xs'"
+      hence "?EqSingle \<or> ?EqPairR \<or> ?EqPairNR"
+        by (metis llist.exhaust prod.exhaust rg)
+      thus ?case
+        by blast
+    qed
+  qed
+qed
+
+lemma rg_refl [intro!,simp]: "rg R xs xs"
+  by (metis rg_equality)
+
+lemma lem1: "rg R xs ys \<Longrightarrow> (\<exists>xs\<^sub>h \<sigma> \<sigma>' \<sigma>'' xs\<^sub>t ys\<^sub>t. ys = xs\<^sub>h \<frown> (\<sigma> # \<sigma>'' # ys\<^sub>t) \<and> xs = xs\<^sub>h \<frown> (\<sigma> # \<sigma>' # xs\<^sub>t) \<and> fst \<sigma>' = fst \<sigma>'' \<and> env R (xs\<^sub>h \<frown> (\<sigma> # LNil)) \<and> lfinite xs\<^sub>h \<and> (snd \<sigma>, fst \<sigma>') \<notin> R) \<or> xs = ys"
   sorry
 
-lemma "rg R G (LCons x xs) \<and> env R (LCons x xs) \<Longrightarrow> rg R G xs"
-  apply (cases xs)
-  apply auto
-  apply (drule rg_LCons2D)
-  apply (drule env_LConsE)
-  by auto
+lemma
+  assumes "zs' \<in> xs' \<sha> ys'"
+  and "rg ((R \<union> G\<^sub>2)\<^sup>*) xs xs'" and "lset xs \<subseteq> G\<^sub>1\<^sup>*"
+  and "rg ((R \<union> G\<^sub>1)\<^sup>*) ys ys'" and "lset ys \<subseteq> G\<^sub>2\<^sup>*"
+  shows "\<exists>zs \<in> xs \<sha> ys. rg (R\<^sup>*) (lmap \<langle>id,id\<rangle> zs) (lmap \<langle>id,id\<rangle> zs')"
+  using assms(2) and assms(4)
+  apply -
+  apply (drule lem1)+
+  apply (erule disjE)
+  apply (erule disjE)
+  prefer 3
+  apply (erule disjE)
+  prefer 2
+  apply simp
+  apply (rule_tac x = zs' in bexI)
+
+lemma "(R \<union> G\<^sub>2 \<leadsto> prog G\<^sub>1 \<inter> X) \<parallel> (R \<union> G\<^sub>1 \<leadsto> prog G\<^sub>2 \<inter> Y) \<subseteq> R \<leadsto> (prog G\<^sub>1 \<inter> X) \<parallel> (prog G\<^sub>2 \<inter> Y)"
+  apply (auto simp add: RG_def shuffle_def)
+  apply (rename_tac xs' ys' zs xs ys)
+  apply (rule_tac x = "lmap \<langle>id,id\<rangle> ` (xs \<sha> ys)" in exI)
+  apply (intro conjI)
+  apply (rule_tac x = xs in exI)
+  apply (rule_tac x = ys in exI)
+  apply simp
+  nitpick
 
 lemma rg_lprefix: "(\<forall>xs'. lfinite xs' \<and> lprefix xs' xs \<and> env (R\<^sup>*) xs' \<longrightarrow> lset xs' \<subseteq> G\<^sup>*) \<Longrightarrow> rg (R\<^sup>*) (G\<^sup>*) xs" 
 proof -
