@@ -2,16 +2,28 @@ theory Env
   imports Language Mumble_Language
 begin
 
-coinductive env :: "'a rel \<Rightarrow> ('a \<times> 'a) llist \<Rightarrow> bool" for "\<Gamma>" where
-  EqNil [intro!,simp]: "env \<Gamma> LNil"
-| EqSingle [intro!,simp]: "env \<Gamma> (LCons \<sigma> LNil)"
-| EqPair [intro!]: "(snd \<sigma>, fst \<sigma>') \<in> \<Gamma> \<Longrightarrow> env \<Gamma> (LCons \<sigma>' t) \<Longrightarrow> env \<Gamma> (LCons \<sigma> (LCons \<sigma>' t))"
+coinductive env :: "'a rel \<Rightarrow> ('a \<times> 'a) llist \<Rightarrow> bool" for "R" where
+  EqNil [intro!,simp]: "env R LNil"
+| EqSingle [intro!,simp]: "env R (LCons \<sigma> LNil)"
+| EqPair [intro!]: "(snd \<sigma>, fst \<sigma>') \<in> R \<Longrightarrow> env R (LCons \<sigma>' t) \<Longrightarrow> env R (LCons \<sigma> (LCons \<sigma>' t))"
 
-lemma env_LConsD [dest]: "env \<Gamma> (LCons \<sigma> t) \<Longrightarrow> env \<Gamma> t"
+lemma env_tl [dest]: "env R (LCons \<sigma> t) \<Longrightarrow> env R t"
   by (erule env.cases) auto
 
-lemma env_LConsE [elim]: "env \<Gamma> (LCons \<sigma> (LCons \<sigma>' t)) \<Longrightarrow> (snd \<sigma>, fst \<sigma>') \<in> \<Gamma>"
+lemma env_LConsD [dest]: "env R (LCons \<sigma> (LCons \<sigma>' t)) \<Longrightarrow> (snd \<sigma>, fst \<sigma>') \<in> R"
   by (erule env.cases) auto
+
+no_notation Cons (infixr "#" 65)
+notation LCons (infixr "#" 65)
+
+coinductive rg :: "'a rel \<Rightarrow> ('a \<times> 'a) llist \<Rightarrow> ('a \<times> 'a) llist \<Rightarrow> bool" for R where
+  EqNil [intro!,simp]: "rg R LNil LNil"
+| EqSingle [intro!]: "rg R (LCons \<sigma> LNil) (LCons \<sigma> LNil)"
+| EqPairR: "(\<sigma>\<^sub>1', \<sigma>\<^sub>2) \<in> R \<Longrightarrow> rg R ((\<sigma>\<^sub>2,\<sigma>\<^sub>2') # t) ((\<sigma>\<^sub>2,\<sigma>\<^sub>2') # t') \<Longrightarrow> rg R ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2') # t) ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2') # t')"
+| EqPairNR: "(\<sigma>\<^sub>1', \<sigma>\<^sub>2) \<notin> R \<Longrightarrow> rg R ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2') # t) ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2'') # t')"
+
+definition RG :: "'a rel \<Rightarrow> ('a \<times> 'a) lan \<Rightarrow> ('a \<times> 'a) lan" (infix "\<leadsto>" 60) where
+  "R \<leadsto> X = {ys. \<exists>xs\<in>X. rg (R\<^sup>*) xs ys}"
 
 coinductive rg :: "'a rel \<Rightarrow> 'a rel \<Rightarrow> ('a \<times> 'a) llist \<Rightarrow> bool" for "\<Gamma>" and "\<Delta>" where
   EqNil [intro!,simp]: "rg \<Gamma> \<Delta> LNil"
