@@ -22,7 +22,6 @@ coinductive rg :: "'a rel \<Rightarrow> ('a \<times> 'a) llist \<Rightarrow> ('a
 | EqPairR: "(\<sigma>\<^sub>1', \<sigma>\<^sub>2) \<in> R \<Longrightarrow> rg R ((\<sigma>\<^sub>2,\<sigma>\<^sub>2') # t) ((\<sigma>\<^sub>2,\<sigma>\<^sub>2') # t') \<Longrightarrow> rg R ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2') # t) ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2') # t')"
 | EqPairNR: "(\<sigma>\<^sub>1', \<sigma>\<^sub>2) \<notin> R \<Longrightarrow> rg R ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2') # t) ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2'') # t')"
 
-
 definition RG :: "'a rel \<Rightarrow> ('a \<times> 'a) lan \<Rightarrow> ('a \<times> 'a) lan" (infix "\<leadsto>" 60) where
   "R \<leadsto> X = {ys. \<exists>xs\<in>X. rg (R\<^sup>*) xs ys}"
 
@@ -71,6 +70,10 @@ lemma "X \<le> R \<leadsto> Y \<Longrightarrow> R \<leadsto> X \<le> R \<leadsto
 
 lemma RG_continuous: "R \<leadsto> \<Union>\<XX> = \<Union>{R \<leadsto> X |X. X \<in> \<XX>}"
   by (auto simp add: RG_def)
+
+lemma RG_guar_meet: "R \<leadsto> prog G\<^sub>1 \<inter> prog G\<^sub>2 = (R \<leadsto> prog G\<^sub>1) \<inter> (R \<leadsto> prog G\<^sub>2)"
+  apply (auto simp add: RG_def)
+  apply (rename_tac xs ys zs)
 
 lemma RG_UNIV: "R \<leadsto> UNIV = UNIV"
   by (auto simp add: RG_def)
