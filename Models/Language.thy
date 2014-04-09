@@ -28,7 +28,6 @@ lemma llist_fun_equalityI
           (f (LCons x l), g (LCons x l)) = (LCons a l1, LCons b l2) \<and>
             a = b \<and> ((l1, l2) \<in> {(f u, g u) | u. True} \<or> l1 = l2))"
 
-
       (is "\<And>x l. ?fun_LCons x l")
   shows "f l = g l"
 proof -
@@ -282,6 +281,8 @@ inductive_set ltls :: "'a llist \<Rightarrow> 'a llist set" for xs :: "'a llist"
   "xs \<in> ltls xs"
 | "xs' \<in> ltls xs \<Longrightarrow> ltl xs' \<in> ltls xs"
 
+text {* @{term "ltls xs"} is the set of all tails of @{term xs} *}
+
 lemma sum_list_cases: "\<lbrakk>ys = LNil \<Longrightarrow> P ys; \<And>x xs. ys = LCons (Inl x) xs \<Longrightarrow> P ys; \<And>x xs. ys = LCons (Inr x) xs \<Longrightarrow> P ys\<rbrakk> \<Longrightarrow> P ys"
   apply (cases ys)
   apply auto
@@ -298,6 +299,8 @@ proof -
   show ?thesis unfolding xs
     by (induct xs') (auto simp add: Nil Cons)
 qed
+
+text {* @{thm lfinite_induct} is the same as @{thm lfinite.induct}, except it has nicer case names. *}
 
 lemma interleave_ltakeWhile_is_right: "lfinite ys \<Longrightarrow> xs' \<triangleright> ltakeWhile is_right t \<triangleleft> ys' = ys \<frown> LCons x zs \<longrightarrow> is_right x"
 proof (induct ys arbitrary: xs' t ys' rule: lfinite_induct)
@@ -769,7 +772,6 @@ proof -
   finally show ?thesis .
 qed    
 
-
 lemma traj_lfilter_rights: "\<rr> zs = lmap f xs \<Longrightarrow> lfilter is_right (traj zs) = lmap (\<lambda>x. Inr ()) xs"
   by (simp add: rights_def traj_def lfilter_lmap lmap_lfilter_right)
 
@@ -970,6 +972,8 @@ proof -
   thus ?thesis by auto
 qed
 
+text {* Now we can prove the associativity of shuffle *}
+
 lemma shuffle_assoc: "(X \<parallel> Y) \<parallel> Z = X \<parallel> (Y \<parallel> Z)"
 proof -
   have "(X \<parallel> Y) \<parallel> Z = lmap \<langle>id,id\<rangle> ` ((lmap \<langle>id,id\<rangle> ` (X \<Sha> Y)) \<Sha> Z)"
@@ -1110,8 +1114,6 @@ lemma [simp]: "lmap \<langle>id,id\<rangle> (lmap Inl xs) = xs"
 
 lemma [simp]: "lmap \<langle>id,id\<rangle> (lmap Inr xs) = xs"
   by (metis all_rights id_def lmap.id lmap_lfilter_right rights_def_var rights_mapr)
-
-find_theorems (140) "lmap _ _ = _"
 
 lemma tshuffle_LNil [simp]: "xs \<sha> LNil = {lmap Inl xs}"
   apply (simp add: tshuffle_words_def)
@@ -1384,97 +1386,6 @@ qed
 lemma shuffle_inf_dist: "X \<parallel> (\<Union>\<YY>) = \<Union>{X \<parallel> Y |Y. Y \<in> \<YY>}"
   by (auto simp add: shuffle_def)
 
-(*
-primrec power :: "'a lan \<Rightarrow> nat \<Rightarrow> 'a lan" where
-  "power x 0 = {LNil}"
-| "power x (Suc n) = power x n \<cdot> x"
-
-definition powers :: "'a lan \<Rightarrow> 'a lan set" where
-  "powers x  = {y. (\<exists>i. y = power x i)}"
-
-lemma l_prod_inf_distl: "X \<subseteq> FIN \<Longrightarrow> X \<cdot> \<Union>\<YY> = \<Union>{X \<cdot> Y |Y. Y \<in> \<YY>}"
-  by (auto simp add: l_prod_def FIN_def)
-
-definition powers_up_to :: "nat \<Rightarrow> 'a lan \<Rightarrow> 'a lan set" where
-  "powers_up_to n x \<equiv> {power x i |i. Suc i \<le> n}"
-
-text {* We now show that $x^*$ can be defined as the sum of the powers of $x$. *}
-
-lemma star_power_fin: shows "star2 x = \<Union>(powers x)"
-proof -
-  let ?STAR_FUN = "\<lambda>y. {LNil} \<union> y\<cdot>x"
-  have "\<mu> ?STAR_FUN = \<Union>{iter ?STAR_FUN n {} |n. True}"
-  proof (rule kleene_lfp)
-    fix X :: "'a lan set"
-    assume "directed X"
-    thus "\<Union>((\<lambda>y. {LNil} \<union> y\<cdot>x) ` X) = {LNil} \<union> \<Union>X \<cdot> x"
-      by (subst l_prod_inf_distr) (auto simp add: directed_def)
-  qed
- 
-  moreover have "\<forall>n. iter ?STAR_FUN n {} = \<Union>(powers_up_to n x)"
-  proof
-    fix n show "iter ?STAR_FUN n {} = \<Union>(powers_up_to n x)"
-    proof (induct n)
-      case 0 show ?case
-        by (simp add: iter_def powers_up_to_def)
-      case (Suc n)
-      have "iter ?STAR_FUN (Suc n) {} = {LNil} \<union> iter ?STAR_FUN n {} \<cdot> x"
-        by simp
-      moreover have "... = {LNil} \<union> \<Union>(powers_up_to n x) \<cdot> x"
-        by (metis Suc)
-      moreover have "... = {LNil} \<union> \<Union>{power x i |i. Suc i \<le> n} \<cdot> x"
-        by (simp add: powers_up_to_def)
-      moreover have "... = {LNil} \<union> \<Union>{power x i \<cdot> x |i. Suc i \<le> n}"
-        by (subst l_prod_inf_distr) auto
-      moreover have "... = {LNil} \<union> \<Union>{power x (Suc i) |i. Suc i \<le> n}"
-        by simp
-      moreover have "... = \<Union>{{LNil}} \<union> \<Union>{power x (Suc i) |i. Suc i \<le> n}"
-        by auto
-      moreover have "... = \<Union>({{LNil}} \<union> {power x (Suc i) |i. Suc i \<le> n})"
-        by auto
-      moreover have "... = \<Union>(powers_up_to (Suc n) x)"
-        apply (simp only: powers_up_to_def)
-        apply (rule arg_cong) back
-        apply auto
-        prefer 3
-        apply (erule_tac x = "i - 1" in allE)
-        apply simp
-        apply (subgoal_tac "i = 0 \<or> (\<exists>j. i = Suc j)")
-        apply (erule disjE)
-        apply simp
-        apply (erule exE)
-        apply simp
-        apply (metis not0_implies_Suc)
-        apply (metis Language.power.simps(1) le0)
-        apply (metis Language.power.simps(2))
-        apply (erule_tac x = "i - 1" in allE)
-        apply simp
-        apply (subgoal_tac "i = 0 \<or> (\<exists>j. i = Suc j)")
-        apply (erule disjE)
-        apply simp
-        apply (erule exE)
-        apply simp
-        by (metis not0_implies_Suc)
-      ultimately show ?case by metis
-    qed
-  qed
-
-  ultimately have "\<mu> ?STAR_FUN = \<Union>{z. \<exists>i. z = \<Union>(powers_up_to i x)}"
-    by auto
-  also have "... = \<Union>(\<Union> {z. \<exists>i. z = powers_up_to i x})"
-    by auto
-  also have "... = \<Union>(powers x)"
-    apply (rule arg_cong) back
-    apply safe
-    apply (simp_all add: powers_up_to_def powers_def)
-    apply metis
-    by (metis (lifting, full_types) le_add2 mem_Collect_eq)
-  finally show ?thesis
-    by (simp add: star2_def)
-qed
-
-*)
-
 primrec power :: "'a lan \<Rightarrow> nat \<Rightarrow> 'a lan" where
   "power x 0 = {LNil}"
 | "power x (Suc n) = x \<cdot> power x n"
@@ -1483,6 +1394,9 @@ definition powers :: "'a lan \<Rightarrow> 'a lan set" where
   "powers x  = {y. (\<exists>i. y = power x i)}"
 
 lemma l_prod_inf_distl: "X \<subseteq> FIN \<Longrightarrow> X \<cdot> \<Union>\<YY> = \<Union>{X \<cdot> Y |Y. Y \<in> \<YY>}"
+  by (auto simp add: l_prod_def FIN_def)
+
+lemma l_prod_inf_distl': "\<YY> \<noteq> {} \<or> X \<subseteq> FIN \<longleftrightarrow> X \<cdot> \<Union>\<YY> = \<Union>{X \<cdot> Y |Y. Y \<in> \<YY>}"
   by (auto simp add: l_prod_def FIN_def)
 
 definition powers_up_to :: "nat \<Rightarrow> 'a lan \<Rightarrow> 'a lan set" where

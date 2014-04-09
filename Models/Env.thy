@@ -22,6 +22,7 @@ coinductive rg :: "'a rel \<Rightarrow> ('a \<times> 'a) llist \<Rightarrow> ('a
 | EqPairR: "(\<sigma>\<^sub>1', \<sigma>\<^sub>2) \<in> R \<Longrightarrow> rg R ((\<sigma>\<^sub>2,\<sigma>\<^sub>2') # t) ((\<sigma>\<^sub>2,\<sigma>\<^sub>2') # t') \<Longrightarrow> rg R ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2') # t) ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2') # t')"
 | EqPairNR: "(\<sigma>\<^sub>1', \<sigma>\<^sub>2) \<notin> R \<Longrightarrow> rg R ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2') # t) ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2'') # t')"
 
+
 definition RG :: "'a rel \<Rightarrow> ('a \<times> 'a) lan \<Rightarrow> ('a \<times> 'a) lan" (infix "\<leadsto>" 60) where
   "R \<leadsto> X = {ys. \<exists>xs\<in>X. rg (R\<^sup>*) xs ys}"
 
@@ -56,27 +57,239 @@ proof -
   qed
 qed
 
+lemma rg_ext: "X \<le> R \<leadsto> X"
+  by (auto simp add: RG_def)
+
+lemma rg_trans: "rg R xs ys \<Longrightarrow> rg R ys zs \<Longrightarrow> rg R xs zs"
+  sorry
+
+lemma "X \<le> R \<leadsto> Y \<Longrightarrow> R \<leadsto> X \<le> R \<leadsto> Y"
+  apply (auto simp add: RG_def)
+  apply (subgoal_tac "xs \<in> {ys. \<exists>xs\<in>Y. rg (R\<^sup>*) xs ys}")
+  apply auto
+  by (metis rg_trans)
+
+lemma RG_continuous: "R \<leadsto> \<Union>\<XX> = \<Union>{R \<leadsto> X |X. X \<in> \<XX>}"
+  by (auto simp add: RG_def)
+
+lemma RG_UNIV: "R \<leadsto> UNIV = UNIV"
+  by (auto simp add: RG_def)
+
+definition Env :: "'a rel \<Rightarrow> ('a \<times> 'a) lan" where
+  "Env \<Gamma> = Collect (env \<Gamma>)"
+
+definition Rely :: "'a rel \<Rightarrow> ('a \<times> 'a) lan \<Rightarrow> ('a \<times> 'a) lan" (infixr "\<Colon>" 52) where
+  "R \<Colon> X \<equiv> X \<inter> Env (R\<^sup>*)"
+
 lemma rg_refl [intro!,simp]: "rg R xs xs"
   by (metis rg_equality)
 
-lemma lem1: "rg R xs ys \<Longrightarrow> (\<exists>xs\<^sub>h \<sigma> \<sigma>' \<sigma>'' xs\<^sub>t ys\<^sub>t. ys = xs\<^sub>h \<frown> (\<sigma> # \<sigma>'' # ys\<^sub>t) \<and> xs = xs\<^sub>h \<frown> (\<sigma> # \<sigma>' # xs\<^sub>t) \<and> fst \<sigma>' = fst \<sigma>'' \<and> env R (xs\<^sub>h \<frown> (\<sigma> # LNil)) \<and> lfinite xs\<^sub>h \<and> (snd \<sigma>, fst \<sigma>') \<notin> R) \<or> xs = ys"
-  sorry
+lemma "rg R (LCons x xs) (LCons y ys) \<Longrightarrow> x = y"
+  by (erule rg.cases) auto
 
+lemma rg_lappend: "rg R (\<sigma> # ys) (\<sigma> # zs) \<Longrightarrow> rg R (xs \<frown> (\<sigma> # ys)) (xs \<frown> (\<sigma> # zs))"
+  apply (cases "lfinite xs")
+  prefer 2
+  apply (metis lappend_inf rg_refl)
+  apply (rotate_tac 1)
+proof (induct xs rule: lfinite_induct)
+  case Nil
+  thus ?case
+    by auto
+next
+  case (Cons x xs)
+  from Cons(2)[OF Cons(3)]
+  show ?case
+    apply -
+    apply simp
+    apply (erule rg.cases)
+    apply auto
+    apply (metis EqPairNR EqPairR prod.exhaust)
+    apply (cases x)
+    apply simp
+    by (metis EqPairNR EqPairR)
+qed
+
+lemma
+  assumes "xs = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2') # zs)"
+  and "ys = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2'') # zs')"
+  and "env R (xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # LNil))"
+  and "(\<sigma>\<^sub>1',\<sigma>\<^sub>2) \<notin> R"
+  shows "rg R xs ys"
+  apply (simp only: assms(1) assms(2))
+  apply (rule rg_lappend)
+  by (metis EqPairNR assms(4))
+
+(*
+lemma
+  assumes "rg R xs ys"
+  shows "(\<exists>xs\<^sub>p \<sigma>\<^sub>1 \<sigma>\<^sub>1' \<sigma>\<^sub>2 \<sigma>\<^sub>2' \<sigma>\<^sub>2'' zs zs'. xs = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2') # zs) \<and> ys = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2'') # zs') \<and> lfinite xs\<^sub>p \<and> env R (xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # LNil)) \<and> (\<sigma>\<^sub>1',\<sigma>\<^sub>2) \<notin> R) \<or> xs = ys"
+  sorry
+*)
+
+primrec ldropLeft_nat :: "nat \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
+  "ldropLeft_nat 0 xs = ldropWhile is_right xs"
+| "ldropLeft_nat (Suc n) xs = (case ldropWhile is_right xs of (y # ys) \<Rightarrow> ldropLeft_nat n ys | LNil \<Rightarrow> LNil)"
+
+primrec ldropLeft :: "enat \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
+  "ldropLeft \<infinity> xs = LNil"
+| "ldropLeft (enat n) xs = ldropLeft_nat n xs"
+
+primrec ltakeLeft_nat :: "nat \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
+  "ltakeLeft_nat 0 xs = ltakeWhile is_right xs"
+| "ltakeLeft_nat (Suc n) xs = ltakeWhile is_right xs \<frown> (case ldropWhile is_right xs of (y # ys) \<Rightarrow> y # ltakeLeft_nat n ys | LNil \<Rightarrow> LNil)"
+
+primrec ltakeLeft :: "enat \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
+  "ltakeLeft \<infinity> xs = xs"
+| "ltakeLeft (enat n) xs = ltakeLeft_nat n xs"
+
+lemma lappend_ltakeLeft_ldropLeft [simp]: "ltakeLeft n xs \<frown> ldropLeft n xs = xs"
+proof (induct n, simp_all)
+  fix n
+  show "ltakeLeft_nat n xs \<frown> ldropLeft_nat n xs = xs"
+  proof (induct n arbitrary: xs)
+    case 0
+    thus ?case
+      by simp
+  next
+    case (Suc n)
+    thus ?case
+      apply simp
+      apply (cases "ldropWhile is_right xs")
+      apply simp_all
+      by (metis lappend_assoc lappend_code(2) lappend_ltakeWhile_ldropWhile)
+  qed
+qed
+
+lemma lset_all_rightD [dest]: "\<forall>x\<in>lset xs. is_right x \<Longrightarrow> \<ll> xs = LNil"
+  by (metis (full_types) lefts_ltake_right ltakeWhile_all)
+
+lemma lefts_ltakeLeft: "\<ll> (ltakeLeft n xs) = ltake n (\<ll> xs)"
+proof (induct n, simp_all)
+  fix n
+  show "\<ll> (ltakeLeft_nat n xs) = ltake (enat n) (\<ll> xs)"
+  proof (induct n arbitrary: xs)
+    case 0
+    thus ?case
+      by (simp add: enat_0)
+  next
+    case (Suc n)
+    thus ?case
+      apply simp
+      apply (cases "ldropWhile is_right xs")
+      apply (simp_all add: eSuc_enat[symmetric])
+      apply (drule lset_all_rightD)
+      apply simp
+      apply (subst lefts_append)
+      apply (metis in_lset_ldropWhileD ldropWhile_LConsD lfinite_ltakeWhile lset_intros(1))
+      apply simp
+      apply (rename_tac x xs')
+      apply (subgoal_tac "\<exists>x'. x = Inl x'")
+      apply (erule exE)
+      apply simp
+      apply (subgoal_tac "\<ll> xs = x' # \<ll> xs'")
+      apply simp
+      apply (metis Not_is_right is_left.simps(1) ldropWhile_lfilter_LConsD lefts_LConsl lefts_def_var lfilter_LCons_found)
+      by (metis ldropWhile_right_LCons llist.inject)
+  qed
+qed
+
+lemma ltakeLeft_simp1:
+  assumes "llength (\<ll> t) = llength xs + llength ys"
+  shows "\<up> (llength (\<ll> (ltakeLeft (llength xs) t))) (xs \<frown> ys) = xs"
+  apply (simp add: lefts_ltakeLeft)
+  by (metis assms llength_lappend ltake_all ltake_lappend1 ltake_ltake order_refl)
+
+lemma lfinite_ldrop_llength: "lfinite xs \<Longrightarrow> \<down> (llength xs) (xs \<frown> ys) = ys"
+  by (induct xs rule: lfinite_induct) auto
+
+lemma ltakeLeft_simp2:
+  assumes "llength (\<ll> t) = llength xs + llength ys"
+  and "lfinite xs"
+  shows "\<down> (llength (\<ll> (ltakeLeft (llength xs) t))) (xs \<frown> ys) = ys"
+  apply (simp add: lefts_ltakeLeft)
+  apply (subgoal_tac "min (llength xs) (llength (\<ll> t)) = llength xs")
+  apply simp
+  apply (metis assms(2) lfinite_ldrop_llength)
+  by (metis assms(1) enat_le_plus_same(1) min.order_iff)
+
+lemma left_interleave_split:
+  assumes "llength (\<ll> t) = llength xs + llength ys"
+  and "llength (\<rr> t) = llength zs"
+  and "lfinite xs"
+  shows "xs \<frown> ys \<triangleright> t \<triangleleft> zs = (xs \<triangleright> ltakeLeft (llength xs) t \<triangleleft> \<up> (llength (\<rr> (ltakeLeft (llength xs) t))) zs) \<frown>
+                             (ys \<triangleright> ldropLeft (llength xs) t \<triangleleft> \<down> (llength (\<rr> (ltakeLeft (llength xs) t))) zs)"
+proof -
+  have "xs \<frown> ys \<triangleright> t \<triangleleft> zs = xs \<frown> ys \<triangleright> ltakeLeft (llength xs) t \<frown> ldropLeft (llength xs) t \<triangleleft> zs"
+    by (metis lappend_ltakeLeft_ldropLeft)
+  also have "... = (xs \<triangleright> ltakeLeft (llength xs) t \<triangleleft> \<up> (llength (\<rr> (ltakeLeft (llength xs) t))) zs) \<frown>
+                   (ys \<triangleright> ldropLeft (llength xs) t \<triangleleft> \<down> (llength (\<rr> (ltakeLeft (llength xs) t))) zs)"
+    apply (subst interleave_append_llength)
+    prefer 3
+    apply (subst ltakeLeft_simp1)
+    prefer 2
+    apply (subst ltakeLeft_simp2)
+    apply simp_all
+    apply (metis assms(1))
+    apply (metis assms(3))
+    apply (metis assms(1))
+    by (metis assms(2))
+  finally show ?thesis .
+qed
+
+lemma
+  assumes "(\<sigma>\<^sub>1',\<sigma>\<^sub>2) \<notin> (R \<union> G)\<^sup>*"
+  and "lset ys \<subseteq> G\<^sup>*"
+  and "lfinite ys"
+  shows "\<not> env (R\<^sup>*) (((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # LNil) \<frown> ys \<frown> ((\<sigma>\<^sub>2,\<sigma>\<^sub>2') # LNil))"
+  using assms
+  apply (rotate_tac 2)
+  apply (induct ys rule: lfinite.induct)
+  apply simp
+  apply (metis in_rtrancl_UnI)
+  apply auto
+  sledgehammer
+
+lemma "(\<tau>\<^sub>1,\<tau>\<^sub>2') \<in> G\<^sup>* \<Longrightarrow> (\<sigma>\<^sub>1',\<sigma>\<^sub>2) \<notin> (R \<union> G)\<^sup>* \<Longrightarrow> (\<sigma>\<^sub>1',\<tau>\<^sub>1) \<notin> R\<^sup>* \<or> (\<tau>\<^sub>2',\<sigma>\<^sub>2) \<notin> R\<^sup>*"
+  apply auto
+  by (metis Un_commute in_rtrancl_UnI rtrancl_trans)
+  
 lemma
   assumes "zs' \<in> xs' \<sha> ys'"
   and "rg ((R \<union> G\<^sub>2)\<^sup>*) xs xs'" and "lset xs \<subseteq> G\<^sub>1\<^sup>*"
   and "rg ((R \<union> G\<^sub>1)\<^sup>*) ys ys'" and "lset ys \<subseteq> G\<^sub>2\<^sup>*"
   shows "\<exists>zs \<in> xs \<sha> ys. rg (R\<^sup>*) (lmap \<langle>id,id\<rangle> zs) (lmap \<langle>id,id\<rangle> zs')"
-  using assms(2) and assms(4)
-  apply -
-  apply (drule lem1)+
-  apply (erule disjE)
-  apply (erule disjE)
-  prefer 3
-  apply (erule disjE)
-  prefer 2
-  apply simp
-  apply (rule_tac x = zs' in bexI)
+proof -
+
+  obtain xs\<^sub>p \<sigma>\<^sub>1 \<sigma>\<^sub>1' \<sigma>\<^sub>2 \<sigma>\<^sub>2' \<sigma>\<^sub>2'' xs\<^sub>t xs\<^sub>t'
+  where xs_split: "xs = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2') # xs\<^sub>t)"
+  and xs'_split: "xs' = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2'') # xs\<^sub>t')"
+  and xs\<^sub>p_env: "env ((R \<union> G\<^sub>2)\<^sup>*) (xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # LNil))"
+  and xs\<^sub>p_fin: "lfinite xs\<^sub>p"
+  and bad_env: "(\<sigma>\<^sub>1',\<sigma>\<^sub>2) \<notin> (R \<union> G\<^sub>2)\<^sup>*"
+    sorry
+
+  have "ys' = ys"
+    sorry
+
+  from this xs'_split and assms(1)
+  have "zs' = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2'') # xs\<^sub>t') \<triangleright> traj zs' \<triangleleft> ys"
+    by (auto simp add: tshuffle_words_def) (metis reinterleave)
+  also have "... = (xs\<^sub>p \<triangleright> ltakeLeft (llength xs\<^sub>p) (traj zs') \<triangleleft> \<up> (llength (\<rr> (ltakeLeft (llength xs\<^sub>p) (traj zs')))) ys) \<frown>
+                   ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2'') # xs\<^sub>t' \<triangleright> ldropLeft (llength xs\<^sub>p) (traj zs') \<triangleleft> \<down> (llength (\<rr> (ltakeLeft (llength xs\<^sub>p) (traj zs')))) ys)"
+    sorry
+
+  obtain ys\<^sub>p \<tau>\<^sub>1 \<tau>\<^sub>1' \<tau>\<^sub>2 \<tau>\<^sub>2' \<tau>\<^sub>2'' ys\<^sub>t ys\<^sub>t'
+  where "ys = ys\<^sub>p \<frown> ((\<tau>\<^sub>1,\<tau>\<^sub>1') # (\<tau>\<^sub>2,\<tau>\<^sub>2') # ys\<^sub>t)"
+  and "ys' = ys\<^sub>p \<frown> ((\<tau>\<^sub>1,\<tau>\<^sub>1') # (\<tau>\<^sub>2,\<tau>\<^sub>2'') # ys\<^sub>t')"
+  and "env R (ys\<^sub>p \<frown> ((\<tau>\<^sub>1,\<tau>\<^sub>1') # LNil))"
+  and "lfinite ys\<^sub>p"
+  and "(\<tau>\<^sub>1',\<tau>\<^sub>2) \<notin> R"
+    sorry
+
+    thus ?thesis sorry
+qed
+  
 
 lemma "(R \<union> G\<^sub>2 \<leadsto> prog G\<^sub>1 \<inter> X) \<parallel> (R \<union> G\<^sub>1 \<leadsto> prog G\<^sub>2 \<inter> Y) \<subseteq> R \<leadsto> (prog G\<^sub>1 \<inter> X) \<parallel> (prog G\<^sub>2 \<inter> Y)"
   apply (auto simp add: RG_def shuffle_def)
