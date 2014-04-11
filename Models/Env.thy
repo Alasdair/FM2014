@@ -138,6 +138,18 @@ primrec ldropLeft :: "enat \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b)
   "ldropLeft \<infinity> xs = LNil"
 | "ldropLeft (enat n) xs = ldropLeft_nat n xs"
 
+lemma ldropLeft_nat_eq: "n = enat m \<Longrightarrow> ldropLeft n = ldropLeft_nat m"
+  apply simp
+  apply (rule ext)
+  by simp
+
+lemma ldropLeft_eSuc: "n \<noteq> \<infinity> \<Longrightarrow> ldropLeft (eSuc n) xs = (case ldropWhile is_right xs of (y # ys) \<Rightarrow> ldropLeft n ys | LNil \<Rightarrow> LNil)"
+  apply (subgoal_tac "\<exists>m. eSuc n = enat (Suc m)")
+  apply (erule exE)
+  apply simp
+  apply (metis eSuc_def enat.simps(4) ldropLeft_nat.simps(2) ldropLeft_nat_eq)
+  by (metis eSuc_enat not_enat_eq)
+
 primrec ltakeLeft_nat :: "nat \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
   "ltakeLeft_nat 0 xs = ltakeWhile is_right xs"
 | "ltakeLeft_nat (Suc n) xs = ltakeWhile is_right xs \<frown> (case ldropWhile is_right xs of (y # ys) \<Rightarrow> y # ltakeLeft_nat n ys | LNil \<Rightarrow> LNil)"
@@ -240,6 +252,8 @@ proof -
   finally show ?thesis .
 qed
 
+lemmas left_interleave_split_LNil = left_interleave_split[where xs = LNil,simplified]
+
 lemma
   assumes "(\<sigma>\<^sub>1',\<sigma>\<^sub>2) \<notin> (R \<union> G)\<^sup>*"
   and "lset ys \<subseteq> G\<^sup>*"
@@ -251,44 +265,120 @@ lemma
   apply simp
   apply (metis in_rtrancl_UnI)
   apply auto
-  sledgehammer
+  sorry
 
 lemma "(\<tau>\<^sub>1,\<tau>\<^sub>2') \<in> G\<^sup>* \<Longrightarrow> (\<sigma>\<^sub>1',\<sigma>\<^sub>2) \<notin> (R \<union> G)\<^sup>* \<Longrightarrow> (\<sigma>\<^sub>1',\<tau>\<^sub>1) \<notin> R\<^sup>* \<or> (\<tau>\<^sub>2',\<sigma>\<^sub>2) \<notin> R\<^sup>*"
   apply auto
   by (metis Un_commute in_rtrancl_UnI rtrancl_trans)
-  
+
+lemma RG:
+  "rg R xs xs' \<Longrightarrow> (\<exists>xs\<^sub>p \<sigma>\<^sub>1 \<sigma>\<^sub>1' \<sigma>\<^sub>2 \<sigma>\<^sub>2' \<sigma>\<^sub>2'' xs\<^sub>t xs\<^sub>t'.
+                      xs = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2') # xs\<^sub>t) \<and>
+                      xs' = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2'') # xs\<^sub>t') \<and>
+                      env R (xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # LNil)) \<and>
+                      (\<sigma>\<^sub>1',\<sigma>\<^sub>2) \<notin> R
+                      \<and> lfinite xs\<^sub>p)
+                    \<or> xs = xs'"
+  sorry
+
+lemma llist_lhd_ltl: "xs \<noteq> LNil \<Longrightarrow> xs = lhd xs # ltl xs"
+  by (metis llist.collapse)
+
 lemma
   assumes "zs' \<in> xs' \<sha> ys'"
   and "rg ((R \<union> G\<^sub>2)\<^sup>*) xs xs'" and "lset xs \<subseteq> G\<^sub>1\<^sup>*"
   and "rg ((R \<union> G\<^sub>1)\<^sup>*) ys ys'" and "lset ys \<subseteq> G\<^sub>2\<^sup>*"
   shows "\<exists>zs \<in> xs \<sha> ys. rg (R\<^sup>*) (lmap \<langle>id,id\<rangle> zs) (lmap \<langle>id,id\<rangle> zs')"
 proof -
+  from assms(1) have llength_l_zs: "llength (\<ll> zs') = llength xs'"
+    by (auto simp add: tshuffle_words_def)
+  from assms(1) have llength_r_zs: "llength (\<rr> zs') = llength ys'"
+    by (auto simp add: tshuffle_words_def)
 
-  obtain xs\<^sub>p \<sigma>\<^sub>1 \<sigma>\<^sub>1' \<sigma>\<^sub>2 \<sigma>\<^sub>2' \<sigma>\<^sub>2'' xs\<^sub>t xs\<^sub>t'
-  where xs_split: "xs = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2') # xs\<^sub>t)"
-  and xs'_split: "xs' = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2'') # xs\<^sub>t')"
-  and xs\<^sub>p_env: "env ((R \<union> G\<^sub>2)\<^sup>*) (xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # LNil))"
-  and xs\<^sub>p_fin: "lfinite xs\<^sub>p"
-  and bad_env: "(\<sigma>\<^sub>1',\<sigma>\<^sub>2) \<notin> (R \<union> G\<^sub>2)\<^sup>*"
-    sorry
+  from RG[OF assms(2)] and RG[OF assms(4)]
+  show ?thesis
+    apply -
+    apply (erule disjE)+
+    prefer 3
+    apply (erule disjE)
+    prefer 3 defer
+    prefer 2
+  proof -
+    assume "xs = xs'" and "ys = ys'"
+    thus ?thesis
+      by (metis assms(1) rg_refl)
+  next
+    assume "\<exists>xs\<^sub>p \<sigma>\<^sub>1 \<sigma>\<^sub>1' \<sigma>\<^sub>2 \<sigma>\<^sub>2' \<sigma>\<^sub>2'' xs\<^sub>t xs\<^sub>t'.
+       xs = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1, \<sigma>\<^sub>1') # (\<sigma>\<^sub>2, \<sigma>\<^sub>2') # xs\<^sub>t) \<and>
+       xs' = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1, \<sigma>\<^sub>1') # (\<sigma>\<^sub>2, \<sigma>\<^sub>2'') # xs\<^sub>t') \<and>
+       env ((R \<union> G\<^sub>2)\<^sup>*) (xs\<^sub>p \<frown> ((\<sigma>\<^sub>1, \<sigma>\<^sub>1') # LNil)) \<and>
+       (\<sigma>\<^sub>1', \<sigma>\<^sub>2) \<notin> (R \<union> G\<^sub>2)\<^sup>* \<and>
+       lfinite xs\<^sub>p"
+    and ys_same: "ys = ys'"
 
-  have "ys' = ys"
-    sorry
+    then obtain xs\<^sub>p \<sigma>\<^sub>1 \<sigma>\<^sub>1' \<sigma>\<^sub>2 \<sigma>\<^sub>2' \<sigma>\<^sub>2'' xs\<^sub>t xs\<^sub>t'
+    where xs_split: "xs = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2') # xs\<^sub>t)"
+    and xs'_split: "xs' = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2'') # xs\<^sub>t')"
+    and xs\<^sub>p_env: "env ((R \<union> G\<^sub>2)\<^sup>*) (xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # LNil))"
+    and xs\<^sub>p_fin: "lfinite xs\<^sub>p"
+    and bad_env: "(\<sigma>\<^sub>1',\<sigma>\<^sub>2) \<notin> (R \<union> G\<^sub>2)\<^sup>*"
+      by auto
 
-  from this xs'_split and assms(1)
-  have "zs' = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2'') # xs\<^sub>t') \<triangleright> traj zs' \<triangleleft> ys"
-    by (auto simp add: tshuffle_words_def) (metis reinterleave)
-  also have "... = (xs\<^sub>p \<triangleright> ltakeLeft (llength xs\<^sub>p) (traj zs') \<triangleleft> \<up> (llength (\<rr> (ltakeLeft (llength xs\<^sub>p) (traj zs')))) ys) \<frown>
-                   ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2'') # xs\<^sub>t' \<triangleright> ldropLeft (llength xs\<^sub>p) (traj zs') \<triangleleft> \<down> (llength (\<rr> (ltakeLeft (llength xs\<^sub>p) (traj zs')))) ys)"
-    sorry
+    from assms(1) and xs\<^sub>p_fin have "llength (\<ll> zs') > llength xs\<^sub>p"
+      by (simp add: tshuffle_words_def xs'_split) (metis lfinite_llength_enat)
+    from xs\<^sub>p_fin and this have [simp]: "lhd (ldropLeft (llength xs\<^sub>p) (traj zs')) = Inl ()"
+      apply (induct xs\<^sub>p arbitrary: zs' rule: lfinite_induct)
+      apply (simp add: enat_0[symmetric])
+      apply (subgoal_tac "\<ll> zs' \<noteq> LNil")
+      apply (metis ldropWhile_eq_LNil_iff ldropWhile_right_traj ldropWhile_rights_not_LNil lhd_LCons lset_all_rightD traj_not_LNil)
+      apply (metis llength_LNil not_iless0)
+      apply simp
+      apply (subst ldropLeft_eSuc)
+      apply (metis eSuc_infinity enat_ord_simps(6))
+      apply (subgoal_tac "ldropWhile is_right (traj zs') = Inl () # ltl (ldropWhile is_right (traj zs'))")
+      apply simp
+      apply (subgoal_tac "llength xs < llength (\<ll> (ltl (ldropWhile is_right zs')))")
+      apply blast
+      apply (subgoal_tac "eSuc (llength xs) < llength (\<ll> (ldropWhile is_right zs'))")
+      defer
+      apply (subgoal_tac "eSuc (llength xs) < llength (\<ll> (ltakeWhile is_right zs' \<frown> ldropWhile is_right zs'))")
+      apply simp
+      apply (metis lappend_ltakeWhile_ldropWhile)
+      apply simp
+      apply (metis i0_less ldropWhile_eq_LNil_iff ldropWhile_right_traj ldropWhile_rights_not_LNil less_asym llength_LNil lset_all_rightD ltl_traj traj_not_LNil)
+      apply (subgoal_tac "\<exists>z. ldropWhile is_right zs' = Inl z # ltl (ldropWhile is_right zs')")
+      apply (erule exE)
+      apply (metis eSuc_mono lefts_LConsl llength_LCons)
+      by (metis ldropWhile_right_LCons llist.collapse llist.distinct(1) traj_not_LNil)
 
-  obtain ys\<^sub>p \<tau>\<^sub>1 \<tau>\<^sub>1' \<tau>\<^sub>2 \<tau>\<^sub>2' \<tau>\<^sub>2'' ys\<^sub>t ys\<^sub>t'
-  where "ys = ys\<^sub>p \<frown> ((\<tau>\<^sub>1,\<tau>\<^sub>1') # (\<tau>\<^sub>2,\<tau>\<^sub>2') # ys\<^sub>t)"
-  and "ys' = ys\<^sub>p \<frown> ((\<tau>\<^sub>1,\<tau>\<^sub>1') # (\<tau>\<^sub>2,\<tau>\<^sub>2'') # ys\<^sub>t')"
-  and "env R (ys\<^sub>p \<frown> ((\<tau>\<^sub>1,\<tau>\<^sub>1') # LNil))"
-  and "lfinite ys\<^sub>p"
-  and "(\<tau>\<^sub>1',\<tau>\<^sub>2) \<notin> R"
-    sorry
+    obtain ys\<^sub>1 and ys\<^sub>2
+    where ys\<^sub>1_def: "ys\<^sub>1 = \<up> (llength (\<rr> (ltakeLeft (llength xs\<^sub>p) (traj zs')))) ys"
+    and ys\<^sub>2_def: "ys\<^sub>2 = \<down> (llength (\<rr> (ltakeLeft (llength xs\<^sub>p) (traj zs')))) ys"
+    and ys_split: "ys = ys\<^sub>1 \<frown> ys\<^sub>2"
+      by (metis lappend_ltake_ldrop)
+
+    from ys_same xs'_split and assms(1)
+    have "zs' = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2'') # xs\<^sub>t') \<triangleright> traj zs' \<triangleleft> ys"
+      by (auto simp add: tshuffle_words_def) (metis reinterleave)
+    also have "... = (xs\<^sub>p \<triangleright> ltakeLeft (llength xs\<^sub>p) (traj zs') \<triangleleft> ys\<^sub>1) \<frown>
+                     ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # (\<sigma>\<^sub>2,\<sigma>\<^sub>2'') # xs\<^sub>t' \<triangleright> ldropLeft (llength xs\<^sub>p) (traj zs') \<triangleleft> ys\<^sub>2)"
+      by (subst left_interleave_split) (simp_all add: ys\<^sub>1_def ys\<^sub>2_def xs\<^sub>p_fin llength_l_zs xs'_split llength_r_zs ys_same)
+    also have "... = (xs\<^sub>p \<triangleright> ltakeLeft (llength xs\<^sub>p) (traj zs') \<triangleleft> ys\<^sub>1) \<frown>
+                     LCons (Inl (\<sigma>\<^sub>1,\<sigma>\<^sub>1')) LNil \<frown>
+                     ((\<sigma>\<^sub>2,\<sigma>\<^sub>2'') # xs\<^sub>t' \<triangleright> ltl (ldropLeft (llength xs\<^sub>p) (traj zs')) \<triangleleft> ys\<^sub>2)"
+      apply (subst llist_lhd_ltl[where xs = "ldropLeft (llength xs\<^sub>p) (traj zs')"])
+      defer
+      apply (simp add: interleave_left)
+      apply (metis LCons_lappend_LNil lappend_assoc)
+      sorry
+    also have "... = (xs\<^sub>p \<triangleright> ltakeLeft (llength xs\<^sub>p) (traj zs') \<triangleleft> ys\<^sub>1) \<frown>
+                     (Inl (\<sigma>\<^sub>1, \<sigma>\<^sub>1') # LNil) \<frown>
+                     (LNil \<triangleright> ltakeWhile is_right (ltl (ldropLeft (llength xs\<^sub>p) (traj zs'))) \<triangleleft> \<up> (llength (\<rr> (ltakeWhile is_right (ltl (ldropLeft (llength xs\<^sub>p) (traj zs')))))) ys\<^sub>2) \<frown>
+                     ((\<sigma>\<^sub>2, \<sigma>\<^sub>2'') # xs\<^sub>t' \<triangleright> ldropWhile is_right (ltl (ldropLeft (llength xs\<^sub>p) (traj zs'))) \<triangleleft> \<down> (llength (\<rr> (ltakeWhile is_right (ltl (ldropLeft (llength xs\<^sub>p) (traj zs')))))) ys\<^sub>2)"
+      apply (subst left_interleave_split_LNil) back
+      prefer 3
+      apply (simp add: enat_0[symmetric] lappend_assoc)
+      sorry
 
     thus ?thesis sorry
 qed
@@ -296,7 +386,13 @@ qed
 
 lemma "(R \<union> G\<^sub>2 \<leadsto> prog G\<^sub>1 \<inter> X) \<parallel> (R \<union> G\<^sub>1 \<leadsto> prog G\<^sub>2 \<inter> Y) \<subseteq> R \<leadsto> (prog G\<^sub>1 \<inter> X) \<parallel> (prog G\<^sub>2 \<inter> Y)"
   apply (auto simp add: RG_def shuffle_def)
-  apply (rename_tac xs' ys' zs xs ys)
+   sorry
+  also have "... = (xs\<^sub>p \<triangleright> ltakeLeft (llength xs\<^sub>p) (traj zs') \<triangleleft> ys\<^sub>1) \<frown>
+                   LCons (Inl (\<sigma>\<^sub>1,\<sigma>\<^sub>1')) LNil \<frown>
+                   ((LNil \<triangleright> ltakeLeft 0 (ltl (ldropLeft (llength xs\<^sub>p) (traj zs'))) \<triangleleft> \<up> (llength (\<rr> (ltakeLeft 0 (ltl (ldropLeft (llength xs\<^sub>p) (traj zs')))))) ys\<^sub>2) \<frown>
+                   ((\<sigma>\<^sub>2, \<sigma>\<^sub>2'') # xs\<^sub>t' \<triangleright> ldropLeft 0 (ltl (ldropLeft (llength xs\<^sub>p) (traj zs'))) \<triangleleft> \<down> (llength (\<rr> (ltakeLeft 0 (ltl (ldropLeft (llength xs\<^sub>p) (traj zs')))))) ys\<^sub>2))"
+    apply (subst left_interleave_split_LNil) back
+        apply (rename_tac xs' ys' zs xs ys)
   apply (rule_tac x = "lmap \<langle>id,id\<rangle> ` (xs \<sha> ys)" in exI)
   apply (intro conjI)
   apply (rule_tac x = xs in exI)
