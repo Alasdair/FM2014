@@ -2,6 +2,292 @@ theory Env
   imports Language Mumble_Language
 begin
 
+no_notation Cons (infixr "#" 65)
+notation LCons (infixr "#" 65)
+
+primrec ldropLeft_nat :: "nat \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
+  "ldropLeft_nat 0 xs = ldropWhile is_right xs"
+| "ldropLeft_nat (Suc n) xs = (case ldropWhile is_right xs of (y # ys) \<Rightarrow> ldropLeft_nat n ys | LNil \<Rightarrow> LNil)"  
+
+primrec ldropLeft :: "enat \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
+  "ldropLeft \<infinity> xs = LNil"
+| "ldropLeft (enat n) xs = ldropLeft_nat n xs"
+
+lemma ldropLeft_nat_eq: "n = enat m \<Longrightarrow> ldropLeft n = ldropLeft_nat m"
+  apply simp
+  apply (rule ext)
+  by simp
+
+lemma ldropLeft_eSuc: "n \<noteq> \<infinity> \<Longrightarrow> ldropLeft (eSuc n) xs = (case ldropWhile is_right xs of (y # ys) \<Rightarrow> ldropLeft n ys | LNil \<Rightarrow> LNil)"
+  apply (subgoal_tac "\<exists>m. eSuc n = enat (Suc m)")
+  apply (erule exE)
+  apply simp
+  apply (metis eSuc_def enat.simps(4) ldropLeft_nat.simps(2) ldropLeft_nat_eq)
+  by (metis eSuc_enat not_enat_eq)
+
+primrec ltakeLeft_nat :: "nat \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
+  "ltakeLeft_nat 0 xs = ltakeWhile is_right xs"
+| "ltakeLeft_nat (Suc n) xs = ltakeWhile is_right xs \<frown> (case ldropWhile is_right xs of (y # ys) \<Rightarrow> y # ltakeLeft_nat n ys | LNil \<Rightarrow> LNil)"
+
+primrec ltakeLeft :: "enat \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
+  "ltakeLeft \<infinity> xs = xs"
+| "ltakeLeft (enat n) xs = ltakeLeft_nat n xs"
+
+lemma ltakeLeft_nat_eq: "n = enat m \<Longrightarrow> ltakeLeft n = ltakeLeft_nat m"
+  apply simp
+  apply (rule ext)
+  by simp
+
+lemma lappend_ltakeLeft_ldropLeft [simp]: "ltakeLeft n xs \<frown> ldropLeft n xs = xs"
+proof (induct n, simp_all)
+  fix n
+  show "ltakeLeft_nat n xs \<frown> ldropLeft_nat n xs = xs"
+  proof (induct n arbitrary: xs)
+    case 0
+    thus ?case
+      by simp
+  next
+    case (Suc n)
+    thus ?case
+      apply simp
+      apply (cases "ldropWhile is_right xs")
+      apply simp_all
+      by (metis lappend_assoc lappend_code(2) lappend_ltakeWhile_ldropWhile)
+  qed
+qed
+
+lemma lset_all_rightD [dest]: "\<forall>x\<in>lset xs. is_right x \<Longrightarrow> \<ll> xs = LNil"
+  by (metis (full_types) lefts_ltake_right ltakeWhile_all)
+
+lemma lefts_ltakeLeft: "\<ll> (ltakeLeft n xs) = ltake n (\<ll> xs)"
+proof (induct n, simp_all)
+  fix n
+  show "\<ll> (ltakeLeft_nat n xs) = ltake (enat n) (\<ll> xs)"
+  proof (induct n arbitrary: xs)
+    case 0
+    thus ?case
+      by (simp add: enat_0)
+  next
+    case (Suc n)
+    thus ?case
+      apply simp
+      apply (cases "ldropWhile is_right xs")
+      apply (simp_all add: eSuc_enat[symmetric])
+      apply (drule lset_all_rightD)
+      apply simp
+      apply (subst lefts_append)
+      apply (metis in_lset_ldropWhileD ldropWhile_LConsD lfinite_ltakeWhile lset_intros(1))
+      apply simp
+      apply (rename_tac x xs')
+      apply (subgoal_tac "\<exists>x'. x = Inl x'")
+      apply (erule exE)
+      apply simp
+      apply (subgoal_tac "\<ll> xs = x' # \<ll> xs'")
+      apply simp
+      apply (metis Not_is_right is_left.simps(1) ldropWhile_lfilter_LConsD lefts_LConsl lefts_def_var lfilter_LCons_found)
+      by (metis ldropWhile_right_LCons llist.inject)
+  qed
+qed
+
+lemma ltakeLeft_simp1:
+  assumes "llength (\<ll> t) = llength xs + llength ys"
+  shows "\<up> (llength (\<ll> (ltakeLeft (llength xs) t))) (xs \<frown> ys) = xs"
+  apply (simp add: lefts_ltakeLeft)
+  by (metis assms llength_lappend ltake_all ltake_lappend1 ltake_ltake order_refl)
+
+lemma lfinite_ldrop_llength: "lfinite xs \<Longrightarrow> \<down> (llength xs) (xs \<frown> ys) = ys"
+  by (induct xs rule: lfinite_induct) auto
+
+lemma ltakeLeft_simp2:
+  assumes "llength (\<ll> t) = llength xs + llength ys"
+  and "lfinite xs"
+  shows "\<down> (llength (\<ll> (ltakeLeft (llength xs) t))) (xs \<frown> ys) = ys"
+  apply (simp add: lefts_ltakeLeft)
+  apply (subgoal_tac "min (llength xs) (llength (\<ll> t)) = llength xs")
+  apply simp
+  apply (metis assms(2) lfinite_ldrop_llength)
+  by (metis assms(1) enat_le_plus_same(1) min.order_iff)
+
+abbreviation "TL \<equiv> ltakeLeft"
+abbreviation "DL \<equiv> ldropLeft"
+
+lemma ldropWhile_right_non_empty: "ldropWhile is_right t \<noteq> LNil \<Longrightarrow> lfinite (ltakeWhile is_right t)"
+  by (metis lappend_inf lappend_ltakeWhile_ldropWhile ldropWhile_eq_LNil_iff lset_ltakeWhileD)
+
+definition Valid :: "'a llist \<Rightarrow> (unit + unit) llist \<Rightarrow> 'b llist \<Rightarrow> bool" where
+  "Valid xs t ys \<equiv> llength (\<ll> t) = llength xs \<and> llength (\<rr> t) = llength ys"
+
+lemma [simp]: "llength (\<rr> (ltakeWhile is_right t)) = llength (ltakeWhile is_right t)"
+  by (simp add: rights_def)
+
+lemma lemma1: "m < \<infinity> \<Longrightarrow> (m::enat) + n - m = n"
+  by (metis enat_add_sub_same enat_ord_simps(4))
+
+lemma lemma2 [simp]: "lfinite (ltakeWhile is_right t) \<Longrightarrow> llength (\<rr> (ldropWhile is_right t)) = llength (\<rr> t) - llength (ltakeWhile is_right t)"
+  (is "_ \<Longrightarrow> ?lhs = ?rhs")
+proof -
+  assume case1: "lfinite (ltakeWhile is_right t)"
+  have "?rhs = llength (\<rr> (ltakeWhile is_right t \<frown> ldropWhile is_right t)) - llength (ltakeWhile is_right t)"
+    by (metis lappend_ltakeWhile_ldropWhile)
+  also have "... = llength (\<rr> (ltakeWhile is_right t)) + llength (\<rr> (ldropWhile is_right t)) - llength (ltakeWhile is_right t)"
+    by (metis case1 llength_rights_lappend)
+  also have "... = ?lhs"
+    apply simp
+    apply (rule lemma1)
+    by (metis case1 enat_ord_simps(4) llength_eq_infty_conv_lfinite)
+  finally show "?lhs = ?rhs"
+    by auto
+qed
+
+lemma [simp]: "\<not> lfinite (ltakeWhile is_right t) \<Longrightarrow> ldropWhile is_right t = LNil"
+  by (metis ldropWhile_right_non_empty)
+
+lemma lemma3: "llength (\<rr> t) = llength zs \<Longrightarrow> llength (\<rr> (ldropWhile is_right t)) = llength (\<down> (llength (\<rr> (ltakeWhile is_right t))) zs)"
+  apply simp
+  apply (cases "lfinite (ltakeWhile is_right t)")
+  apply simp
+  apply (metis llength_eq_infty_conv_lfinite llength_ldrop)
+  apply simp
+  by (metis enat_ord_code(3) not_lfinite_llength)
+
+lemma llength_lefts_ltakeLeft: "llength (\<ll> t) = enat m + n \<Longrightarrow> llength (\<ll> (ltakeLeft_nat m t)) = enat m"
+  apply (induct m arbitrary: t)
+  apply (simp add: enat_0[symmetric])
+  apply auto
+  apply (subgoal_tac "ldropWhile is_right t = LNil \<or> (\<exists>\<tau> t'. ldropWhile is_right t = Inl \<tau> # t')")
+  apply (erule disjE)
+  apply simp
+  apply (metis llength_eq_0 lset_all_rightD plus_enat_eq_0_conv)
+  apply (erule exE)+
+  apply (subgoal_tac "lfinite (ltakeWhile is_right t)")
+  apply simp
+  apply (subst eSuc_enat[symmetric])
+  apply simp
+  apply (subgoal_tac "llength (\<ll> t') = enat m + n")
+  apply simp
+  apply (subgoal_tac "llength (\<ll> (ltakeWhile is_right t \<frown> ldropWhile is_right t)) = enat (Suc m) + n")
+  apply simp
+  apply (metis co.enat.inject eSuc_enat eSuc_plus)
+  apply (metis lappend_ltakeWhile_ldropWhile)
+  apply (metis ldropWhile_right_non_empty llist.distinct(1))
+  by (metis ldropWhile_right_LCons llist.exhaust)
+
+lemma llength_lefts_dropLeft: "llength (\<ll> t) = enat m + n \<Longrightarrow> llength (\<ll> (ldropLeft_nat m t)) = n"
+  apply (induct m arbitrary: t)
+  apply (simp add: enat_0[symmetric])
+  apply auto
+  apply (subgoal_tac "ldropWhile is_right t = LNil \<or> (\<exists>\<tau> t'. ldropWhile is_right t = Inl \<tau> # t')")
+  apply (erule disjE)
+  apply simp
+  apply (metis llength_eq_0 lset_all_rightD plus_enat_eq_0_conv)
+  apply (erule exE)+
+  apply (subgoal_tac "lfinite (ltakeWhile is_right t)")     
+  apply simp
+  apply (subgoal_tac "llength (\<ll> (ltakeWhile is_right t \<frown> ldropWhile is_right t)) = enat (Suc m) + n")
+  apply simp
+  apply (subgoal_tac "llength (\<ll> t') = enat m + n")
+  apply metis
+  apply (metis co.enat.inject eSuc_enat eSuc_plus)
+  apply (metis lappend_ltakeWhile_ldropWhile)
+  apply (metis ldropWhile_right_non_empty llist.distinct(1))
+  by (metis ldropWhile_right_LCons llist.exhaust)
+
+lemma
+  assumes "Valid (xs \<frown> ys) t zs" and "lfinite xs"
+  shows "xs \<frown> ys \<triangleright> t \<triangleleft> zs = (xs \<triangleright> TL (llength xs) t \<triangleleft> \<up> (llength (\<rr> (TL (llength xs) t))) zs) \<frown>
+                             (ys \<triangleright> DL (llength xs) t \<triangleleft> \<down> (llength (\<rr> (TL (llength xs) t))) zs)"
+  and "Valid xs (TL (llength xs) t) (\<up> (llength (\<rr> (TL (llength xs) t))) zs)"
+  and "Valid ys (DL (llength xs) t) (\<down> (llength (\<rr> (TL (llength xs) t))) zs)"
+proof -
+  have "xs \<frown> ys \<triangleright> t \<triangleleft> zs = xs \<frown> ys \<triangleright> ltakeLeft (llength xs) t \<frown> ldropLeft (llength xs) t \<triangleleft> zs"
+    by (metis lappend_ltakeLeft_ldropLeft)
+  also have "... = (xs \<triangleright> ltakeLeft (llength xs) t \<triangleleft> \<up> (llength (\<rr> (ltakeLeft (llength xs) t))) zs) \<frown>
+                   (ys \<triangleright> ldropLeft (llength xs) t \<triangleleft> \<down> (llength (\<rr> (ltakeLeft (llength xs) t))) zs)"
+    apply (subst interleave_append_llength)
+    prefer 3
+    apply (subst ltakeLeft_simp1)
+    prefer 2
+    apply (subst ltakeLeft_simp2)
+    apply simp_all
+    apply (metis Valid_def assms(1) llength_lappend)
+    apply (metis assms(2))
+    apply (metis Valid_def assms(1) llength_lappend)
+    by (metis Valid_def assms(1))
+  finally show "xs \<frown> ys \<triangleright> t \<triangleleft> zs =
+    (xs \<triangleright> TL (llength xs) t \<triangleleft> \<up> (llength (\<rr> (TL (llength xs) t))) zs) \<frown>
+    (ys \<triangleright> DL (llength xs) t \<triangleleft> \<down> (llength (\<rr> (TL (llength xs) t))) zs)" .
+  from assms
+  show "Valid xs (TL (llength xs) t) (\<up> (llength (\<rr> (TL (llength xs) t))) zs)"
+    apply (auto simp add: Valid_def)
+    apply (induct xs arbitrary: t zs rule: lfinite.induct)
+    apply (simp add: enat_0[symmetric])
+    apply simp
+    apply (subgoal_tac "\<exists>m. llength xs = enat m")
+    apply (erule exE)
+    apply (subst ltakeLeft_nat_eq)
+    apply simp
+    apply (rule eSuc_enat)
+    apply simp
+    apply (subgoal_tac "ldropWhile is_right t = LNil \<or> (\<exists>\<tau> t'. ldropWhile is_right t = Inl () # t')")
+    apply (erule disjE)
+    apply simp
+    apply (rule disjI2)
+    apply (metis eSuc_ile_mono eSuc_plus ldrop_LNil ldrop_eq_LNil lfinite_ldrop_llength llcp_lappend_same llcp_same_conv_length lset_all_rightD)
+    apply (erule exE)+
+    apply simp
+    apply (subst lefts_append)
+    apply (rule ldropWhile_right_non_empty)
+    apply (metis llist.discI)
+    apply simp
+    apply (subgoal_tac "llength (\<ll> t') = enat m + llength ys")
+    prefer 2
+    apply (subgoal_tac "lfinite (ltakeWhile is_right t)")
+    apply (subgoal_tac "llength (\<ll> (ldropWhile is_right t)) = eSuc (enat m) + llength ys")
+    apply simp
+    apply (metis co.enat.inject eSuc_plus)
+    apply simp
+    apply (metis lappend_code(1) lappend_ltakeWhile_ldropWhile lefts_LConsl lefts_append lefts_ltake_right llength_LCons)
+    apply (rule ldropWhile_right_non_empty)
+    apply (metis llist.discI)
+    apply (metis llength_lefts_ltakeLeft)
+    apply (metis ldropWhile_rights_not_LNil)
+    apply (metis lfinite_llength_enat)
+    apply (subgoal_tac "llength (\<rr> (TL (llength xs) t)) \<le> llength zs")
+    apply (metis min_max.inf_absorb2 min_max.inf_commute)
+    apply (rule order_trans[where y = "llength (\<rr> t)"])
+    apply (metis enat_le_plus_same(1) lappend_inf lappend_ltakeLeft_ldropLeft llength_rights_lappend order_refl)
+    by auto
+  from assms
+  show "Valid ys (DL (llength xs) t) (\<down> (llength (\<rr> (TL (llength xs) t))) zs)"
+    apply (auto simp add: Valid_def)
+    apply (induct xs arbitrary: t zs rule: lfinite.induct)
+    apply (simp add: enat_0[symmetric])
+    apply simp
+    apply (subgoal_tac "\<exists>m. llength xs = enat m")
+    apply (erule exE)
+    apply (subst ldropLeft_nat_eq)
+    apply simp
+    apply (rule eSuc_enat)
+    apply simp
+    apply (subgoal_tac "ldropWhile is_right t = LNil \<or> (\<exists>\<tau> t'. ldropWhile is_right t = Inl () # t')")
+    apply (erule disjE)
+    apply simp
+    apply (metis co.enat.discI comm_semiring_1_class.normalizing_semiring_rules(24) iadd_Suc_right llength_LNil lset_all_rightD)
+    apply (erule exE)+
+    apply simp
+    apply (subgoal_tac "llength (\<ll> t') = enat m + llength ys")
+    apply (metis llength_lefts_dropLeft)
+    apply (metis co.enat.inject eSuc_plus enat_add2_eq ldropLeft_nat.simps(1) lefts_LConsl llength_LCons llength_lefts_dropLeft monoid_add_class.add.left_neutral plus_enat_simps(1))
+    apply (metis ldropWhile_rights_not_LNil)
+    apply (metis lfinite_llength_enat)
+    apply (induct xs arbitrary: t zs rule: lfinite.induct)
+    apply (simp add: enat_0[symmetric])
+    apply (rule lemma3[simplified])
+    apply simp
+    sorry
+qed
+
+
 coinductive env :: "'a rel \<Rightarrow> ('a \<times> 'a) llist \<Rightarrow> bool" for "R" where
   EqNil [intro!,simp]: "env R LNil"
 | EqSingle [intro!,simp]: "env R (LCons \<sigma> LNil)"
@@ -71,9 +357,11 @@ lemma "X \<le> R \<leadsto> Y \<Longrightarrow> R \<leadsto> X \<le> R \<leadsto
 lemma RG_continuous: "R \<leadsto> \<Union>\<XX> = \<Union>{R \<leadsto> X |X. X \<in> \<XX>}"
   by (auto simp add: RG_def)
 
+(*
 lemma RG_guar_meet: "R \<leadsto> prog G\<^sub>1 \<inter> prog G\<^sub>2 = (R \<leadsto> prog G\<^sub>1) \<inter> (R \<leadsto> prog G\<^sub>2)"
   apply (auto simp add: RG_def)
   apply (rename_tac xs ys zs)
+*)
 
 lemma RG_UNIV: "R \<leadsto> UNIV = UNIV"
   by (auto simp add: RG_def)
