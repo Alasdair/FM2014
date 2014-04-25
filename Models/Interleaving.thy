@@ -206,8 +206,6 @@ lemma ltakeRight_nat_eq: "n = enat m \<Longrightarrow> ltakeRight n = ltakeRight
   apply (rule ext)
   by simp
 
-find_theorems lmap "op \<frown>"
-
 lemma ltakeRight_nat_to_ltakeLeft_nat: "ltakeRight_nat n xs = lmap swap (ltakeLeft_nat n (lmap swap xs))"
   apply (induct n arbitrary: xs)
   apply (simp add: ltakeWhile_lmap)
@@ -263,16 +261,116 @@ lemma lmap_unr_to_lmap_Inr: "(\<forall>x\<in>lset xs. is_right x) \<Longrightarr
 
 datatype element_spec = Nth_Left nat | Nth_Right nat
 
-definition compare_pos :: "element_spec \<Rightarrow> element_spec \<Rightarrow> ('a + 'b) llist set" (infix "\<lless>" 90) where
-  "x \<lless> y = undefined"
+definition compare_pos :: "element_spec \<Rightarrow> element_spec \<Rightarrow> ('a + 'b) llist \<Rightarrow> bool" (infix "\<lless>" 90) where
+  "x \<lless> y = (\<lambda>xs. undefined)"
 
-lemma compare_pos_total: "x \<lless> y \<union> y \<lless> x = UNIV"
+lemma compare_pos_irrefl: "\<not> (x \<lless> x) xs"
+  sorry
+
+lemma compare_pos_total: "(x \<lless> y) xs \<or> (y \<lless> x) xs"
+  sorry
+
+lemma compare_pos_trans: "(x \<lless> y) xs \<Longrightarrow> (y \<lless> z) xs \<Longrightarrow> (x \<lless> z) xs"
+  sorry
+
+lemma llength_strict_le: "lprefix xs ys \<Longrightarrow> xs \<noteq> ys \<Longrightarrow> llength xs < llength ys"
+  by (metis le_llist_conv_lprefix less_llist_conv_lstrict_prefix lstrict_prefix_llength_less order.not_eq_order_implies_strict)
+
+lemma "lnth (xs \<frown> LCons x xs \<triangleright> t \<triangleleft> ys) (llength (ltakeLeft (llength xs) t)) = x"
+
+lemma lprefix_ltakeLeft_nat: "lprefix (ltakeLeft_nat n t) (ltakeLeft_nat (Suc n) t)"
+  apply (induct n arbitrary: t)
+  apply simp
+  apply (metis lprefix_lappend)
+  apply auto
+  apply (subgoal_tac "ldropWhile is_right t = LNil \<or> (\<exists>x xs'. ldropWhile is_right t = LCons x xs')")
+  apply (erule disjE)
+  apply simp
+  apply (erule exE)+
+  apply simp
+  by (metis neq_LNil_conv)
+
+lemma lprefix_ltakeLeft: "lprefix (ltakeLeft n t) (ltakeLeft (eSuc n) t)"
+  apply (cases n)
+  apply auto
+  apply (simp only: eSuc_enat ltakeLeft.simps)
+  by (metis lprefix_ltakeLeft_nat)
+
+lemma lprefix_not_itself: "lfinite xs \<Longrightarrow> ys \<noteq> LNil \<Longrightarrow> xs \<noteq> xs \<frown> ys"
+  by (metis lstrict_prefix_def lstrict_prefix_lappend_conv)
+
+lemma postfix_not_equal: "lfinite xs \<Longrightarrow> ys \<noteq> zs \<Longrightarrow> xs \<frown> ys \<noteq> xs \<frown> zs"
+  by (metis lappend_eq_lappend_conv)
+
+lemma tail_not_equal: "xs \<noteq> ys \<Longrightarrow> x # xs \<noteq> x # ys"
+  by (metis llist.inject)
+
+lemma ldropWhile_cases: "ldropWhile P xs = LNil \<or> (\<exists>y ys. ldropWhile P xs = LCons y ys \<and> P y)"
+  sorry
+
+lemma ltakeLeft_nat_not_equal_Suc: "enat n < llength (\<ll> t) \<Longrightarrow> ltakeLeft_nat n t \<noteq> ltakeLeft_nat (Suc n) t"
+  apply (induct n arbitrary: t)
+  apply (simp add: lefts_def)
+  apply (subgoal_tac "ldropWhile is_right t = LNil \<or> (\<exists>x xs'. ldropWhile is_right t = LCons (Inl x) xs')")
+  apply (erule disjE)
+  apply simp
+  apply (erule exE)+
+  apply simp
+  apply (subgoal_tac "lfinite (ltakeWhile is_right t)")
+  apply (rule lprefix_not_itself)
+  apply simp
+  apply simp
+  apply (metis lappend_inf lappend_ltakeWhile_ldropWhile ldropWhile_K_True ldropWhile_eq_ldrop llist.discI ltakeWhile_K_True)
+  apply (metis ldropWhile_LCons ldropWhile_cases llist.distinct(1) lnth_0 not_is_left)
+  apply (simp add: lefts_def)
+  apply (subgoal_tac "ldropWhile is_right t = LNil \<or> (\<exists>x xs'. ldropWhile is_right t = LCons (Inl x) xs')")
+  apply (erule disjE)
+  apply simp
+  apply (erule exE)+
+  apply simp
+  defer
+  apply (metis ldropWhile_LCons ldropWhile_cases llist.distinct(1) lnth_0 not_is_left)
+  apply (subgoal_tac "lfinite (ltakeWhile is_right t)")
+  prefer 2
+  apply (metis lappend_inf lappend_ltakeWhile_ldropWhile ldropWhile_eq_ldrop ldrop_eq_LConsD less_imp_not_eq)
+  apply (rule postfix_not_equal)
+  apply simp
+  apply (rule tail_not_equal)
+  apply (subgoal_tac "enat n < llength (lfilter is_left xs')")
+  apply metis
+  apply (subgoal_tac "enat (Suc n) < llength (lfilter is_left (ltakeWhile is_right t \<frown> ldropWhile is_right t))")
+  apply simp
+  apply (metis is_right.simps(2) ldropWhile_cases llist.distinct(1) llist.inject)
+  by (metis lappend_ltakeWhile_ldropWhile)
+
+lemma ltakeLeft_not_equal_Suc: "n < llength (\<ll> t) \<Longrightarrow> ltakeLeft n t \<noteq> ltakeLeft (eSuc n) t"
+  apply (cases n)
+  apply auto
+  by (metis eSuc_enat ltakeLeft.simps(2) ltakeLeft_nat_not_equal_Suc)
 
 lemma
   assumes "Valid (xs \<frown> (x\<^sub>1 # x\<^sub>2 # xs')) t (ys \<frown> (y\<^sub>1 # y\<^sub>2 # ys'))"
   and "lfinite xs"
   shows "xs \<frown> (x\<^sub>1 # x\<^sub>2 # xs') \<triangleright> t \<triangleleft> ys \<frown> (y\<^sub>1 # y\<^sub>2 # ys') = Z" (is "?lhs = ?rhs")
 proof -
+  def px\<^sub>1 \<equiv> "llength (ltakeLeft (llength xs) t)"
+  def px\<^sub>2 \<equiv> "llength (ltakeLeft (eSuc (llength xs)) t)"
+
+  have "px\<^sub>1 < px\<^sub>2"
+    apply (simp add: px\<^sub>1_def px\<^sub>2_def)
+    apply (rule llength_strict_le)
+    apply (metis lprefix_ltakeLeft)
+    apply (rule ltakeLeft_not_equal_Suc)
+    using assms(1)
+    apply (simp add: Valid_def)
+    by (metis assms(2) lfinite_conv_llength_enat)
+
+  def py\<^sub>1 \<equiv> "llength (ltakeRight (llength ys) t)"
+  def py\<^sub>2 \<equiv> "llength (ltakeRight (eSuc (llength ys)) t)"
+
+  have "py\<^sub>1 < py\<^sub>2"
+    sorry (* Symmetric to above *)
+
   have "?lhs = (xs \<triangleright> ltakeLeft (llength xs) t \<triangleleft> \<up> (llength (\<rr> (ltakeLeft (llength xs) t))) (ys \<frown> (y\<^sub>1 # y\<^sub>2 # ys'))) \<frown>
                (x\<^sub>1 # x\<^sub>2 # xs' \<triangleright> ldropLeft (llength xs) t \<triangleleft> \<down> (llength (\<rr> (ltakeLeft (llength xs) t))) (ys \<frown> (y\<^sub>1 # y\<^sub>2 # ys')))"
     by (simp only: interleave_left_lappend[OF assms(1) assms(2)])
