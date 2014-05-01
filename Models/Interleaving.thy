@@ -1046,6 +1046,9 @@ definition rg'' :: "'a rel \<Rightarrow> ('a \<times> 'a) llist \<Rightarrow> ('
 definition rg' :: "'a rel \<Rightarrow> ('a \<times> 'a) llist \<Rightarrow> ('a \<times> 'a) llist \<Rightarrow> bool" where
   "rg' R xs xs' \<equiv> (\<exists>xs\<^sub>p \<sigma>\<^sub>1 \<sigma>\<^sub>1' \<sigma>\<^sub>2 \<sigma>\<^sub>2' \<sigma>\<^sub>2'' as bs. xs = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1, \<sigma>\<^sub>1') # (\<sigma>\<^sub>2, \<sigma>\<^sub>2') # as) \<and> xs' = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1, \<sigma>\<^sub>1') # (\<sigma>\<^sub>2, \<sigma>\<^sub>2'') # bs) \<and> lfinite xs\<^sub>p \<and> (\<sigma>\<^sub>1', \<sigma>\<^sub>2) \<notin> R)"
 
+definition RG :: "'a rel \<Rightarrow> ('a \<times> 'a) lan \<Rightarrow> ('a \<times> 'a) lan" (infix "\<leadsto>" 60) where
+  "R \<leadsto> X = {ys. \<exists>xs\<in>X. rg' (R\<^sup>*) xs ys}"
+
 lemma rg''_intro: "lfinite xs\<^sub>p \<Longrightarrow> (\<sigma>\<^sub>1', \<sigma>\<^sub>2) \<notin> R \<Longrightarrow>
        rg'' R (xs\<^sub>p \<frown> ((\<sigma>\<^sub>1, \<sigma>\<^sub>1') # (\<sigma>\<^sub>2, \<sigma>\<^sub>2') # as)) (xs\<^sub>p \<frown> ((\<sigma>\<^sub>1, \<sigma>\<^sub>1') # (\<sigma>\<^sub>2, \<sigma>\<^sub>2'') # bs))"
   apply (induct rule: lfinite_induct)
@@ -1125,6 +1128,22 @@ axiomatization
   alternate :: "'a llist \<Rightarrow> 'b llist \<Rightarrow> ('a + 'b) llist"
 where
   alternate_prop: "alternate xs ys \<in> xs \<sha> ys"
+
+lemma test:
+  assumes "zs' \<in> xs' \<sha> ys'"
+  and "rg' ((R \<union> G\<^sub>2)\<^sup>*) xs xs'" and "lset xs \<subseteq> G\<^sub>1\<^sup>*"
+  and "rg' ((R \<union> G\<^sub>1)\<^sup>*) ys ys'" and "lset ys \<subseteq> G\<^sub>2\<^sup>*"
+  shows "\<exists>zs \<in> xs \<sha> ys. rg' (R\<^sup>*) (lmap \<langle>id,id\<rangle> zs) (lmap \<langle>id,id\<rangle> zs')"
+  sorry
+
+definition prog :: "'a rel \<Rightarrow> ('a \<times> 'a) lan" where
+  "prog X = {xs. lset xs \<subseteq> X\<^sup>*}"
+
+lemma "(R \<union> G\<^sub>2 \<leadsto> prog G\<^sub>1 \<inter> X) \<parallel> (R \<union> G\<^sub>1 \<leadsto> prog G\<^sub>2 \<inter> Y) \<subseteq> R \<leadsto> (prog G\<^sub>1 \<inter> X) \<parallel> (prog G\<^sub>2 \<inter> Y)"
+  apply (auto simp add: RG_def shuffle_def prog_def)
+  apply (rename_tac xs' ys' zs xs ys)
+  apply (rule_tac x = "lmap \<langle>id,id\<rangle> ` (xs \<sha> ys)" in exI)
+  by (metis (full_types) imageI test)
 
 lemma
   assumes "zs' \<in> xs' \<sha> ys'"
