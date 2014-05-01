@@ -1124,10 +1124,10 @@ lemma rg''_is_rg': "rg'' R xs xs' \<longleftrightarrow> rg' R xs xs'"
   apply (rule rg''_intro)
   by auto
 
-axiomatization
-  alternate :: "'a llist \<Rightarrow> 'b llist \<Rightarrow> ('a + 'b) llist"
-where
-  alternate_prop: "alternate xs ys \<in> xs \<sha> ys"
+definition "alternate xs ys \<equiv> xs \<triangleright> (SOME t. Valid xs t ys) \<triangleleft> ys"
+
+lemma alternate_prop: "alternate xs ys \<in> xs \<sha> ys"
+  sorry
 
 lemma test:
   assumes "zs' \<in> xs' \<sha> ys'"
