@@ -1034,6 +1034,12 @@ lemma tshuffle_lappend: "lfinite zs\<^sub>1 \<Longrightarrow> zs\<^sub>1 \<in> x
 lemma tshuffle_left_LCons: "zs \<in> xs \<sha> ys \<Longrightarrow> Inl z # zs \<in> (z # xs) \<sha> ys"
   by (auto simp add: tshuffle_words_def)
 
+lemma tshuffle_rights: "lfinite ys \<Longrightarrow> zs \<in> xs \<sha> ys' \<Longrightarrow> lmap Inr ys \<frown> zs \<in> xs \<sha> (ys \<frown> ys')"
+  by (auto simp add: tshuffle_words_def lefts_append rights_append lefts_def)
+
+lemma tshuffle_lefts: "lfinite xs \<Longrightarrow> zs \<in> xs' \<sha> ys \<Longrightarrow> lmap Inl xs \<frown> zs \<in> (xs \<frown> xs') \<sha> ys"
+  by (auto simp add: tshuffle_words_def lefts_append rights_append rights_def)
+
 lemma llength_enat_lfinite: "\<exists>n. llength xs = enat n \<Longrightarrow> lfinite xs"
   by (metis enat.distinct(1) not_lfinite_llength)
 
@@ -1145,6 +1151,39 @@ lemma "(R \<union> G\<^sub>2 \<leadsto> prog G\<^sub>1 \<inter> X) \<parallel> (
   apply (rule_tac x = "lmap \<langle>id,id\<rangle> ` (xs \<sha> ys)" in exI)
   by (metis (full_types) imageI test)
 
+lemma find_breaking_transition:
+  "lfinite xs \<Longrightarrow> (\<sigma>\<^sub>1',\<sigma>\<^sub>2) \<notin> (R \<union> G)\<^sup>* \<Longrightarrow> lset xs \<subseteq> G\<^sup>* \<Longrightarrow>
+  \<exists>ys \<tau>\<^sub>1 \<tau>\<^sub>1' \<tau>\<^sub>2 \<tau>\<^sub>2' zs. ((\<sigma>\<^sub>1,\<sigma>\<^sub>1') # LNil) \<frown> xs \<frown> ((\<sigma>\<^sub>2,\<sigma>\<^sub>2') # LNil) = ys \<frown> ((\<tau>\<^sub>1,\<tau>\<^sub>1') # (\<tau>\<^sub>2,\<tau>\<^sub>2') # zs) \<and> (\<tau>\<^sub>1',\<tau>\<^sub>2) \<notin> R\<^sup>*"
+proof (induct arbitrary: \<sigma>\<^sub>1 \<sigma>\<^sub>1' rule: lfinite_induct)
+  case Nil
+  hence "(\<sigma>\<^sub>1',\<sigma>\<^sub>2) \<notin> R\<^sup>*"
+    by (metis in_rtrancl_UnI)
+  thus ?case
+    by (rule_tac x = LNil in exI, simp)
+next
+  case (Cons x xs)
+  show ?case
+  proof (cases x)
+    fix x\<^sub>1 x\<^sub>1'
+    assume [simp]: "x = (x\<^sub>1,x\<^sub>1')"
+    have "(x\<^sub>1,x\<^sub>1') \<in> G\<^sup>*"
+      by (metis Cons.prems(2) `x = (x\<^sub>1, x\<^sub>1')` lset_intros(1) set_rev_mp)
+    have "lset xs \<subseteq> G\<^sup>*"
+      by (metis Cons.prems(2) in_mono lset_intros(2) subsetI)
+    have "(\<sigma>\<^sub>1',x\<^sub>1) \<in> (R \<union> G)\<^sup>* \<Longrightarrow> (x\<^sub>1',\<sigma>\<^sub>2) \<notin> (R \<union> G)\<^sup>*"
+      by (metis Cons.prems(1) `(x\<^sub>1, x\<^sub>1') \<in> G\<^sup>*` in_rtrancl_UnI rtrancl_trans)
+    show ?case
+      apply simp
+      apply (cases "(\<sigma>\<^sub>1',x\<^sub>1) \<in> (R \<union> G)\<^sup>*")
+      apply (drule `(\<sigma>\<^sub>1',x\<^sub>1) \<in> (R \<union> G)\<^sup>* \<Longrightarrow> (x\<^sub>1',\<sigma>\<^sub>2) \<notin> (R \<union> G)\<^sup>*`)
+      apply (insert Cons.hyps(2)[of x\<^sub>1' x\<^sub>1, OF _ `lset xs \<subseteq> G\<^sup>*`])
+      apply (metis LCons_lappend_LNil lappend_code(2))
+      apply (rule_tac x = LNil in exI)
+      apply simp
+      by (metis in_rtrancl_UnI)
+  qed
+qed
+
 lemma
   assumes "zs' \<in> xs' \<sha> ys'"
   and "rg' ((R \<union> G\<^sub>2)\<^sup>*) xs xs'" and "lset xs \<subseteq> G\<^sub>1\<^sup>*"
@@ -1155,7 +1194,7 @@ proof -
   where xs_def: "xs = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1, \<sigma>\<^sub>1') # (\<sigma>\<^sub>2, \<sigma>\<^sub>2') # xs\<^sub>t)"
   and xs'_def: "xs' = xs\<^sub>p \<frown> ((\<sigma>\<^sub>1, \<sigma>\<^sub>1') # (\<sigma>\<^sub>2, \<sigma>\<^sub>2'') # xs\<^sub>t')"
   and lfinite_xs\<^sub>p: "lfinite xs\<^sub>p"
-  and "(\<sigma>\<^sub>1', \<sigma>\<^sub>2) \<notin> (R \<union> G\<^sub>2)\<^sup>*"
+  and \<sigma>_break: "(\<sigma>\<^sub>1', \<sigma>\<^sub>2) \<notin> (R \<union> G\<^sub>2)\<^sup>*"
   and "env ((R \<union> G\<^sub>2)\<^sup>*) (xs\<^sub>p \<frown> ((\<sigma>\<^sub>1, \<sigma>\<^sub>1') # LNil))"
     sorry
 
@@ -1163,7 +1202,7 @@ proof -
   where ys_def: "ys = ys\<^sub>p \<frown> ((\<tau>\<^sub>1, \<tau>\<^sub>1') # (\<tau>\<^sub>2, \<tau>\<^sub>2') # ys\<^sub>t)"
   and ys'_def: "ys' = ys\<^sub>p \<frown> ((\<tau>\<^sub>1, \<tau>\<^sub>1') # (\<tau>\<^sub>2, \<tau>\<^sub>2'') # ys\<^sub>t')"
   and lfinite_ys\<^sub>p: "lfinite ys\<^sub>p"
-  and "(\<tau>\<^sub>1', \<tau>\<^sub>2) \<notin> (R \<union> G\<^sub>1)\<^sup>*"
+  and \<tau>_break: "(\<tau>\<^sub>1', \<tau>\<^sub>2) \<notin> (R \<union> G\<^sub>1)\<^sup>*"
   and "env ((R \<union> G\<^sub>2)\<^sup>*) (ys\<^sub>p \<frown> ((\<tau>\<^sub>1, \<tau>\<^sub>1') # LNil))"
     sorry
 
@@ -1187,11 +1226,42 @@ proof -
 
     have "env ((R \<union> G\<^sub>2)\<^sup>*) ys\<^sub>p"
       by (metis `env ((R \<union> G\<^sub>2)\<^sup>*) (ys\<^sub>p \<frown> ((\<tau>\<^sub>1, \<tau>\<^sub>1') # LNil))` env_lappend1)
+
+    have "lfinite ys\<^sub>2"
+      by (metis lfinite_lappend lfinite_ys\<^sub>p ys\<^sub>p_def)
+
+    from assms(5) have "lset ys\<^sub>2 \<subseteq> G\<^sub>2\<^sup>*"
+      by (simp add: ys_def ys\<^sub>p_def) (metis Un_upper2 assms(5) lfinite_lappend lfinite_ys\<^sub>p lset_lappend1 lset_lappend_lfinite subset_trans ys\<^sub>p_def ys_def)
+
     have "env ((R \<union> G\<^sub>2)\<^sup>*) ys\<^sub>2"
       by (metis `ys\<^sub>p = ys\<^sub>1 \<frown> ys\<^sub>2 \<frown> ys\<^sub>3` `env ((R \<union> G\<^sub>2)\<^sup>*) ys\<^sub>p` env_lappend1 env_lappend2 lfinite_lappend lfinite_ys\<^sub>p)
 
-    thus "P ((xs\<^sub>p \<triangleright> t\<^sub>1 \<triangleleft> ys\<^sub>1) \<frown> (Inl (\<sigma>\<^sub>1, \<sigma>\<^sub>1') # LNil) \<frown> lmap Inr ys\<^sub>2 \<frown> (Inl (\<sigma>\<^sub>2, \<sigma>\<^sub>2'') # LNil) \<frown>
+    show "P ((xs\<^sub>p \<triangleright> t\<^sub>1 \<triangleleft> ys\<^sub>1) \<frown> (Inl (\<sigma>\<^sub>1, \<sigma>\<^sub>1') # LNil) \<frown> lmap Inr ys\<^sub>2 \<frown> (Inl (\<sigma>\<^sub>2, \<sigma>\<^sub>2'') # LNil) \<frown>
              (xs\<^sub>1' \<triangleright> t\<^sub>2 \<triangleleft> ys\<^sub>3) \<frown> (Inr (\<tau>\<^sub>1, \<tau>\<^sub>1') # LNil) \<frown> lmap Inl xs\<^sub>2' \<frown> (Inr (\<tau>\<^sub>2, \<tau>\<^sub>2'') # LNil) \<frown> (xs\<^sub>3' \<triangleright> t\<^sub>3 \<triangleleft> ys\<^sub>t'))"
+      apply simp
+      apply (simp only: P_def)
+      apply (rule_tac x = "(xs\<^sub>p \<triangleright> t\<^sub>1 \<triangleleft> ys\<^sub>1) \<frown> (Inl (\<sigma>\<^sub>1, \<sigma>\<^sub>1') # LNil) \<frown> lmap Inr ys\<^sub>2 \<frown> (Inl (\<sigma>\<^sub>2, \<sigma>\<^sub>2') # LNil) \<frown> alternate xs\<^sub>t (ys\<^sub>3 \<frown> ((\<tau>\<^sub>1, \<tau>\<^sub>1') # (\<tau>\<^sub>2, \<tau>\<^sub>2') # ys\<^sub>t))" in bexI)
+      prefer 2
+      apply (simp add: xs_def ys_def ys\<^sub>p_def lappend_assoc)
+      apply (rule tshuffle_lappend)
+      apply (rule llength_enat_lfinite)
+      apply (subst llength_interleave)
+      apply (metis `Valid xs\<^sub>p t\<^sub>1 ys\<^sub>1`)
+      apply (subst llength_lappend[symmetric])
+      apply (subgoal_tac "lfinite (xs\<^sub>p \<frown> ys\<^sub>1)")
+      apply (drule lfinite_llength_enat)
+      apply assumption
+      apply (metis lfinite_lappend lfinite_xs\<^sub>p lfinite_ys\<^sub>p ys\<^sub>p_def)
+      apply (metis `Valid xs\<^sub>p t\<^sub>1 ys\<^sub>1` shuffle_interleaving traj_to_shuffle)
+      apply (rule tshuffle_left_LCons)
+      apply (rule tshuffle_rights)
+      apply (metis lfinite_lappend lfinite_ys\<^sub>p ys\<^sub>p_def)
+      apply (rule tshuffle_left_LCons)
+      apply (rule alternate_prop)
+      apply (simp only: rg'_def)
+      apply (insert find_breaking_transition[OF `lfinite ys\<^sub>2` \<sigma>_break `lset ys\<^sub>2 \<subseteq> G\<^sub>2\<^sup>*`, of \<sigma>\<^sub>1 \<sigma>\<^sub>2'])
+      apply (insert find_breaking_transition[OF `lfinite ys\<^sub>2` \<sigma>_break `lset ys\<^sub>2 \<subseteq> G\<^sub>2\<^sup>*`, of \<sigma>\<^sub>1 \<sigma>\<^sub>2''])
+
       proof (cases "ys\<^sub>2 = LNil")
         assume [simp]: "ys\<^sub>2 = LNil"
 
