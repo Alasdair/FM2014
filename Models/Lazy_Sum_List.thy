@@ -341,4 +341,51 @@ qed
 declare in_lset_conv_lnth[iff del]
 declare lfinite_conv_llength_enat[iff del]
 
+definition "llist_Case \<equiv> llist_case"
+
+primrec ldeleteLeft_nat :: "nat \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
+  "ldeleteLeft_nat 0 xs = lappend (ltakeWhile is_right xs) (ltl (ldropWhile is_right xs))"
+| "ldeleteLeft_nat (Suc n) xs = lappend (ltakeWhile is_right xs) (llist_Case LNil (\<lambda>x' xs'. LCons x' (ldeleteLeft_nat n xs')) (ldropWhile is_right xs))"
+
+primrec ldeleteLeft :: "enat \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
+  "ldeleteLeft (enat n) xs = ldeleteLeft_nat n xs"
+| "ldeleteLeft \<infinity> xs = xs"
+
+primrec linsertLeft_nat :: "nat \<Rightarrow> 'a \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
+  "linsertLeft_nat 0 x xs = lappend (ltakeWhile is_right xs) (LCons (Inl x) (ldropWhile is_right xs))"
+| "linsertLeft_nat (Suc n) x xs = lappend (ltakeWhile is_right xs) (llist_Case LNil (\<lambda>x' xs'. LCons x' (linsertLeft_nat n x xs')) (ldropWhile is_right xs))"
+
+primrec linsertLeft :: "enat \<Rightarrow> 'a \<Rightarrow> ('a + 'b) llist \<Rightarrow> ('a + 'b) llist" where
+  "linsertLeft (enat n) x xs = linsertLeft_nat n x xs"
+| "linsertLeft \<infinity> x xs = xs"
+
+lemma [simp]: "(case xs of LNil \<Rightarrow> LNil | LCons x' xs' \<Rightarrow> LCons x' xs') = xs"
+  by (cases xs) auto
+
+lemma linsertLeft_eSuc: "linsertLeft (eSuc n) x xs = lappend (ltakeWhile is_right xs) (llist_Case LNil (\<lambda>x' xs'. LCons x' (linsertLeft n x xs')) (ldropWhile is_right xs))"
+  by (cases n) (simp_all add: eSuc_enat llist_Case_def)
+
+primrec linsert_nat :: "nat \<Rightarrow> 'a \<Rightarrow> 'a llist \<Rightarrow> 'a llist" where
+  "linsert_nat 0 x xs = LCons x xs"
+| "linsert_nat (Suc n) x xs = llist_Case LNil (\<lambda>x' xs'. LCons x' (linsert_nat n x xs')) xs"
+
+primrec linsert :: "enat \<Rightarrow> 'a \<Rightarrow> 'a llist \<Rightarrow> 'a llist" where
+  "linsert (enat n) x xs = linsert_nat n x xs"
+| "linsert \<infinity> x xs = xs"
+
+lemma [simp]: "llength xs = \<infinity> \<Longrightarrow> lappend xs ys = xs"
+  by (metis lappend_inf llength_eq_infty_conv_lfinite)
+
+notation ltake ("\<up>")
+  and ldrop ("\<down>")
+
+lemma [simp]: "\<up> (llength xs) xs = xs"
+  by (metis ltake_all order_refl)
+
+lemma lefts_ltake_right [simp]: "\<ll> (ltakeWhile is_right xs) = LNil"
+  by (auto dest: lset_ltakeWhileD simp add: lefts_def)
+
+lemma [simp]: "lmap f xs \<noteq> LNil \<longleftrightarrow> xs \<noteq> LNil"
+  by (metis LNil_eq_llist_map)
+
 end

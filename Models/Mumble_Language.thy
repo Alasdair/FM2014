@@ -1087,7 +1087,7 @@ lemma shuffle_mumble1: "X\<^sup>\<dagger> \<parallel> Y \<subseteq> (X \<paralle
 proof -
   have "X\<^sup>\<dagger> \<parallel> Y = \<Union>(mumble ` X) \<parallel> Y"
     by (rule arg_cong, auto simp add: Mumble_def image_def)
- also have "... = \<Union>{mumble xs \<parallel> Y|xs. xs \<in> X}"
+  also have "... = \<Union>{mumble xs \<parallel> Y|xs. xs \<in> X}"
     by (subst trans[OF shuffle_comm shuffle_inf_dist], subst shuffle_comm, auto)
   also have "... = \<Union>{\<Union>{lmap \<langle>id,id\<rangle> ` (xs' \<sha> ys) |xs' ys. xs' \<in> mumble xs \<and> ys \<in> Y}|xs. xs \<in> X}"
     by (simp add: shuffle_def)

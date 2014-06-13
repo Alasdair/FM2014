@@ -1599,4 +1599,67 @@ lemma star_FIN: "x\<^sup>\<star> \<inter> FIN = (x \<inter> FIN)\<^sup>\<star>"
   apply metis
   by (metis lfinite_LCons lfinite_lappend)
 
+
+lemma interleave_append:
+  assumes "zs \<in> xs \<sha> ys"
+  and "t \<frown> t' = traj zs"
+  shows "xs \<triangleright> t \<frown> t' \<triangleleft> ys = (\<up> (llength (\<ll> t)) xs \<triangleright> t \<triangleleft> \<up> (llength (\<rr> t)) ys) \<frown> (\<down> (llength (\<ll> t)) xs \<triangleright> t' \<triangleleft> \<down> (llength (\<rr> t)) ys)"
+proof -
+  {
+    assume "\<not> lfinite t"
+    moreover have "\<And>xs ys. \<not> lfinite (xs \<triangleright> t \<triangleleft> ys)"
+      by (metis calculation lfinite_traj)
+    ultimately have ?thesis using assms
+      apply (auto simp add: lappend_inf)
+      apply (subst lappend_inf)
+      apply (simp add: traj_def)
+      apply blast
+      by (metis (lifting, full_types) dual_order.refl ltake_all mem_Collect_eq tshuffle_words_def)
+  }
+  moreover
+  {
+    assume "lfinite t"
+    hence "?thesis" using assms
+    proof (induct t arbitrary: xs ys zs rule: lfinite_induct)
+      case Nil thus ?case by simp
+    next
+      case (Cons w ws)
+      thus ?case
+        apply (cases w)
+        apply (simp add: interleave_left)
+        apply (subgoal_tac "ltl zs \<in> ltl xs \<sha> ys")
+        apply (subgoal_tac "ws \<frown> t' = traj (ltl zs)")
+        apply (metis (hide_lams, no_types) interleave_left ldrop_ltl ltake_ltl)
+        apply (metis interleave_left ltl_simps(2) reinterleave traj_interleave)
+        apply (simp add: tshuffle_words_def)
+        apply (metis interleave_left lefts_LConsl ltl_simps(2) reinterleave rights_LConsl)
+        apply (simp add: interleave_right)
+        apply (subgoal_tac "ltl zs \<in> xs \<sha> ltl ys")
+        apply (subgoal_tac "ws \<frown> t' = traj (ltl zs)")
+        apply (metis (hide_lams, no_types) interleave_right ldrop_ltl ltake_ltl)
+        apply (metis interleave_right ltl_simps(2) reinterleave traj_interleave)
+        apply (simp add: tshuffle_words_def)
+        by (metis interleave_right lefts_LConsr ltl_simps(2) reinterleave rights_LConsr)
+    qed
+  }
+  ultimately show ?thesis by auto
+qed
+
+lemma traj_to_shuffle:
+  assumes "llength (\<ll> t) = llength xs"
+  and "llength (\<rr> t) = llength ys"
+  shows "\<exists>zs. t = traj zs \<and> zs \<in> xs \<sha> ys"
+  using assms
+  apply (auto simp add: tshuffle_words_def)
+  apply (rule_tac x = "xs \<triangleright> t \<triangleleft> ys" in exI)
+  apply auto
+  apply (metis lefts_interleave_llength traj_interleave)
+  by (metis rights_interleave_llength traj_interleave)
+
+lemma interleave_append_llength:
+  assumes "llength (\<ll> (t \<frown> t')) = llength xs"
+  and "llength (\<rr> (t \<frown> t')) = llength ys"
+  shows "xs \<triangleright> t \<frown> t' \<triangleleft> ys = (\<up> (llength (\<ll> t)) xs \<triangleright> t \<triangleleft> \<up> (llength (\<rr> t)) ys) \<frown> (\<down> (llength (\<ll> t)) xs \<triangleright> t' \<triangleleft> \<down> (llength (\<rr> t)) ys)"
+  by (metis (hide_lams, no_types) assms(1) assms(2) interleave_append traj_to_shuffle)
+
 end
