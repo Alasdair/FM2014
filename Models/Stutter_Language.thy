@@ -304,13 +304,36 @@ lemma ldrop_eq_LCons: "\<down> n xs = LCons y ys \<Longrightarrow> \<down> (eSuc
   by (metis ldrop_ltl ltl_ldrop ltl_simps(2))
 
 lemma [simp]: "llength (\<rr> (ltakeWhile is_right t)) = llength (ltakeWhile is_right t)"
-  sorry
+  by (auto simp add: rights_def) (metis lfilter_empty_conv lfilter_left_right lset_ltakeWhileD not_is_right)
 
 lemma [simp]: "ltakeWhile is_right (traj t) = traj (ltakeWhile is_right t)"
-  sorry
+  by (metis ltakeWhile_traj_commute1)
 
 lemma [simp]: "(LNil \<triangleright> traj (ltakeWhile is_right t) \<triangleleft> \<up> (llength (ltakeWhile is_right t)) ys) = lmap Inr (\<up> (llength (ltakeWhile is_right t)) ys)"
   sorry
+
+lemma [simp]: "lfinite (ltakeWhile is_right xs) \<Longrightarrow> llength (\<ll> (traj (ltakeWhile is_right xs) \<frown> ys)) = llength (\<ll> ys)"
+  
+
+lemma length_ge_0_lfinite_ltakeWhile: "0 < llength (\<ll> xs) \<Longrightarrow> lfinite (ltakeWhile is_right xs)"
+  by (simp add: lefts_def) (metis lfinite_ltakeWhile not_is_right)
+
+lemma length_ge_e0_lfinite_ltakeWhile: "enat 0 < llength (\<ll> xs) \<Longrightarrow> lfinite (ltakeWhile is_right xs)"
+  by (simp add: lefts_def enat_0) (metis lfinite_ltakeWhile not_is_right)
+
+(*
+lemma "enat n < llength (\<ll> xs) \<Longrightarrow> llength (\<ll> (linsertLeft_nat n x xs)) = eSuc (llength (\<ll> xs))"
+proof (induct n)
+  case 0
+  hence "llength (\<ll> (ltakeWhile is_right xs \<frown> LCons (Inl x) (ldropWhile is_right xs))) = llength (\<ll> (LCons (Inl x) (ltakeWhile is_right xs \<frown> ldropWhile is_right xs)))"
+    by (metis lefts_LConsl length_ge_0_lfinite_ltakeWhile llength_LCons llength_lefts_lappend1 zero_enat_def)
+  also have "... = eSuc (llength (\<ll> xs))"
+    by (metis lappend_ltakeWhile_ldropWhile lefts_LConsl llength_LCons)
+  finally show ?case
+    by simp
+next
+
+*)
 
 lemma stutter_left_in_left:
   assumes "t \<in> (xs \<frown> LCons (\<sigma>,\<sigma>') ys) \<sha> zs"
@@ -375,6 +398,9 @@ next
   next
     case (Cons x xs t zs)
 
+    have [simp]: "lfinite (ltakeWhile is_right t)"
+      sorry
+
     have "t \<in> LCons x (xs \<frown> LCons (\<sigma>, \<sigma>') ys) \<sha> zs"
       by (metis Cons.prems lappend_code(2))
     hence "t \<in> {lmap Inr (\<up> (llength (ltakeWhile is_right t)) zs)} \<cdot> (LCons (Inl x) ` ((xs \<frown> LCons (\<sigma>, \<sigma>') ys) \<sha> (\<down> (llength (ltakeWhile is_right t)) zs)))"
@@ -429,6 +455,7 @@ next
     also have "... = lmap \<langle>id,id\<rangle> (lmap Inr (\<up> (llength (ltakeWhile is_right t)) zs) \<frown> LCons (Inl x) (xs \<frown> LCons (\<sigma>, \<sigma>) (LCons (\<sigma>, \<sigma>') ys) \<triangleright> linsertLeft (llength xs) () (ltl (ldropWhile is_right (traj t))) \<triangleleft> \<down> (llength (\<rr> (ltakeWhile is_right t))) zs))"
       apply (subst interleave_append_llength)
       apply simp_all
+      sledgehammer
       
 
     show "lmap \<langle>id,id\<rangle> (LCons x xs \<frown> LCons (\<sigma>, \<sigma>) (LCons (\<sigma>, \<sigma>') ys) \<triangleright> linsertLeft (llength (LCons x xs)) () (traj t) \<triangleleft> zs)
